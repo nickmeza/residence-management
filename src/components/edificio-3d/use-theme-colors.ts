@@ -15,13 +15,13 @@ const TOKENS = {
   accent: "--ds-accent",
 } as const;
 
-export type ThemeColors = Record<keyof typeof TOKENS, string>;
+// También la letra de la página, para las etiquetas que se dibujan dentro del 3D.
+export type ThemeColors = Record<keyof typeof TOKENS, string> & { fontFamily: string };
 
 function snapshot() {
   const style = getComputedStyle(document.documentElement);
-  return Object.values(TOKENS)
-    .map((name) => style.getPropertyValue(name).trim())
-    .join("|");
+  const colors = Object.values(TOKENS).map((name) => style.getPropertyValue(name).trim());
+  return [...colors, getComputedStyle(document.body).fontFamily].join("|");
 }
 
 function subscribe(onChange: () => void) {
@@ -35,6 +35,8 @@ export function useThemeColors(): ThemeColors {
   const key = useSyncExternalStore(subscribe, snapshot, () => "");
   return useMemo(() => {
     const values = key.split("|");
-    return Object.fromEntries(Object.keys(TOKENS).map((k, i) => [k, values[i] || "#888888"])) as ThemeColors;
+    const names = Object.keys(TOKENS);
+    const colors = Object.fromEntries(names.map((k, i) => [k, values[i] || "#888888"]));
+    return { ...colors, fontFamily: values[names.length] || "sans-serif" } as ThemeColors;
   }, [key]);
 }

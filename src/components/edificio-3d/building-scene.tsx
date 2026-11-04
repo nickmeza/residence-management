@@ -1,6 +1,6 @@
 "use client";
 
-import { Bounds, Edges, Html, OrthographicCamera } from "@react-three/drei";
+import { Bounds, Edges, OrthographicCamera } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { useMemo } from "react";
 import { ExtrudeGeometry, Shape, Vector2 } from "three";
@@ -8,7 +8,8 @@ import { ExtrudeGeometry, Shape, Vector2 } from "three";
 import type { OutlinePoint } from "@/db/schema";
 import { floorName } from "@/server/building/floors";
 
-import { useThemeColors } from "./use-theme-colors";
+import { LabelSprite } from "./label-sprite";
+import { useThemeColors, type ThemeColors } from "./use-theme-colors";
 
 // Medidas del dibujo, en metros. La altura de cada piso es solo para verlo; no se guarda.
 export const FLOOR_HEIGHT = 2.6;
@@ -26,12 +27,12 @@ function floorGeometry(outline: OutlinePoint[]) {
 function FloorBlock({
   floor,
   color,
-  edge,
+  colors,
   label,
 }: {
   floor: SceneFloor;
   color: string;
-  edge: string;
+  colors: ThemeColors;
   label: string;
 }) {
   const geometry = useMemo(() => floorGeometry(floor.outline), [floor.outline]);
@@ -42,18 +43,16 @@ function FloorBlock({
     <group position={[0, y, 0]}>
       <mesh geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} castShadow receiveShadow>
         <meshLambertMaterial color={color} />
-        <Edges color={edge} />
+        <Edges color={colors.border} />
       </mesh>
-      {/* Etiqueta "Piso N" junto al borde del piso. Texto real: se lee y se agranda como el resto de la página. */}
-      <Html
-        position={[Math.max(...xs) + 0.6, FLOOR_HEIGHT / 2, Math.max(...zs)]}
-        center
-        zIndexRange={[10, 0]}
-      >
-        <span className="rounded-md bg-card px-2 py-0.5 text-xs font-bold whitespace-nowrap text-foreground shadow-card">
-          {label}
-        </span>
-      </Html>
+      {/* Etiqueta "Piso N" junto a la esquina del piso. */}
+      <LabelSprite
+        text={label}
+        position={[Math.max(...xs) + 1.4, FLOOR_HEIGHT / 2, Math.max(...zs)]}
+        color={colors.text}
+        background={colors.surface}
+        fontFamily={colors.fontFamily}
+      />
     </group>
   );
 }
@@ -84,7 +83,7 @@ export function BuildingScene({ floors }: { floors: SceneFloor[] }) {
               key={f.id}
               floor={f}
               color={f.level % 2 ? colors.primary : colors.bar}
-              edge={colors.border}
+              colors={colors}
               label={floorName(f.level)}
             />
           ))}
