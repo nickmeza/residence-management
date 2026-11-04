@@ -12,13 +12,13 @@ const optionalText = (max = 200) =>
   trimmed.max(max, { error: "Es demasiado largo." }).transform((v) => (v === "" ? null : v));
 
 // Montos en soles con hasta 2 decimales, como texto para no perder exactitud ("650" o "650.50").
-const optionalMoney = trimmed
+export const optionalMoney = trimmed
   .refine((v) => v === "" || /^\d{1,8}(\.\d{1,2})?$/.test(v), {
     error: "Escribe un monto válido, por ejemplo 650 o 650.50.",
   })
   .transform((v) => (v === "" ? null : v));
 
-const optionalArea = trimmed
+export const optionalArea = trimmed
   .refine((v) => v === "" || (/^\d{1,4}(\.\d{1,2})?$/.test(v) && Number(v) > 0), {
     error: "Escribe los m², por ejemplo 12 o 12.5.",
   })

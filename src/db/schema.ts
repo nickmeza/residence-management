@@ -24,6 +24,8 @@ export const propertyType = pgEnum("property_type", ["room", "floor", "building"
 export const unitType = pgEnum("unit_type", ["apartment", "room"]);
 export const rentalMode = pgEnum("rental_mode", ["whole", "by_room"]);
 export const bathroomType = pgEnum("bathroom_type", ["private", "shared"]);
+// Tipo de ambiente de una unidad (historia ED-06, "uso"): dormitorio, estudio, oficina, depósito u otro.
+export const spaceType = pgEnum("space_type", ["bedroom", "studio", "office", "storage", "other"]);
 // Cada negocio es un servicio. Lavandería, cowork… se agregan cuando salgan de pausa.
 export const businessService = pgEnum("business_service", ["residence", "meal_plan"]);
 export const businessKind = pgEnum("business_kind", ["natural", "company"]);
@@ -179,6 +181,8 @@ export const unit = pgTable(
     monthlyPrice: numeric({ precision: 10, scale: 2 }),
     areaM2: numeric({ precision: 8, scale: 2 }),
     bathroom: bathroomType(),
+    // Tipo de ambiente (opcional): las unidades creadas antes de este campo quedan sin tipo.
+    spaceType: spaceType(),
     furnished: boolean().notNull().default(false),
     // Rectángulo en la planta, en metros.
     posX: numeric({ precision: 8, scale: 2, mode: "number" }).notNull(),

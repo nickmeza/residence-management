@@ -92,6 +92,7 @@ Dos unidades pueden compartir una pared, pero no encimarse.
 | precio_mensual | decimal (opcional) | Vacío si el departamento se alquila por cuartos. |
 | area_m2 | decimal |  |
 | bano | propio \| compartido |  |
+| tipo_ambiente | dormitorio \| estudio \| oficina \| deposito \| otro (opcional) | El "uso" de la historia ED-06. Opcional: las unidades creadas antes no lo tienen. |
 | amoblado | booleano |  |
 | estado | disponible \| ocupado \| mantenimiento | **No se guarda**: se calcula del contrato vigente y del mantenimiento abierto. |
 | pos_x, pos_z, ancho, fondo | decimal | Posición en la planta (ver arriba). El servidor valida que quede dentro de la losa (y de su departamento, si es un cuarto interior) y sin encimarse. En el modo simple se ubica sola. |
