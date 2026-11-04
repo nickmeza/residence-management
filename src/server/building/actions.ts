@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 import { withRls } from "@/db/rls";
 import { getSessionClaims } from "@/server/auth/session";
@@ -66,4 +67,38 @@ export async function updateUnitAction(unitId: string, input: unknown): Promise<
 
 export async function deleteUnitAction(unitId: string) {
   return run([unitId], (tx) => m.deleteUnit(tx, unitId));
+}
+
+// Acciones del 3D: arrastrar una unidad, cambiar la forma de la losa y arrastrar un piso a otro nivel.
+const coordinate = z.number().finite().min(-1000).max(1000);
+const slabShapeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("rect"),
+    width: z.number().positive().max(200),
+    depth: z.number().positive().max(200),
+  }),
+  z.object({
+    kind: z.literal("L"),
+    width: z.number().positive().max(200),
+    depth: z.number().positive().max(200),
+    cutWidth: z.number().positive().max(200),
+    cutDepth: z.number().positive().max(200),
+  }),
+]);
+
+export async function moveUnitAction(unitId: string, posX: number, posZ: number) {
+  const parsed = z.object({ x: coordinate, z: coordinate }).safeParse({ x: posX, z: posZ });
+  if (!parsed.success) return { ok: false as const, message: "La posición no es válida." };
+  return run([unitId], (tx) => m.moveUnit(tx, unitId, parsed.data.x, parsed.data.z));
+}
+
+export async function setFloorShapeAction(floorId: string, shape: unknown) {
+  const parsed = slabShapeSchema.safeParse(shape);
+  if (!parsed.success) return { ok: false as const, message: "Revisa las medidas de la losa." };
+  return run([floorId], (tx) => m.setFloorShape(tx, floorId, parsed.data));
+}
+
+export async function moveFloorToAction(floorId: string, level: number) {
+  if (!Number.isInteger(level) || level < 1) return { ok: false as const, message: "Ese nivel no existe." };
+  return run([floorId], (tx) => m.moveFloorTo(tx, floorId, level));
 }
