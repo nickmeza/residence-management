@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseEnv } from "./env";
 
 // Rutas que piden sesión y rutas que no tienen sentido con sesión abierta.
-const PRIVATE_PREFIXES = ["/panel", "/configurar"];
+const PRIVATE_PREFIXES = ["/panel", "/configurar", "/negocio", "/edificio"];
 const GUEST_ONLY = ["/iniciar-sesion", "/registro"];
 
 // Corre antes de cada página: renueva el token de sesión si venció y guarda las cookies nuevas.
