@@ -29,7 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${plusJakarta.variable} ${greatVibes.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="flex min-h-full flex-col">
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

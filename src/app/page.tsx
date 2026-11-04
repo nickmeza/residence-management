@@ -46,7 +46,7 @@ export default function Home() {
 
       <div>
         <h1 className="text-[34px] font-bold tracking-tight">
-          <span className="font-script text-[64px] font-normal leading-tight tracking-normal text-primary">
+          <span className="font-script text-[64px] leading-tight font-normal tracking-normal text-primary">
             Buenos días
           </span>
           , Carlos
@@ -76,7 +76,10 @@ export default function Home() {
                 aria-valuemax={piso.total}
                 aria-valuenow={piso.ocupadas}
               >
-                <div className="h-full rounded-full bg-bar" style={{ width: `${(piso.ocupadas / piso.total) * 100}%` }} />
+                <div
+                  className="h-full rounded-full bg-bar"
+                  style={{ width: `${(piso.ocupadas / piso.total) * 100}%` }}
+                />
               </div>
             </div>
           ))}
@@ -98,9 +101,15 @@ export default function Home() {
             <span className="rounded-full bg-terracota px-3 py-1 text-terracota-foreground">2</span>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Button size="lg" className="h-11 px-4 shadow-card">Continuar</Button>
-            <Button size="lg" variant="outline" className="h-11 px-4">Atrás</Button>
-            <Button size="lg" variant="link" className="h-11 px-1 text-link">Ver el edificio en 3D</Button>
+            <Button size="lg" className="h-11 px-4 shadow-card">
+              Continuar
+            </Button>
+            <Button size="lg" variant="outline" className="h-11 px-4">
+              Atrás
+            </Button>
+            <Button size="lg" variant="link" className="h-11 px-1 text-link">
+              Ver el edificio en 3D
+            </Button>
           </div>
         </CardContent>
       </Card>
