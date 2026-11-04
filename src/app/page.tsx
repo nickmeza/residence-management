@@ -1,6 +1,9 @@
+import { Suspense } from "react";
+
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { checkSupabaseConnection } from "@/lib/supabase/check-connection";
 
 // Página de prueba de la Fase 0: comprueba que tokens, fuentes, shadcn y modo nocturno funcionan.
 // Los textos y montos son ejemplos. Se reemplaza por la landing en una fase posterior.
@@ -10,11 +13,34 @@ const pisos = [
   { nombre: "Piso 3", ocupadas: 1, total: 3 },
 ];
 
+// Se consulta en cada visita; mientras tanto <Suspense> muestra "comprobando…".
+async function SupabaseStatus() {
+  const supabase = await checkSupabaseConnection();
+  return (
+    <span
+      className={`rounded-full px-3 py-1 text-xs font-bold ${supabase.ok ? "bg-ok-soft text-ok" : "bg-danger-soft text-danger"}`}
+    >
+      Supabase: {supabase.detail}
+    </span>
+  );
+}
+
 export default function Home() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-8">
       <header className="flex items-center justify-between gap-4">
-        <p className="text-sm text-muted-foreground">Fase 0 · prueba del sistema de diseño</p>
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <p className="text-muted-foreground">Fase 0 · prueba del sistema de diseño</p>
+          <Suspense
+            fallback={
+              <span className="rounded-full bg-chip px-3 py-1 text-xs font-bold text-chip-foreground">
+                Supabase: comprobando…
+              </span>
+            }
+          >
+            <SupabaseStatus />
+          </Suspense>
+        </div>
         <ThemeToggle />
       </header>
 
