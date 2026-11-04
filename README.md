@@ -47,7 +47,8 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | Fase | Estado |
 | ---- | ------ |
 | 0 · Base del proyecto | ✅ Terminada |
-| 1 · Datos y cuentas | Pendiente |
+| 1 · Datos y cuentas | ✅ Terminada (despliegue pendiente) |
+| 2 · Registro y edificio en modo simple | En curso |
 
 ### Fase 0, paso a paso
 
@@ -59,6 +60,22 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 4. Supabase | Conexión desde servidor y navegador, con insignia de estado |
 | 5. Herramientas | Prettier y Vitest, con las primeras pruebas |
 | 6. Despliegue | GitHub y Vercel |
+
+### Fase 1, paso a paso
+
+| Paso | Qué se hizo |
+| ---- | ----------- |
+| 1. Drizzle | Conexión a la base con `DATABASE_URL` (pooler de Supabase, puerto 6543) |
+| 2. Tablas | `person`, `property`, `floor` y `unit`, con reglas en la base y RLS |
+| 3. Cuentas | Registro, inicio y cierre de sesión con Supabase Auth; `/panel` protegido |
+| 4. Seguridad | Pruebas de RLS (`pnpm test:db`) y comprobación con dos cuentas reales y la API pública |
+
+## Base de datos
+
+- Las tablas se escriben en `src/db/schema.ts`. Para cambiarlas: `pnpm drizzle-kit generate` crea la migración en
+  `drizzle/`, se revisa y después `pnpm drizzle-kit migrate` la aplica.
+- Las consultas de usuarios van con `withRls` (`src/db/rls.ts`), para que la base aplique el RLS.
+- `pnpm test:db` prueba el RLS contra la base real y deshace todo al terminar.
 
 ## Registro de decisiones
 
@@ -77,3 +94,17 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-04 | `pnpm test` es `vitest run` (corre y termina) | `CLAUDE.md` pide correr las pruebas antes de cerrar cada tarea. El modo que se queda esperando es `pnpm test:watch`. |
 | 2026-11-04 | Prettier **no formatea** los Markdown ni `components/ui/` | Para no cambiar `CLAUDE.md` ni `docs/` sin que se note, y porque los componentes de shadcn no se editan a mano. |
 | 2026-11-04 | Repositorio privado en GitHub con nombre en inglés: `residence-management` | Lo eligió el dueño. |
+| 2026-11-04 | Se prueba en local durante la fase; **Vercel solo al cerrar cada fase** | Lo pidió el dueño. |
+| 2026-11-04 | Se borró una base de prueba anterior que estaba en el mismo proyecto de Supabase | El dueño confirmó que no servía. Quedó un respaldo fuera del repositorio. |
+| 2026-11-04 | El dueño de una propiedad es una **Persona**, no una cuenta | Así dice el modelo. Una Persona puede tener cuenta o no, por ejemplo un residente que aún no se registra. |
+| 2026-11-04 | La Persona **se crea sola al registrarse**, con un trigger en la base | Lo pidió el dueño. La cuenta y su Persona nunca quedan separadas. |
+| 2026-11-04 | La losa del piso se guarda como **contorno** (lista de esquinas), no como ancho y fondo | Las losas pueden tener forma de L. Bordes en ángulo recto, para que encajen con cuartos rectangulares. |
+| 2026-11-04 | Los **roles** llegan en la Fase 4 | En la Fase 1, ser arrendador es ser dueño de alguna propiedad. |
+| 2026-11-04 | El **estado** de la unidad no se guarda | Se deriva de contratos y mantenimiento, como dice el modelo. |
+| 2026-11-04 | No hay restricción de "un nivel por piso" en la base | Al reordenar pisos se intercambian niveles. Lo controlará la función de reordenamiento, con pruebas. |
+| 2026-11-04 | Columnas en `snake_case` en la base y camelCase en TypeScript | Convención de PostgreSQL. Drizzle traduce solo. |
+| 2026-11-04 | Las consultas van **como el usuario con sesión** (`withRls`) | Drizzle entra como administrador y se saltaría el RLS. Así lo protege la base aunque el código tenga un error. |
+| 2026-11-04 | Se mantiene la **confirmación de correo** | Más seguro. El correo de fábrica funciona si el enlace se abre en el mismo navegador. |
+| 2026-11-04 | **SMTP propio (Resend) pendiente** | El correo gratuito de Supabase envía muy pocos correos por hora y no deja editar la plantilla. Se configura antes de tener residentes reales. |
+| 2026-11-04 | `connection()` antes de leer la sesión | Next.js 16 exige marcar como "en cada visita" lo que mira la hora, y Supabase la mira para ver si el token venció. |
+| 2026-11-04 | `pnpm test:db` va aparte de `pnpm test` | Necesita conexión a la base. Las pruebas normales siguen rápidas y sin conexión. |

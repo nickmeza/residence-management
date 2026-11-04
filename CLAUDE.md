@@ -210,7 +210,7 @@ Estos archivos salen de `matriz_requerimientos.xlsx` (hojas "Modelo de datos", "
 Marca cada fase cuando funcione y esté probada.
 
 - [x] **Fase 0:** base del proyecto (Next.js, tokens, shadcn, Supabase, despliegue vacío)
-- [ ] **Fase 1:** datos y cuentas (Propiedad, Piso, Unidad; registro e inicio de sesión; RLS)
+- [x] **Fase 1:** datos y cuentas (Propiedad, Piso, Unidad; registro e inicio de sesión; RLS)
 - [ ] **Fase 2:** registro y edificio en modo simple
 - [ ] **Fase 3:** edificio en 3D (mostrar, clic, doble clic directo, arrastre, guardar)
 - [ ] **Fase 4:** residentes, contratos y documentos
@@ -221,7 +221,7 @@ Marca cada fase cuando funcione y esté probada.
 - [ ] **Fase 9:** estados, móvil y pulido
 - [ ] **Fase 10 (opcional):** preparar Foráneos (ubicación, visibilidad por unidad, lugar de interés)
 
-**Fase actual:** 1
+**Fase actual:** 2
 
 ## 15. Lo que NO debes hacer
 
