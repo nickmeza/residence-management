@@ -38,7 +38,7 @@ export function SidebarNav({ links, onNavigate }: { links: NavLinks; onNavigate?
     { label: "Cobros", Icon: Wallet, href: null, note: "Pronto" },
     { label: "Pensión", Icon: Soup, href: null, note: "Pronto" },
     { label: "Mantenimiento", Icon: Wrench, href: null, note: "Pronto" },
-    { label: "Configuración", Icon: Settings, href: links.configuracion, match: "/negocio" },
+    { label: "Configuración", Icon: Settings, href: links.configuracion, match: "/negocio/" },
   ];
 
   return (

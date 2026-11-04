@@ -203,7 +203,7 @@ describe("editar el edificio", () => {
       );
       const [saved] = await rows<Record<string, unknown>>(
         tx,
-        sql`select area_m_2 as area_m2, bathroom, furnished, space_type from public.unit where id = ${room}`,
+        sql`select area_m2, bathroom, furnished, space_type from public.unit where id = ${room}`,
       );
       expect(saved).toEqual({
         area_m2: "12.00",

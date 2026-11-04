@@ -179,7 +179,8 @@ export const unit = pgTable(
     rentalMode: rentalMode(),
     // Dinero: numeric exacto. Drizzle lo devuelve como texto para no perder decimales.
     monthlyPrice: numeric({ precision: 10, scale: 2 }),
-    areaM2: numeric({ precision: 8, scale: 2 }),
+    // Nombre explícito: la conversión automática habría dado "area_m_2".
+    areaM2: numeric("area_m2", { precision: 8, scale: 2 }),
     bathroom: bathroomType(),
     // Tipo de ambiente (opcional): las unidades creadas antes de este campo quedan sin tipo.
     spaceType: spaceType(),
