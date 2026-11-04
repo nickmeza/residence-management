@@ -1,0 +1,83 @@
+/*
+ * Tokens del sistema de diseño · paleta Lavanda.
+ * Única fuente de colores, fuentes y medidas: los componentes nunca escriben un color directo.
+ * Valores y razones en docs/sistema-de-diseno.md (allí también está la alternativa Bosque).
+ * Prefijo --ds- para no chocar con las variables de shadcn (--primary, --border...).
+ */
+
+:root {
+  /* Superficies */
+  --ds-bg: #e8eaf2;
+  --ds-surface: #ffffff;
+  --ds-border: #dcdfea;
+  --ds-border-input: #878ca3;
+
+  /* Texto */
+  --ds-text: #1e2130;
+  --ds-text-2: #555a6b;
+
+  /* Color principal (índigo apagado) */
+  --ds-primary: #3a4170;
+  --ds-on-primary: #ffffff;
+  --ds-primary-text: #3a4170;
+  --ds-primary-soft: #e2e5f8;
+  --ds-link: #3a4170;
+
+  /* Etiquetas neutras, barras y acento terracota */
+  --ds-chip: #eef0f4;
+  --ds-chip-text: #4e5263;
+  --ds-bar: #4c5596;
+  --ds-accent: #b4471f;
+  --ds-on-accent: #ffffff;
+
+  /* Estados: siempre van con texto, no solo color */
+  --ds-ok-text: #15803d;
+  --ds-ok-bg: #dcfce7;
+  --ds-danger-text: #b91c1c;
+  --ds-danger-bg: #fee2e2;
+  --ds-warn-text: #a16207;
+  --ds-warn-bg: #fef9c3;
+
+  /* Medidas */
+  --ds-radius-s: 10px;
+  --ds-radius-m: 14px;
+  --ds-radius-full: 99px;
+  --ds-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+  --ds-transition: 0.2s;
+
+  /* Fuentes (las variables --font-* las crea next/font en layout.tsx) */
+  --ds-font-sans: var(--font-plus-jakarta), system-ui, sans-serif;
+  --ds-font-script: var(--font-great-vibes), cursive; /* solo saludos de bienvenida */
+}
+
+/* Modo nocturno: índigo noche, no negro. Lo activa next-themes con la clase .dark en <html>. */
+.dark {
+  --ds-bg: #14162a;
+  --ds-surface: #1c1f38;
+  --ds-border: #2c3052;
+  --ds-border-input: #6a709a;
+
+  --ds-text: #e9ebf7;
+  --ds-text-2: #a4a9c4;
+
+  --ds-primary: #9ca5ee;
+  --ds-on-primary: #12142a;
+  --ds-primary-text: #bcc3f7;
+  --ds-primary-soft: #2a2f5a;
+  --ds-link: #aeb6f4;
+
+  --ds-chip: #252945;
+  --ds-chip-text: #c6cae0;
+  --ds-bar: #9ca5ee;
+  --ds-accent: #e07a52;
+  --ds-on-accent: #12142a;
+
+  --ds-ok-text: #86efac;
+  --ds-ok-bg: #14361f;
+  --ds-danger-text: #fca5a5;
+  --ds-danger-bg: #45191a;
+  --ds-warn-text: #fde68a;
+  --ds-warn-bg: #3d3110;
+
+  --ds-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
