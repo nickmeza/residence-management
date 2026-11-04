@@ -35,8 +35,9 @@ type Props = {
   onSelect: (selection: SceneSelection) => void;
   onEnter: (view: SceneView) => void;
   // Guardan en segundo plano. Quien los recibe muestra el cambio al instante y lo deshace si el servidor lo rechaza.
-  onMoveFloor: (floorId: string, level: number) => void;
-  onMoveUnit: (unitId: string, x: number, z: number) => void;
+  // Sin estas dos funciones la escena es solo para mirar (vista previa del registro): clic y doble clic, sin arrastre.
+  onMoveFloor?: (floorId: string, level: number) => void;
+  onMoveUnit?: (unitId: string, x: number, z: number) => void;
 };
 
 // Doble clic en un piso: si tiene un solo departamento que ocupa todo el piso, se entra directo a él.
@@ -186,6 +187,7 @@ function Scene({ building, view, selection, onSelect, onEnter, onMoveFloor, onMo
   const floorPlane = useMemo(() => new Plane(new Vector3(1, 0, 1).normalize(), 0), []);
   const floorDown = (e: ThreeEvent<PointerEvent>, id: string) => {
     e.stopPropagation();
+    if (!onMoveFloor) return;
     capture(e);
     const hit = new Vector3();
     e.ray.intersectPlane(floorPlane, hit);
@@ -222,7 +224,7 @@ function Scene({ building, view, selection, onSelect, onEnter, onMoveFloor, onMo
       return;
     }
     // El cambio se ve al instante (optimista) y se guarda en segundo plano.
-    onMoveFloor(p.id, level);
+    onMoveFloor?.(p.id, level);
     setFloorDrag(null);
   };
 
@@ -268,7 +270,7 @@ function Scene({ building, view, selection, onSelect, onEnter, onMoveFloor, onMo
       setUnitDrag(null);
       return;
     }
-    onMoveUnit(u.id, x, z);
+    onMoveUnit?.(u.id, x, z);
     setUnitDrag(null);
   };
   // R3F avisa cuánto se movió el puntero entre bajar y soltar: si fue un arrastre, no cuenta como clic.
@@ -309,6 +311,7 @@ function Scene({ building, view, selection, onSelect, onEnter, onMoveFloor, onMo
                   }
                   colors={colors}
                   label={floorName(slot + 1)}
+                  draggable={Boolean(onMoveFloor)}
                   onPointerDown={(e) => floorDown(e, id)}
                   onPointerMove={floorMove}
                   onPointerUp={floorUp}
@@ -336,7 +339,7 @@ function Scene({ building, view, selection, onSelect, onEnter, onMoveFloor, onMo
           ? planUnits.map((u) => {
               const rect = unitDrag?.id === u.id ? unitDrag.rect : u.rect;
               // Un departamento que ocupa todo el piso no se mueve; tampoco hay dónde.
-              const draggable = !(u.type === "apartment" && u.occupiesWholeFloor);
+              const draggable = Boolean(onMoveUnit) && !(u.type === "apartment" && u.occupiesWholeFloor);
               const others = planUnits.filter((o) => o.id !== u.id).map((o) => o.rect);
               return (
                 <UnitBox
@@ -393,8 +396,15 @@ function FloorVolume({
   color,
   colors,
   label,
+  draggable,
   ...handlers
-}: { outline: OutlinePoint[]; color: string; colors: ThemeColors; label: string } & Handlers) {
+}: {
+  outline: OutlinePoint[];
+  color: string;
+  colors: ThemeColors;
+  label: string;
+  draggable: boolean;
+} & Handlers) {
   const geometry = useMemo(() => extrude(outline, FLOOR_HEIGHT - SLAB_GAP), [outline]);
   const b = bounds(outline);
   return (
@@ -403,7 +413,7 @@ function FloorVolume({
         geometry={geometry}
         rotation={[-Math.PI / 2, 0, 0]}
         {...handlers}
-        onPointerOver={() => setCursor("grab")}
+        onPointerOver={() => setCursor(draggable ? "grab" : "pointer")}
         onPointerOut={() => setCursor("")}
       >
         <meshLambertMaterial color={color} />
