@@ -22,8 +22,8 @@ export async function createClient() {
             cookieStore.set(name, value, options);
           }
         } catch {
-          // Un Server Component no puede escribir cookies. Es normal: la sesión se
-          // renovará desde el proxy cuando agreguemos el inicio de sesión (Fase 1).
+          // Un Server Component no puede escribir cookies. Es normal: la sesión
+          // la renueva src/proxy.ts antes de cada página.
         }
       },
     },
