@@ -1,11 +1,15 @@
 "use client";
 
+import { Check } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { useFormContext, useWatch } from "react-hook-form";
+import { useFormContext, useFormState, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
-import { formSummary, type SetupForm, type StepId } from "@/server/onboarding/form";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { formSummary, type BusinessForm, type SetupForm, type StepId } from "@/server/onboarding/form";
 
 import { FieldError, FormSection, TextField } from "./form-field";
 
@@ -21,6 +25,25 @@ const OFFER_LABEL = {
   building: "Un edificio",
   "": "Sin elegir",
 } as const;
+const PAYMENT_LABEL = {
+  yape: "Yape",
+  plin: "Plin",
+  transfer: "transferencia",
+  cash: "efectivo",
+  card: "tarjeta",
+} as const;
+
+const listJoin = (items: string[]) =>
+  items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} y ${items.at(-1)}`;
+
+// "Empresa · Lima · Cobras con Yape, Plin y transferencia", como el resumen del prototipo.
+function businessDetail(b: BusinessForm) {
+  const parts = [b.kind === "company" ? "Empresa" : "Persona natural"];
+  if (b.city) parts.push(b.city);
+  if (b.paymentMethods.length)
+    parts.push(`Cobras con ${listJoin(b.paymentMethods.map((m) => PAYMENT_LABEL[m]))}`);
+  return parts.join(" · ");
+}
 
 function SummaryRow({
   label,
@@ -31,68 +54,113 @@ function SummaryRow({
   label: string;
   value: string;
   detail?: string;
-  onEdit: () => void;
+  onEdit?: () => void;
 }) {
   return (
-    <div className="flex items-start gap-3 border-t py-3">
+    <div className="flex items-start gap-3 border-t py-3.5">
       <div className="min-w-0 flex-1">
-        <div className="text-sm text-muted-foreground">{label}</div>
-        <div className="font-semibold">{value}</div>
-        {detail ? <div className="text-sm text-muted-foreground">{detail}</div> : null}
+        <div className="text-sm font-semibold text-muted-foreground">{label}</div>
+        <div className="mt-0.5 font-semibold">{value}</div>
+        {detail ? <div className="mt-0.5 text-sm text-muted-foreground">{detail}</div> : null}
       </div>
-      <Button type="button" variant="link" className="h-11 px-1 text-link" onClick={onEdit}>
-        Editar
-      </Button>
+      {onEdit ? (
+        <Button type="button" variant="link" className="h-11 px-1 text-link" onClick={onEdit}>
+          Editar
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+// Contraseña con el botón "Mostrar" dentro del campo, como el prototipo.
+function PasswordField() {
+  const { register } = useFormContext<SetupForm>();
+  const { errors } = useFormState<SetupForm>({ name: "account.password" });
+  const [show, setShow] = useState(false);
+  const error = errors.account?.password?.message;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor="account-password">Contraseña</Label>
+      <div className="relative">
+        <Input
+          id="account-password"
+          type={show ? "text" : "password"}
+          autoComplete="new-password"
+          className="h-11 pr-24"
+          aria-invalid={error ? true : undefined}
+          aria-describedby="account-password-rules"
+          {...register("account.password")}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          className="absolute top-1/2 right-1 h-9 -translate-y-1/2 px-2 text-link"
+          onClick={() => setShow((s) => !s)}
+          aria-pressed={show}
+        >
+          {show ? "Ocultar" : "Mostrar"}
+        </Button>
+      </div>
+      <FieldError name="account.password" />
     </div>
   );
 }
 
 export function StepAccount({ goTo }: { goTo: (step: StepId) => void }) {
   const { register } = useFormContext<SetupForm>();
-  const [show, setShow] = useState(false);
   const values = useWatch<SetupForm>() as SetupForm;
   const password = values.account?.password ?? "";
   const summary = formSummary(values.property.floors);
   const services = [values.services.residence && "Residencia", values.services.mealPlan && "Pensión"].filter(
-    Boolean,
+    (s): s is string => Boolean(s),
   );
+  const sharing = values.services.residence && values.mealPlanBusiness.sameAsResidence;
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-2">
-      <FormSection title="Crea tu cuenta" description="Te enviaremos un correo para confirmarla.">
-        <TextField name="account.fullName" label="Nombre completo" autoComplete="name" />
-        <TextField name="account.email" label="Correo electrónico" type="email" autoComplete="email" />
-        <div className="flex flex-col gap-2">
-          <TextField
-            name="account.password"
-            label="Contraseña"
-            type={show ? "text" : "password"}
-            autoComplete="new-password"
-          />
-          <div>
-            <Button
-              type="button"
-              variant="link"
-              className="h-9 px-0 text-link"
-              onClick={() => setShow((s) => !s)}
-            >
-              {show ? "Ocultar contraseña" : "Mostrar contraseña"}
-            </Button>
-          </div>
-          <ul className="flex flex-col gap-1 text-sm" aria-label="Requisitos de la contraseña">
-            {RULES.map((r) => {
-              const ok = r.test(password);
-              return (
-                <li key={r.label} className={ok ? "text-ok" : "text-muted-foreground"}>
-                  <span aria-hidden="true">{ok ? "✓ " : "○ "}</span>
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+      <FormSection title="Crea tu cuenta">
+        <TextField
+          name="account.fullName"
+          label="Nombre completo"
+          autoComplete="name"
+          placeholder="Tu nombre y apellido"
+        />
+        <TextField
+          name="account.email"
+          label="Correo electrónico"
+          type="email"
+          autoComplete="email"
+          placeholder="correo@ejemplo.com"
+          hint="Te enviaremos un correo para confirmar tu cuenta."
+        />
+        <PasswordField />
+        <ul
+          id="account-password-rules"
+          className="flex flex-col gap-2"
+          aria-label="Requisitos de la contraseña"
+        >
+          {RULES.map((r) => {
+            const ok = r.test(password);
+            return (
+              <li key={r.label} className="flex items-center gap-2.5 text-sm">
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "flex size-5 items-center justify-center rounded-full",
+                    ok ? "bg-ok text-primary-foreground" : "border-2 border-border",
+                  )}
+                >
+                  {ok ? <Check className="size-3" strokeWidth={3} /> : null}
+                </span>
+                <span className={ok ? "" : "text-muted-foreground"}>
                   {r.label}
-                  <span className="sr-only">{ok ? " (cumplido)" : " (pendiente)"}</span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-        <label className="flex items-start gap-3 text-sm">
+                  {ok ? null : <span className="text-xs"> (pendiente)</span>}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        <label className="flex items-start gap-2.5 text-sm">
           <input
             type="checkbox"
             className="mt-0.5 size-5 accent-primary"
@@ -100,11 +168,19 @@ export function StepAccount({ goTo }: { goTo: (step: StepId) => void }) {
           />
           <span>
             Acepto los{" "}
-            <Link href="/terminos" target="_blank" className="text-link underline-offset-4 hover:underline">
+            <Link
+              href="/terminos"
+              target="_blank"
+              className="font-semibold text-link underline-offset-4 hover:underline"
+            >
               Términos de uso
             </Link>{" "}
             y la{" "}
-            <Link href="/privacidad" target="_blank" className="text-link underline-offset-4 hover:underline">
+            <Link
+              href="/privacidad"
+              target="_blank"
+              className="font-semibold text-link underline-offset-4 hover:underline"
+            >
               Política de privacidad
             </Link>
             .
@@ -114,42 +190,50 @@ export function StepAccount({ goTo }: { goTo: (step: StepId) => void }) {
       </FormSection>
 
       <aside
-        className="rounded-xl border bg-card p-4 shadow-card sm:p-6"
+        className="rounded-xl border bg-card p-4 shadow-card sm:p-6 lg:sticky lg:top-6"
         aria-label="Resumen de tu configuración"
       >
-        <h2 className="text-base font-bold">Resumen de tu configuración</h2>
-        <p className="mb-2 text-sm text-muted-foreground">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-base font-bold">Resumen de tu configuración</h2>
+          <span className="rounded-full bg-terracota px-2.5 py-1 text-xs font-bold text-terracota-foreground">
+            Casi listo
+          </span>
+        </div>
+        <p className="mt-1 mb-2 text-sm text-muted-foreground">
           Revisa que todo esté bien antes de crear tu cuenta.
         </p>
-        <SummaryRow label="Servicios" value={services.join(" y ")} onEdit={() => goTo("services")} />
+        <SummaryRow label="Servicios" value={listJoin(services)} onEdit={() => goTo("services")} />
         {values.services.residence ? (
           <SummaryRow
-            label="Residencia"
+            label="Negocio · Residencia"
             value={values.residenceBusiness.tradeName || "Sin nombre"}
-            detail={values.residenceBusiness.kind === "company" ? "Empresa" : "Persona natural"}
+            detail={businessDetail(values.residenceBusiness)}
             onEdit={() => goTo("business")}
           />
         ) : null}
         {values.services.mealPlan ? (
           <SummaryRow
-            label="Pensión"
+            label="Negocio · Pensión"
             value={values.mealPlanBusiness.tradeName || "Sin nombre"}
             detail={
-              values.mealPlanBusiness.sameAsResidence && values.services.residence
-                ? "Mismos datos que la Residencia"
-                : undefined
+              sharing ? "Mismos datos y cobros que la Residencia" : businessDetail(values.mealPlanBusiness)
             }
             onEdit={() => goTo("business")}
           />
         ) : null}
         {values.services.residence ? (
           <SummaryRow
-            label="Propiedad"
+            label={values.property.type === "building" ? "Edificio" : "Propiedad"}
             value={values.property.name || OFFER_LABEL[values.property.type]}
-            detail={`${OFFER_LABEL[values.property.type]} · ${summary.floors} ${summary.floors === 1 ? "piso" : "pisos"} · ${summary.rentable} que se alquilan`}
+            detail={`${summary.floors} ${summary.floors === 1 ? "piso" : "pisos"} · ${summary.apartments} ${summary.apartments === 1 ? "departamento" : "departamentos"} · ${summary.rentable} unidades alquilables`}
             onEdit={() => goTo("building")}
           />
         ) : null}
+        <SummaryRow
+          label="Modo de vista"
+          value="Simple"
+          detail="Puedes cambiarlo con el interruptor de arriba."
+        />
       </aside>
     </div>
   );

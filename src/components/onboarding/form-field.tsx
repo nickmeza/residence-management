@@ -35,17 +35,21 @@ type TextFieldProps = {
   label: string;
   hint?: ReactNode;
   prefix?: string;
+  // En filas compactas la etiqueta queda solo para lectores de pantalla.
+  hideLabel?: boolean;
   className?: string;
 } & Omit<ComponentProps<"input">, "name" | "prefix">;
 
 // Campo de texto conectado al formulario: etiqueta, ayuda y error, enlazados para lectores de pantalla.
-export function TextField({ name, label, hint, prefix, className, ...input }: TextFieldProps) {
+export function TextField({ name, label, hint, prefix, hideLabel, className, ...input }: TextFieldProps) {
   const { register } = useFormContext();
   const error = useFieldError(name);
   const id = name.replaceAll(".", "-");
   return (
     <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className={hideLabel ? "sr-only" : undefined}>
+        {label}
+      </Label>
       <div className="flex items-center gap-2">
         {prefix ? <span className="text-sm text-muted-foreground">{prefix}</span> : null}
         <Input
@@ -77,7 +81,7 @@ export function FormSection({
 }: {
   title: string;
   description?: string;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-4 rounded-xl border bg-card p-4 shadow-card sm:p-6">

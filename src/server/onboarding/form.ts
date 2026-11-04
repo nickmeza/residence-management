@@ -59,7 +59,7 @@ export const STEP_LABELS: Record<StepId, string> = {
   services: "Servicios",
   business: "Tu negocio",
   offer: "Qué ofreces",
-  building: "Tu propiedad",
+  building: "Arma tu propiedad",
   account: "Cuenta",
 };
 
@@ -198,4 +198,31 @@ export function formSummary(floors: SetupForm["property"]["floors"]) {
     }
   }
   return { floors: floors.length, apartments, rentable };
+}
+
+// Cómo se muestran los pasos (como el prototipo): "Qué ofreces" y "Arma tu propiedad" son partes de "Estructura".
+export type StepGroup = { label: string; steps: StepId[] };
+
+export function groupSteps(steps: StepId[]): StepGroup[] {
+  const groups: StepGroup[] = [];
+  for (const step of steps) {
+    const inStructure = step === "offer" || step === "building";
+    const last = groups.at(-1);
+    if (inStructure && last?.label === "Estructura") last.steps.push(step);
+    else groups.push({ label: inStructure ? "Estructura" : STEP_LABELS[step], steps: [step] });
+  }
+  return groups;
+}
+
+// "Paso 3 de 4 · Parte 1 de 2"
+export function stepPosition(steps: StepId[], step: StepId) {
+  const groups = groupSteps(steps);
+  const index = Math.max(
+    0,
+    groups.findIndex((g) => g.steps.includes(step)),
+  );
+  const group = groups[index];
+  const part =
+    group.steps.length > 1 ? { index: group.steps.indexOf(step), total: group.steps.length } : null;
+  return { index, total: groups.length, part, groups };
 }

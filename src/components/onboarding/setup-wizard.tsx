@@ -1,7 +1,8 @@
 "use client";
 
+import { Building2 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 
 import { FormMessage } from "@/components/auth/auth-field";
@@ -12,6 +13,7 @@ import { ViewModeToggle } from "@/components/view-mode-toggle";
 import { createAccountWithSetup, saveSetupForCurrentUser } from "@/server/onboarding/actions";
 import {
   initialSetupForm,
+  stepPosition,
   stepsFor,
   toDraft,
   validateStep,
@@ -23,20 +25,43 @@ import { Stepper } from "./stepper";
 import { StepAccount } from "./step-account";
 import { StepBuilding } from "./step-building";
 import { StepBusiness } from "./step-business";
-import { StepOffer } from "./step-offer";
-import { StepServices } from "./step-services";
+import { OfferFooter, StepOffer } from "./step-offer";
+import { ServicesFooter, StepServices } from "./step-services";
 
 type Mode = "signup" | "existing";
 
+// Títulos y textos de apoyo de cada paso, como el prototipo.
 const TITLES: Record<StepId, { title: string; description: string }> = {
-  services: { title: "Arma tu sistema", description: "Empieza por los servicios que ofreces." },
+  services: {
+    title: "¿Qué servicios ofreces?",
+    description: "Elige uno o ambos. Armaremos tu sistema con las vistas que necesitas.",
+  },
   business: {
     title: "Cuéntanos sobre tu negocio",
-    description: "Estos datos aparecerán en tus contratos y recibos.",
+    description: "Estos datos aparecerán en los contratos y recibos, y nos ayudan a configurar tus cobros.",
   },
-  offer: { title: "¿Qué ofreces?", description: "El tamaño de lo que alquilas y quién lo atiende." },
-  building: { title: "Arma tu propiedad", description: "Agrega los pisos y lo que alquilas en cada uno." },
-  account: { title: "Crea tu cuenta", description: "Último paso. Revisa el resumen y crea tu cuenta." },
+  offer: {
+    title: "¿Qué ofreces?",
+    description:
+      "Elige el tamaño de lo que alquilas. Después definimos las unidades: departamentos, cuartos o ambos.",
+  },
+  building: {
+    title: "Arma tu edificio",
+    description: "Agrega los pisos y lo que alquilas en cada uno: departamentos, cuartos o ambos.",
+  },
+  account: {
+    title: "Crea tu cuenta",
+    description: "Último paso. Con tu cuenta podrás entrar a tu edificio y empezar a registrar residentes.",
+  },
+};
+
+// Texto de la izquierda de la barra inferior, distinto en cada paso.
+const FOOTER_NOTE: Record<StepId, ReactNode> = {
+  services: <ServicesFooter />,
+  business: "Podrás editar estos datos después desde Configuración.",
+  offer: <OfferFooter />,
+  building: "Podrás editar pisos y unidades después desde el edificio.",
+  account: "Tus datos se guardan de forma segura.",
 };
 
 // A qué paso pertenece un campo con error, para llevar a la persona allí.
@@ -178,11 +203,12 @@ export function SetupWizard({ mode }: { mode: Mode }) {
 
   const isLast = current === steps.length - 1;
   const { title, description } = TITLES[step];
+  const position = stepPosition(steps, step);
 
   return (
     <Shell mode={mode}>
-      <div ref={topRef} className="flex flex-col gap-6">
-        <Stepper steps={steps} current={current} />
+      <div ref={topRef} className="flex flex-col gap-7">
+        <Stepper groups={position.groups} current={position.index} />
         {restored ? (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-primary-soft px-3 py-2 text-sm text-primary-text">
             <span>Recuperamos lo que dejaste a medias en este navegador.</span>
@@ -205,24 +231,25 @@ export function SetupWizard({ mode }: { mode: Mode }) {
           </div>
         ) : null}
         <div>
-          <p className="text-sm font-bold text-primary-text uppercase">
-            Paso {current + 1} de {steps.length}
+          <p className="text-sm font-bold tracking-wide text-primary-text uppercase">
+            Paso {position.index + 1} de {position.total}
+            {position.part ? ` · Parte ${position.part.index + 1} de ${position.part.total}` : ""}
           </p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight">{title}</h1>
-          <p className="mt-1 text-muted-foreground">{description}</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-[34px]">{title}</h1>
+          <p className="mt-2 max-w-2xl text-muted-foreground">{description}</p>
         </div>
 
         <FormProvider {...methods}>
-          <form onSubmit={submit} noValidate className="flex flex-col gap-6">
+          <form onSubmit={submit} noValidate className="flex flex-col gap-7">
             {step === "services" ? <StepServices /> : null}
-            {step === "business" ? <StepBusiness /> : null}
+            {step === "business" ? <StepBusiness goTo={goTo} /> : null}
             {step === "offer" ? <StepOffer /> : null}
             {step === "building" ? <StepBuilding /> : null}
             {step === "account" ? <StepAccount goTo={goTo} /> : null}
 
             <FormMessage message={message} />
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4 shadow-card">
-              <span className="text-sm text-muted-foreground">Podrás editar todo esto después.</span>
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card px-4 py-4 shadow-card sm:px-6">
+              <span className="text-sm text-muted-foreground">{FOOTER_NOTE[step]}</span>
               <div className="flex gap-3">
                 {current > 0 ? (
                   <Button
@@ -252,22 +279,28 @@ export function SetupWizard({ mode }: { mode: Mode }) {
   );
 }
 
-function Shell({ mode, children }: { mode: Mode; children: React.ReactNode }) {
+// Encabezado del prototipo: marca a la izquierda, interruptor 3D/Simple al centro, acceso a la derecha.
+function Shell({ mode, children }: { mode: Mode; children: ReactNode }) {
   return (
     <div className="flex flex-1 flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-4 py-3 sm:px-8">
-        <div>
-          <div className="font-bold">Gestión de residencias</div>
-          <div className="text-sm text-muted-foreground">
-            {mode === "signup" ? "Crea tu cuenta" : "Configura tu negocio"}
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-4 py-4 sm:px-8 lg:px-12">
+        <div className="flex items-center gap-3">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <Building2 className="size-5" aria-hidden="true" />
+          </span>
+          <div>
+            <div className="font-bold">Gestión de residencias</div>
+            <div className="text-sm text-muted-foreground">
+              {mode === "signup" ? "Crea tu cuenta" : "Configura tu negocio"}
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="order-3 flex w-full items-center justify-center gap-2 sm:order-none sm:w-auto">
           <ViewModeToggle />
           <ThemeToggle />
         </div>
         {mode === "signup" ? (
-          <p className="w-full text-sm text-muted-foreground sm:w-auto">
+          <p className="text-sm text-muted-foreground">
             ¿Ya tienes cuenta?{" "}
             <Link
               href="/iniciar-sesion"
@@ -282,7 +315,7 @@ function Shell({ mode, children }: { mode: Mode; children: React.ReactNode }) {
           </Link>
         )}
       </header>
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-8 sm:py-8">{children}</main>
+      <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 py-6 sm:px-8 sm:py-9">{children}</main>
     </div>
   );
 }

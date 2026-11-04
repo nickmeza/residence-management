@@ -157,10 +157,14 @@ La lista completa está en `docs/reglas-de-negocio.md`. Las más importantes:
 - **Todo estado lleva texto además de color** (por ejemplo "Ocupado", no solo rojo).
 - Cada pantalla debe cubrir: **estado vacío, error, carga y confirmación** de acciones destructivas.
 - Cada pantalla debe funcionar en **escritorio, tablet (1024 px) y móvil (390 px)**. Las tablas se deslizan de lado en móvil.
-- El prototipo en https://claude.ai/code/artifact/86526841-fb83-484e-be72-58d868cbd9eb es una **referencia de flujos
-  y contenido**: qué pantallas existen, qué hace cada una, qué datos y acciones muestra y qué estados cubre.
-  **Sus colores y estilos no se copian ni se mantienen actualizados.** Lo visual sale siempre de `tokens.css` y
-  `src/components/ui/`.
+- El prototipo en https://claude.ai/code/artifact/86526841-fb83-484e-be72-58d868cbd9eb es la **referencia de flujos,
+  contenido y estructura**: qué pantallas existen, qué hace cada una, qué datos y acciones muestra, qué estados cubre
+  y **cómo se distribuye cada pantalla** (bloques, orden, columnas, barras laterales, encabezado, indicador de pasos,
+  barra inferior). La estructura se copia; revisa también sus versiones de tablet (`T_`) y móvil (`M_`).
+  **Lo que no se copia son sus colores y su tipografía:** eso sale siempre de `tokens.css` y `src/components/ui/`.
+- **Excepción decidida por el dueño:** dentro de la app (después de iniciar sesión) el menú va **a la izquierda**, con
+  un ícono por opción y el avatar abajo, y arriba hay un **selector de negocio** al estilo de GCP (un botón que abre
+  una ventana para elegir el negocio). El prototipo tiene el menú arriba; en esto gana la decisión del dueño.
 - La skill `ui-ux-pro-max` y su `design-system/<proyecto>/MASTER.md` son **propuestas**. Lo que yo apruebe se pasa a
   `src/styles/tokens.css`, que es la única fuente que usa el código. No instales librerías que la skill recomiende
   (GSAP, íconos, fuentes…) sin preguntarme.

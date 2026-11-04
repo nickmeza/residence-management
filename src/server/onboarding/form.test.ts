@@ -97,3 +97,14 @@ describe("resumen mientras se arma", () => {
     ).toEqual({ floors: 3, apartments: 3, rentable: 7 });
   });
 });
+
+describe("indicador de pasos", () => {
+  it("muestra 4 pasos y Estructura con sus partes, como el prototipo", async () => {
+    const { stepPosition } = await import("./form");
+    const steps = stepsFor({ services: { residence: true, mealPlan: true } }, true);
+    const pos = stepPosition(steps, "building");
+    expect(pos.groups.map((g) => g.label)).toEqual(["Servicios", "Tu negocio", "Estructura", "Cuenta"]);
+    expect(pos).toMatchObject({ index: 2, total: 4, part: { index: 1, total: 2 } });
+    expect(stepPosition(steps, "business").part).toBeNull();
+  });
+});
