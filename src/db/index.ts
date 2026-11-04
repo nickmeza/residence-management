@@ -17,4 +17,4 @@ if (!url) {
 // transacción que se identifica como el usuario con sesión (llega en el paso 2).
 const client = postgres(url, { prepare: false });
 
-export const db = drizzle(client, { schema });
+export const db = drizzle(client, { schema, casing: "snake_case" });

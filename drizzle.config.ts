@@ -16,6 +16,8 @@ export default defineConfig({
   schema: "./src/db/schema.ts",
   out: "./drizzle",
   dialect: "postgresql",
+  // Columnas en snake_case en la base (owner_id), camelCase en TypeScript (ownerId).
+  casing: "snake_case",
   dbCredentials: { url: process.env.DATABASE_URL },
   // Supabase ya trae sus roles (anon, authenticated…): drizzle-kit no debe intentar crearlos.
   entities: { roles: { provider: "supabase" } },

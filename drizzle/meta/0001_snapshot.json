@@ -1,0 +1,552 @@
+{
+  "id": "87ec1478-dfc5-466c-9b45-719bfc4bf939",
+  "prevId": "6d717707-efb8-41a8-96ff-43aa8eb131e4",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.floor": {
+      "name": "floor",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "level": {
+          "name": "level",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outline": {
+          "name": "outline",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "floor_property_id_idx": {
+          "name": "floor_property_id_idx",
+          "columns": [
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "floor_property_id_property_id_fk": {
+          "name": "floor_property_id_property_id_fk",
+          "tableFrom": "floor",
+          "columnsFrom": [
+            "property_id"
+          ],
+          "tableTo": "property",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "floor_owner_all": {
+          "name": "floor_owner_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "exists (select 1 from public.property p where p.id = \"floor\".\"property_id\" and p.owner_id in (select id from public.person where user_id = (select auth.uid())))",
+          "withCheck": "exists (select 1 from public.property p where p.id = \"floor\".\"property_id\" and p.owner_id in (select id from public.person where user_id = (select auth.uid())))"
+        }
+      },
+      "checkConstraints": {
+        "floor_outline_min_corners": {
+          "name": "floor_outline_min_corners",
+          "value": "jsonb_typeof(\"floor\".\"outline\") = 'array' and jsonb_array_length(\"floor\".\"outline\") >= 4"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.person": {
+      "name": "person",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "person_user_id_users_id_fk": {
+          "name": "person_user_id_users_id_fk",
+          "tableFrom": "person",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "person_userId_unique": {
+          "name": "person_userId_unique",
+          "columns": [
+            "user_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "person_select_own": {
+          "name": "person_select_own",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"person\".\"user_id\" = (select auth.uid())"
+        },
+        "person_update_own": {
+          "name": "person_update_own",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"person\".\"user_id\" = (select auth.uid())",
+          "withCheck": "\"person\".\"user_id\" = (select auth.uid())"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.property": {
+      "name": "property",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "district_city": {
+          "name": "district_city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "property_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_lives_here": {
+          "name": "owner_lives_here",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "manager_id": {
+          "name": "manager_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PEN'"
+        }
+      },
+      "indexes": {
+        "property_owner_id_idx": {
+          "name": "property_owner_id_idx",
+          "columns": [
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "property_owner_id_person_id_fk": {
+          "name": "property_owner_id_person_id_fk",
+          "tableFrom": "property",
+          "columnsFrom": [
+            "owner_id"
+          ],
+          "tableTo": "person",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "property_manager_id_person_id_fk": {
+          "name": "property_manager_id_person_id_fk",
+          "tableFrom": "property",
+          "columnsFrom": [
+            "manager_id"
+          ],
+          "tableTo": "person",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "property_owner_all": {
+          "name": "property_owner_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"property\".\"owner_id\" in (select id from public.person where user_id = (select auth.uid()))",
+          "withCheck": "\"property\".\"owner_id\" in (select id from public.person where user_id = (select auth.uid()))"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.unit": {
+      "name": "unit",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "floor_id": {
+          "name": "floor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_unit_id": {
+          "name": "parent_unit_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "unit_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occupies_whole_floor": {
+          "name": "occupies_whole_floor",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "rental_mode": {
+          "name": "rental_mode",
+          "type": "rental_mode",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monthly_price": {
+          "name": "monthly_price",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "area_m_2": {
+          "name": "area_m_2",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bathroom": {
+          "name": "bathroom",
+          "type": "bathroom_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "furnished": {
+          "name": "furnished",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "pos_x": {
+          "name": "pos_x",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pos_z": {
+          "name": "pos_z",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "width": {
+          "name": "width",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "depth": {
+          "name": "depth",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "unit_floor_id_idx": {
+          "name": "unit_floor_id_idx",
+          "columns": [
+            {
+              "expression": "floor_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "unit_parent_unit_id_idx": {
+          "name": "unit_parent_unit_id_idx",
+          "columns": [
+            {
+              "expression": "parent_unit_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "unit_floor_id_floor_id_fk": {
+          "name": "unit_floor_id_floor_id_fk",
+          "tableFrom": "unit",
+          "columnsFrom": [
+            "floor_id"
+          ],
+          "tableTo": "floor",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "unit_parent_unit_id_unit_id_fk": {
+          "name": "unit_parent_unit_id_unit_id_fk",
+          "tableFrom": "unit",
+          "columnsFrom": [
+            "parent_unit_id"
+          ],
+          "tableTo": "unit",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "unit_owner_all": {
+          "name": "unit_owner_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "exists (select 1 from public.floor f join public.property p on p.id = f.property_id\n        where f.id = \"unit\".\"floor_id\" and p.owner_id in (select id from public.person where user_id = (select auth.uid())))",
+          "withCheck": "exists (select 1 from public.floor f join public.property p on p.id = f.property_id\n        where f.id = \"unit\".\"floor_id\" and p.owner_id in (select id from public.person where user_id = (select auth.uid())))"
+        }
+      },
+      "checkConstraints": {
+        "unit_apartment_fields": {
+          "name": "unit_apartment_fields",
+          "value": "(\"unit\".\"type\" = 'apartment' and \"unit\".\"rental_mode\" is not null)\n        or (\"unit\".\"type\" = 'room' and \"unit\".\"rental_mode\" is null and \"unit\".\"occupies_whole_floor\" = false)"
+        },
+        "unit_by_room_without_price": {
+          "name": "unit_by_room_without_price",
+          "value": "\"unit\".\"rental_mode\" is distinct from 'by_room' or \"unit\".\"monthly_price\" is null"
+        },
+        "unit_parent_only_rooms": {
+          "name": "unit_parent_only_rooms",
+          "value": "\"unit\".\"parent_unit_id\" is null or \"unit\".\"type\" = 'room'"
+        },
+        "unit_positive_size": {
+          "name": "unit_positive_size",
+          "value": "\"unit\".\"width\" > 0 and \"unit\".\"depth\" > 0"
+        },
+        "unit_price_not_negative": {
+          "name": "unit_price_not_negative",
+          "value": "\"unit\".\"monthly_price\" is null or \"unit\".\"monthly_price\" >= 0"
+        },
+        "unit_area_positive": {
+          "name": "unit_area_positive",
+          "value": "\"unit\".\"area_m_2\" is null or \"unit\".\"area_m_2\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.bathroom_type": {
+      "name": "bathroom_type",
+      "schema": "public",
+      "values": [
+        "private",
+        "shared"
+      ]
+    },
+    "public.property_type": {
+      "name": "property_type",
+      "schema": "public",
+      "values": [
+        "room",
+        "floor",
+        "building"
+      ]
+    },
+    "public.rental_mode": {
+      "name": "rental_mode",
+      "schema": "public",
+      "values": [
+        "whole",
+        "by_room"
+      ]
+    },
+    "public.unit_type": {
+      "name": "unit_type",
+      "schema": "public",
+      "values": [
+        "apartment",
+        "room"
+      ]
+    }
+  },
+  "schemas": {},
+  "views": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
