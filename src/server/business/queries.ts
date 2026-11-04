@@ -28,6 +28,10 @@ export type BuildingUnit = {
   rentalMode: "whole" | "by_room" | null;
   occupiesWholeFloor: boolean;
   monthlyPrice: string | null;
+  areaM2: string | null;
+  bathroom: "private" | "shared" | null;
+  furnished: boolean;
+  spaceType: "bedroom" | "studio" | "office" | "storage" | "other" | null;
   status: UnitStatus;
   rooms: BuildingUnit[];
 };
@@ -76,6 +80,10 @@ export async function getBuilding(propertyId: string): Promise<BuildingView | nu
       rentalMode: u.rentalMode,
       occupiesWholeFloor: u.occupiesWholeFloor,
       monthlyPrice: u.monthlyPrice,
+      areaM2: u.areaM2,
+      bathroom: u.bathroom,
+      furnished: u.furnished,
+      spaceType: u.spaceType,
       status: unitStatus(),
       rooms: units.filter((r) => r.parentUnitId === u.id).map(toView),
     });
