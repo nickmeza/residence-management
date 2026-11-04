@@ -19,7 +19,8 @@ import { floorName } from "@/server/building/floors";
 import { STATUS_LABEL, type UnitStatus } from "@/server/building/status";
 import type { BuildingUnit, BuildingView } from "@/server/business/queries";
 
-import { UnitSheet, type SheetTarget } from "./unit-sheet";
+import { findSheetTarget } from "./sheet-target";
+import { UnitSheet } from "./unit-sheet";
 
 // Cada estado lleva texto además de color (CLAUDE.md, sección 9).
 const STATUS_STYLE: Record<UnitStatus, string> = {
@@ -97,16 +98,7 @@ export function BuildingEditor({ building, toggle }: { building: BuildingView; t
       setMessage(result.ok ? undefined : result.message);
     });
 
-  // Busca la unidad elegida (o un cuarto dentro de un departamento) en los datos actuales.
-  let target: SheetTarget | null = null;
-  for (const f of building.floors) {
-    for (const u of f.units) {
-      const base = { floorLabel: floorName(f.level), onlyUnit: f.units.length === 1 };
-      if (u.id === selectedId) target = { ...base, unit: u, parent: null };
-      const room = u.rooms.find((r) => r.id === selectedId);
-      if (room) target = { ...base, unit: room, parent: u };
-    }
-  }
+  const target = findSheetTarget(building, selectedId);
 
   return (
     <>
