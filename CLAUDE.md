@@ -81,10 +81,14 @@ La lógica de negocio va en `src/server/`, **nunca dentro de componentes de pant
 
 ## 6. Modelo de datos (resumen)
 
-**Propiedad → Piso → Unidad.** Una unidad es un **departamento** o un **cuarto**.
+**Persona → Negocio → Propiedad → Piso → Unidad.** Una unidad es un **departamento** o un **cuarto**.
 
+- Una persona puede tener **varios negocios**. Cada negocio es un servicio (Residencia, Pensión…) con sus propios
+  datos (RUC, contacto, cobros), independiente de los demás. Las propiedades cuelgan de un negocio de Residencia;
+  la Pensión tiene su propio local.
 - Una propiedad es de tipo `cuarto`, `piso` o `edificio`. Un cuarto suelto es una propiedad con un piso y una unidad.
 - El **nivel de un piso** es su posición. El nombre "Piso N" se calcula, no se guarda.
+- La losa de cada piso es un **contorno** de esquinas con ángulos rectos (rectángulo, L…), no solo ancho y fondo.
 - Un departamento tiene `ocupa_todo_piso` (booleano) y `modo_alquiler`: `completo` o `por_cuartos`.
 - Un cuarto puede estar suelto en un piso o dentro de un departamento (`unidad_padre_id`).
 - Los cuartos tienen posición en la planta: `pos_x`, `pos_z`, `ancho`, `fondo`.
@@ -96,6 +100,7 @@ El modelo completo está en `docs/modelo-de-datos.md`. Si el diseño y el modelo
 
 | Español | En el código |
 |---|---|
+| negocio | `business` |
 | propiedad | `property` |
 | piso | `floor` |
 | unidad | `unit` |
@@ -126,7 +131,10 @@ La lista completa está en `docs/reglas-de-negocio.md`. Las más importantes:
 10. **No se firma un contrato** hasta que los documentos obligatorios estén verificados.
 11. **Posición de los cuartos:** el servidor valida que estén dentro de la losa y sin solaparse. No basta validar en el navegador.
 12. **Pensión:** la confirmación diaria cierra a una hora límite. Los días pausados no se cobran.
-13. **Recibo único:** renta, pensión, extras y consumos se suman en un solo recibo mensual por residente.
+13. **Recibo único:** cada negocio cobra por separado, con su RUC; el residente ve un solo resumen mensual agrupado
+    por negocio, aunque sean de dueños distintos.
+14. **Negocios independientes:** un residente puede estar inscrito en negocios de dueños distintos (por ejemplo, la
+    residencia de uno y la pensión de otro).
 
 ## 8. El 3D y el modo simple
 
@@ -149,10 +157,14 @@ La lista completa está en `docs/reglas-de-negocio.md`. Las más importantes:
 - **Todo estado lleva texto además de color** (por ejemplo "Ocupado", no solo rojo).
 - Cada pantalla debe cubrir: **estado vacío, error, carga y confirmación** de acciones destructivas.
 - Cada pantalla debe funcionar en **escritorio, tablet (1024 px) y móvil (390 px)**. Las tablas se deslizan de lado en móvil.
-- El prototipo en https://claude.ai/code/artifact/86526841-fb83-484e-be72-58d868cbd9eb es una **referencia de flujos
-  y contenido**: qué pantallas existen, qué hace cada una, qué datos y acciones muestra y qué estados cubre.
-  **Sus colores y estilos no se copian ni se mantienen actualizados.** Lo visual sale siempre de `tokens.css` y
-  `src/components/ui/`.
+- El prototipo en https://claude.ai/code/artifact/86526841-fb83-484e-be72-58d868cbd9eb es la **referencia de flujos,
+  contenido y estructura**: qué pantallas existen, qué hace cada una, qué datos y acciones muestra, qué estados cubre
+  y **cómo se distribuye cada pantalla** (bloques, orden, columnas, barras laterales, encabezado, indicador de pasos,
+  barra inferior). La estructura se copia; revisa también sus versiones de tablet (`T_`) y móvil (`M_`).
+  **Lo que no se copia son sus colores y su tipografía:** eso sale siempre de `tokens.css` y `src/components/ui/`.
+- **Excepción decidida por el dueño:** dentro de la app (después de iniciar sesión) el menú va **a la izquierda**, con
+  un ícono por opción y el avatar abajo, y arriba hay un **selector de negocio** al estilo de GCP (un botón que abre
+  una ventana para elegir el negocio). El prototipo tiene el menú arriba; en esto gana la decisión del dueño.
 - La skill `ui-ux-pro-max` y su `design-system/<proyecto>/MASTER.md` son **propuestas**. Lo que yo apruebe se pasa a
   `src/styles/tokens.css`, que es la única fuente que usa el código. No instales librerías que la skill recomiende
   (GSAP, íconos, fuentes…) sin preguntarme.
@@ -211,7 +223,7 @@ Marca cada fase cuando funcione y esté probada.
 
 - [x] **Fase 0:** base del proyecto (Next.js, tokens, shadcn, Supabase, despliegue vacío)
 - [x] **Fase 1:** datos y cuentas (Propiedad, Piso, Unidad; registro e inicio de sesión; RLS)
-- [ ] **Fase 2:** registro y edificio en modo simple
+- [x] **Fase 2:** registro y edificio en modo simple
 - [ ] **Fase 3:** edificio en 3D (mostrar, clic, doble clic directo, arrastre, guardar)
 - [ ] **Fase 4:** residentes, contratos y documentos
 - [ ] **Fase 5:** cobros y garantía
@@ -221,7 +233,7 @@ Marca cada fase cuando funcione y esté probada.
 - [ ] **Fase 9:** estados, móvil y pulido
 - [ ] **Fase 10 (opcional):** preparar Foráneos (ubicación, visibilidad por unidad, lugar de interés)
 
-**Fase actual:** 2
+**Fase actual:** 3
 
 ## 15. Lo que NO debes hacer
 

@@ -7,26 +7,11 @@ const email = z
   .toLowerCase()
   .pipe(z.email({ error: "Escribe un correo válido." }));
 
-export const signUpSchema = z.object({
-  fullName: z
-    .string()
-    .trim()
-    .min(2, { error: "Escribe tu nombre completo." })
-    .max(100, { error: "El nombre es demasiado largo." }),
-  email,
-  // 72 es el máximo que admite Supabase Auth.
-  password: z
-    .string()
-    .min(8, { error: "La contraseña debe tener al menos 8 caracteres." })
-    .max(72, { error: "La contraseña puede tener como máximo 72 caracteres." }),
-});
-
 export const signInSchema = z.object({
   email,
   password: z.string().min(1, { error: "Escribe tu contraseña." }),
 });
 
-export type SignUpInput = z.infer<typeof signUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
 
 // Lo que una acción de formulario devuelve a la pantalla. "values" devuelve lo escrito

@@ -1,6 +1,6 @@
 // Tablas de la base con Drizzle. Modelo completo en docs/modelo-de-datos.md.
-// Propiedad → Piso → Unidad. Cada fila pertenece a una persona por la cadena
-// cuenta (auth.users) → person → property → floor → unit, y el RLS la sigue.
+// Negocio → Propiedad → Piso → Unidad. Cada fila pertenece a una persona por la cadena
+// cuenta (auth.users) → person → business → property → floor → unit, y el RLS la sigue.
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -12,7 +12,9 @@ import {
   pgEnum,
   pgPolicy,
   pgTable,
+  smallint,
   text,
+  timestamp,
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
@@ -22,6 +24,12 @@ export const propertyType = pgEnum("property_type", ["room", "floor", "building"
 export const unitType = pgEnum("unit_type", ["apartment", "room"]);
 export const rentalMode = pgEnum("rental_mode", ["whole", "by_room"]);
 export const bathroomType = pgEnum("bathroom_type", ["private", "shared"]);
+// Tipo de ambiente de una unidad (historia ED-06, "uso"): dormitorio, estudio, oficina, depósito u otro.
+export const spaceType = pgEnum("space_type", ["bedroom", "studio", "office", "storage", "other"]);
+// Cada negocio es un servicio. Lavandería, cowork… se agregan cuando salgan de pausa.
+export const businessService = pgEnum("business_service", ["residence", "meal_plan"]);
+export const businessKind = pgEnum("business_kind", ["natural", "company"]);
+export const paymentMethod = pgEnum("payment_method", ["yape", "plin", "transfer", "cash", "card"]);
 
 // Persona: dueño, encargado, residente… Puede tener cuenta (user_id) o no.
 // Se crea sola al registrarse (trigger en la migración a mano). Los roles llegan en la Fase 4.
@@ -35,6 +43,8 @@ export const person = pgTable(
     fullName: text().notNull(),
     email: text(),
     phone: text(),
+    // Cuándo aceptó los Términos y la Política de privacidad al registrarse.
+    termsAcceptedAt: timestamp({ withTimezone: true }),
   },
   (t) => [
     pgPolicy("person_select_own", {
@@ -54,13 +64,56 @@ export const person = pgTable(
 // La persona con sesión. Se usa en las políticas de las demás tablas.
 const myPersonIds = sql`(select id from public.person where user_id = ${authUid})`;
 
-export const property = pgTable(
-  "property",
+// Negocio: una Residencia, una Pensión… Una persona puede tener varios, cada uno con sus datos
+// (RUC, contacto, cobros). Son independientes entre sí, aunque sean del mismo dueño.
+export const business = pgTable(
+  "business",
   {
     id: uuid().primaryKey().defaultRandom(),
     ownerId: uuid()
       .notNull()
       .references(() => person.id, { onDelete: "restrict" }),
+    service: businessService().notNull(),
+    kind: businessKind().notNull(),
+    tradeName: text().notNull(),
+    legalName: text(),
+    ruc: text(),
+    phone: text(),
+    contactEmail: text(),
+    city: text(),
+    // La Pensión puede tener su propio local; la Residencia usa la dirección de cada propiedad.
+    address: text(),
+    paymentMethods: paymentMethod()
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    // Día de cobro del mes. 31 = fin de mes (en meses más cortos, el último día).
+    billingDay: smallint(),
+  },
+  (t) => [
+    index("business_owner_id_idx").on(t.ownerId),
+    check("business_ruc_format", sql`${t.ruc} is null or ${t.ruc} ~ '^[0-9]{11}$'`),
+    check("business_billing_day_range", sql`${t.billingDay} is null or ${t.billingDay} between 1 and 31`),
+    pgPolicy("business_owner_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.ownerId} in ${myPersonIds}`,
+      withCheck: sql`${t.ownerId} in ${myPersonIds}`,
+    }),
+  ],
+);
+
+// Los negocios de la persona con sesión.
+const myBusinessIds = sql`(select b.id from public.business b where b.owner_id in ${myPersonIds})`;
+
+// Propiedad: pertenece a un negocio de Residencia (el servidor valida que el negocio sea de ese tipo).
+export const property = pgTable(
+  "property",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => business.id, { onDelete: "restrict" }),
     name: text().notNull(),
     address: text().notNull(),
     districtCity: text().notNull(),
@@ -70,12 +123,12 @@ export const property = pgTable(
     currency: text().notNull().default("PEN"),
   },
   (t) => [
-    index("property_owner_id_idx").on(t.ownerId),
+    index("property_business_id_idx").on(t.businessId),
     pgPolicy("property_owner_all", {
       for: "all",
       to: authenticatedRole,
-      using: sql`${t.ownerId} in ${myPersonIds}`,
-      withCheck: sql`${t.ownerId} in ${myPersonIds}`,
+      using: sql`${t.businessId} in ${myBusinessIds}`,
+      withCheck: sql`${t.businessId} in ${myBusinessIds}`,
     }),
   ],
 );
@@ -105,8 +158,8 @@ export const floor = pgTable(
     pgPolicy("floor_owner_all", {
       for: "all",
       to: authenticatedRole,
-      using: sql`exists (select 1 from public.property p where p.id = ${t.propertyId} and p.owner_id in ${myPersonIds})`,
-      withCheck: sql`exists (select 1 from public.property p where p.id = ${t.propertyId} and p.owner_id in ${myPersonIds})`,
+      using: sql`exists (select 1 from public.property p where p.id = ${t.propertyId} and p.business_id in ${myBusinessIds})`,
+      withCheck: sql`exists (select 1 from public.property p where p.id = ${t.propertyId} and p.business_id in ${myBusinessIds})`,
     }),
   ],
 );
@@ -126,8 +179,11 @@ export const unit = pgTable(
     rentalMode: rentalMode(),
     // Dinero: numeric exacto. Drizzle lo devuelve como texto para no perder decimales.
     monthlyPrice: numeric({ precision: 10, scale: 2 }),
-    areaM2: numeric({ precision: 8, scale: 2 }),
+    // Nombre explícito: la conversión automática habría dado "area_m_2".
+    areaM2: numeric("area_m2", { precision: 8, scale: 2 }),
     bathroom: bathroomType(),
+    // Tipo de ambiente (opcional): las unidades creadas antes de este campo quedan sin tipo.
+    spaceType: spaceType(),
     furnished: boolean().notNull().default(false),
     // Rectángulo en la planta, en metros.
     posX: numeric({ precision: 8, scale: 2, mode: "number" }).notNull(),
@@ -158,9 +214,9 @@ export const unit = pgTable(
       for: "all",
       to: authenticatedRole,
       using: sql`exists (select 1 from public.floor f join public.property p on p.id = f.property_id
-        where f.id = ${t.floorId} and p.owner_id in ${myPersonIds})`,
+        where f.id = ${t.floorId} and p.business_id in ${myBusinessIds})`,
       withCheck: sql`exists (select 1 from public.floor f join public.property p on p.id = f.property_id
-        where f.id = ${t.floorId} and p.owner_id in ${myPersonIds})`,
+        where f.id = ${t.floorId} and p.business_id in ${myBusinessIds})`,
     }),
   ],
 );

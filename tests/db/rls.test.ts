@@ -59,15 +59,36 @@ async function setUp(tx: Tx) {
     (${A}, 'a@prueba.test', '{"full_name":"Arrendadora A"}', 'authenticated', 'authenticated'),
     (${B}, 'b@prueba.test', '{}', 'authenticated', 'authenticated')`;
   await actAs(tx, A);
-  const [property] = await tx`insert into public.property (owner_id, name, address, district_city, type)
-    select id, 'Residencia A', 'Calle Ejemplo 123', 'Lima', 'building' from public.person returning id`;
+  const [business] = await tx`insert into public.business (owner_id, service, kind, trade_name)
+    select id, 'residence', 'natural', 'Residencia A' from public.person returning id`;
+  const [property] = await tx`insert into public.property (business_id, name, address, district_city, type)
+    values (${business.id}, 'Residencia A', 'Calle Ejemplo 123', 'Lima', 'building') returning id`;
   const [floor] = await tx`insert into public.floor (property_id, level, outline)
     values (${property.id}, 1, ${SQUARE}) returning id`;
   const [unit] =
     await tx`insert into public.unit (floor_id, type, name, monthly_price, pos_x, pos_z, width, depth)
     values (${floor.id}, 'room', 'Cuarto 101', 500, 0, 0, 3, 3) returning id`;
   await actAsAdmin(tx);
-  return { propertyId: property.id as string, floorId: floor.id as string, unitId: unit.id as string };
+  return {
+    businessId: business.id as string,
+    propertyId: property.id as string,
+    floorId: floor.id as string,
+    unitId: unit.id as string,
+  };
+}
+
+// Cuántas filas de cada tabla ve quien está consultando.
+const countAll = (tx: Tx) =>
+  tx`select (select count(*) from public.person)::int pe, (select count(*) from public.business)::int b,
+    (select count(*) from public.property)::int p, (select count(*) from public.floor)::int f,
+    (select count(*) from public.unit)::int u`;
+
+// B crea su propio negocio de Residencia y devuelve su id.
+async function createBusinessForB(tx: Tx) {
+  await actAs(tx, B);
+  const [own] = await tx`insert into public.business (owner_id, service, kind, trade_name)
+    select id, 'residence', 'natural', 'Residencia B' from public.person returning id`;
+  return own.id as string;
 }
 
 describe("registro", () => {
@@ -95,16 +116,10 @@ describe("RLS entre dos arrendadores", () => {
     await inRollback(async (tx) => {
       await setUp(tx);
       await actAs(tx, A);
-      const [a] =
-        await tx`select (select count(*) from public.person)::int pe, (select count(*) from public.property)::int p,
-        (select count(*) from public.floor)::int f, (select count(*) from public.unit)::int u`;
-      expect(a).toEqual({ pe: 1, p: 1, f: 1, u: 1 });
+      expect((await countAll(tx))[0]).toEqual({ pe: 1, b: 1, p: 1, f: 1, u: 1 });
 
       await actAs(tx, B);
-      const [b] =
-        await tx`select (select count(*) from public.person)::int pe, (select count(*) from public.property)::int p,
-        (select count(*) from public.floor)::int f, (select count(*) from public.unit)::int u`;
-      expect(b).toEqual({ pe: 1, p: 0, f: 0, u: 0 });
+      expect((await countAll(tx))[0]).toEqual({ pe: 1, b: 0, p: 0, f: 0, u: 0 });
     });
   });
 
@@ -120,12 +135,15 @@ describe("RLS entre dos arrendadores", () => {
       ).toHaveLength(0);
       expect(await tx`delete from public.floor where id = ${ids.floorId} returning id`).toHaveLength(0);
       expect(
+        await tx`update public.business set ruc = '20123456789' where id = ${ids.businessId} returning id`,
+      ).toHaveLength(0);
+      expect(
         await tx`update public.person set full_name = 'x' where user_id = ${A} returning id`,
       ).toHaveLength(0);
     });
   });
 
-  it("B no puede agregar pisos o cuartos a lo de A, ni crear propiedades a nombre de A", async () => {
+  it("B no puede agregar pisos, cuartos ni propiedades a lo de A, ni crear negocios a nombre de A", async () => {
     await inRollback(async (tx) => {
       const ids = await setUp(tx);
       await actAs(tx, B);
@@ -146,8 +164,15 @@ describe("RLS entre dos arrendadores", () => {
       expect(
         await fails(
           tx,
-          (s) => s`insert into public.property (owner_id, name, address, district_city, type)
-            values ((select id from public.person where user_id = ${A}), 'x', 'x', 'x', 'room')`,
+          (s) => s`insert into public.property (business_id, name, address, district_city, type)
+            values (${ids.businessId}, 'x', 'x', 'x', 'room')`,
+        ),
+      ).toBe(true);
+      expect(
+        await fails(
+          tx,
+          (s) => s`insert into public.business (owner_id, service, kind, trade_name)
+            values ((select id from public.person where user_id = ${A}), 'meal_plan', 'natural', 'x')`,
         ),
       ).toBe(true);
     });
@@ -156,9 +181,13 @@ describe("RLS entre dos arrendadores", () => {
   it("B no puede pasarse a sí mismo la propiedad de A ni mover sus pisos a otra propiedad", async () => {
     await inRollback(async (tx) => {
       const ids = await setUp(tx);
-      await actAs(tx, B);
-      const [own] = await tx`insert into public.property (owner_id, name, address, district_city, type)
-        select id, 'Residencia B', 'Calle 2', 'Lima', 'room' from public.person returning id`;
+      const businessB = await createBusinessForB(tx);
+      const [own] = await tx`insert into public.property (business_id, name, address, district_city, type)
+        values (${businessB}, 'Residencia B', 'Calle 2', 'Lima', 'room') returning id`;
+      // B tampoco puede mover la propiedad de A a su propio negocio.
+      expect(
+        await tx`update public.property set business_id = ${businessB} where id = ${ids.propertyId} returning id`,
+      ).toHaveLength(0);
       expect(
         await tx`update public.floor set property_id = ${own.id} where id = ${ids.floorId} returning id`,
       ).toHaveLength(0);
@@ -174,10 +203,45 @@ describe("RLS entre dos arrendadores", () => {
     await inRollback(async (tx) => {
       await setUp(tx);
       await tx`set local role anon`;
-      const [row] =
-        await tx`select (select count(*) from public.person)::int pe, (select count(*) from public.property)::int p,
-        (select count(*) from public.floor)::int f, (select count(*) from public.unit)::int u`;
-      expect(row).toEqual({ pe: 0, p: 0, f: 0, u: 0 });
+      expect((await countAll(tx))[0]).toEqual({ pe: 0, b: 0, p: 0, f: 0, u: 0 });
+    });
+  });
+
+  it("un mismo arrendador puede tener varios negocios", async () => {
+    await inRollback(async (tx) => {
+      await setUp(tx);
+      await actAs(tx, A);
+      await tx`insert into public.business (owner_id, service, kind, trade_name)
+        select id, 'meal_plan', 'company', 'Pensión A' from public.person`;
+      expect((await countAll(tx))[0].b).toBe(2);
+    });
+  });
+});
+
+describe("reglas de negocios en la base", () => {
+  it("el RUC debe tener 11 dígitos y el día de cobro ir del 1 al 31", async () => {
+    await inRollback(async (tx) => {
+      const { businessId } = await setUp(tx);
+      for (const ruc of ["123", "2012345678X", "201234567890"]) {
+        expect(
+          await fails(tx, (s) => s`update public.business set ruc = ${ruc} where id = ${businessId}`),
+        ).toBe(true);
+      }
+      expect(
+        await fails(tx, (s) => s`update public.business set ruc = '20123456789' where id = ${businessId}`),
+      ).toBe(false);
+      for (const day of [0, 32]) {
+        expect(
+          await fails(tx, (s) => s`update public.business set billing_day = ${day} where id = ${businessId}`),
+        ).toBe(true);
+      }
+    });
+  });
+
+  it("no se puede borrar un negocio que tiene propiedades", async () => {
+    await inRollback(async (tx) => {
+      const { businessId } = await setUp(tx);
+      expect(await fails(tx, (s) => s`delete from public.business where id = ${businessId}`)).toBe(true);
     });
   });
 });

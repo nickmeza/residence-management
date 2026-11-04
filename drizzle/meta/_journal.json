@@ -15,6 +15,34 @@
       "when": 1793812708258,
       "tag": "0001_persona_al_registrarse",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793824245670,
+      "tag": "0002_negocio",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793824248474,
+      "tag": "0003_propiedad_sin_owner",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793828729159,
+      "tag": "0004_tipo_de_ambiente",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793831140937,
+      "tag": "0005_renombrar_area_m2",
+      "breakpoints": true
     }
   ]
 }

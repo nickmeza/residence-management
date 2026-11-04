@@ -1,35 +1,81 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 
-import { SignOutButton } from "@/components/auth/sign-out-button";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { getCurrentPerson } from "@/server/auth/session";
+import { BusinessCard } from "@/components/business/business-card";
+import { buttonVariants } from "@/components/ui/button";
+import { greetingFor, greetingName } from "@/lib/greeting";
+import { getShellData } from "@/server/business/current";
+import { getMyOverview } from "@/server/business/overview";
 
 export const metadata: Metadata = { title: "Panel · Gestión de residencias" };
 
-// Lee la sesión y la Persona (con RLS); por eso va dentro de <Suspense>.
+// "Buenos días" en la letra caligráfica (Great Vibes, solo para saludos) y el nombre con el primer apellido.
 async function Greeting() {
-  const me = await getCurrentPerson();
-  return <h1 className="text-[34px] font-bold tracking-tight">Hola, {me.fullName}</h1>;
+  const { fullName, current } = await getShellData();
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm text-muted-foreground">
+        {current ? `${current.tradeName} › ` : ""}
+        <b className="text-foreground">Panel</b>
+      </p>
+      <h1 className="text-[34px] font-bold tracking-tight">
+        <span className="font-script text-[56px] leading-tight font-normal tracking-normal text-primary">
+          {greetingFor(new Date())}
+        </span>
+        , {greetingName(fullName)}
+      </h1>
+      <p className="text-muted-foreground">Esto es lo que necesita tu atención hoy.</p>
+    </div>
+  );
 }
 
-// Panel mínimo de la Fase 1: solo comprueba que la cuenta y su Persona están conectadas.
+// El panel sigue al negocio elegido arriba (como el proyecto elegido en GCP).
+async function CurrentBusiness() {
+  const [{ current }, { businesses }] = await Promise.all([getShellData(), getMyOverview()]);
+  const shown = businesses.find((b) => b.id === current?.id);
+  if (!shown) {
+    return (
+      <section className="flex flex-col items-start gap-3 rounded-xl border bg-card p-6 shadow-card">
+        <h2 className="text-lg font-bold">Todavía no configuraste tu negocio</h2>
+        <p className="text-muted-foreground">
+          Elige tus servicios, registra los datos de tu negocio y arma tu propiedad.
+        </p>
+        <Link href="/configurar" className={buttonVariants({ className: "h-11 px-4" })}>
+          Configurar mi negocio
+        </Link>
+      </section>
+    );
+  }
+  return (
+    <section className="flex flex-col gap-4" aria-labelledby="negocio-actual">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="negocio-actual" className="text-lg font-bold">
+          Tu negocio
+        </h2>
+        {businesses.length > 1 ? (
+          <Link
+            href="/negocios"
+            className="text-sm font-semibold text-link underline-offset-4 hover:underline"
+          >
+            Ver todos mis negocios ({businesses.length})
+          </Link>
+        ) : null}
+      </div>
+      <BusinessCard business={shown} />
+    </section>
+  );
+}
+
 export default function PanelPage() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-8">
-      <header className="flex items-center justify-between gap-4">
-        <p className="text-sm text-muted-foreground">Panel del arrendador</p>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <SignOutButton />
-        </div>
-      </header>
-      <Suspense fallback={<p className="text-muted-foreground">Cargando tu panel…</p>}>
+    <>
+      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
         <Greeting />
       </Suspense>
-      <p className="text-muted-foreground">
-        Todavía no tienes propiedades. Podrás registrarlas en la Fase 2.
-      </p>
-    </main>
+      <Suspense fallback={<p className="text-muted-foreground">Cargando tu negocio…</p>}>
+        <CurrentBusiness />
+      </Suspense>
+    </>
   );
 }

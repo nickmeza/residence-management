@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vitest/config";
 
 // Pruebas contra la base real (pnpm test:db). Van aparte de pnpm test porque necesitan
@@ -7,6 +9,13 @@ try {
 } catch {}
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // "server-only" solo tiene sentido dentro de Next.js; aquí se reemplaza por un módulo vacío.
+      "server-only": fileURLToPath(new URL("./tests/db/empty-module.ts", import.meta.url)),
+    },
+  },
   test: {
     environment: "node",
     include: ["tests/db/**/*.test.ts"],

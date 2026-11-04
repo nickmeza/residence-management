@@ -1,14 +1,62 @@
 # Modelo de datos
 
-Propiedad → Piso → Unidad (departamento o cuarto). El precio vive siempre en la unidad que se alquila.
+**Persona → Negocio → Propiedad → Piso → Unidad** (departamento o cuarto). El precio vive siempre en la unidad
+que se alquila.
 
+## Cómo leer este documento
 
-## Propiedad
+- Cada sección es una tabla de la base. Los nombres aquí están en español; en el código están en inglés
+  (ver el glosario de `CLAUDE.md`). Por ejemplo, `negocio_id` es `business_id` en el código.
+- "→ Persona" significa que el campo apunta a una fila de la tabla Persona.
+- Las secciones marcadas **(en la base)** ya existen como tablas. Las demás son el diseño de fases futuras.
+- La tabla real y sus reglas exactas están en `src/db/schema.ts`. Si este documento y ese archivo no coinciden,
+  hay que corregir uno de los dos.
+
+## Quién es dueño de qué (en la base)
+
+Una **Persona** puede tener varios **Negocios**. Cada negocio es **un servicio** (Residencia, Pensión y, más
+adelante, otros como lavandería) con sus propios datos: RUC, contacto y forma de cobrar. Los negocios son
+independientes entre sí, aunque sean del mismo dueño.
+
+Un negocio de **Residencia** tiene **Propiedades** (edificios, pisos o cuartos sueltos). Un negocio de **Pensión**
+tiene su propio local y no depende de una propiedad.
+
+```text
+Persona (arrendador)
+├── Negocio: Residencia "Residencias Norte" (RUC A)
+│   ├── Propiedad: Edificio Norte → Pisos → Unidades
+│   └── Propiedad: Casa Sur → Pisos → Unidades
+└── Negocio: Pensión "Comedor Norte" (RUC B, su propia dirección)
+```
+
+La seguridad por filas (RLS) sigue esta misma cadena: quien inició sesión solo ve los negocios de su Persona, y
+de ahí sus propiedades, pisos y unidades.
+
+## Negocio (en la base)
 
 | Campo | Tipo | Regla o descripción |
 |---|---|---|
 | id | uuid | Identificador. |
-| propietario_id | → Persona | Dueño o arrendador. |
+| propietario_id | → Persona | Dueño del negocio. Una persona puede tener varios negocios. |
+| servicio | residencia \| pension | Qué servicio es. Lavandería y cowork se agregan cuando salgan de pausa. |
+| tipo | persona_natural \| empresa | Cómo opera ante SUNAT. |
+| nombre_comercial | texto | Ej.: Residencias Norte. Obligatorio. |
+| razon_social | texto (opcional) | Como figura en SUNAT. |
+| ruc | texto (opcional) | 11 dígitos. La base rechaza otro formato. |
+| telefono, correo_contacto | texto (opcional) | A donde escriben los residentes o clientes. |
+| ciudad | texto (opcional) |  |
+| direccion | texto (opcional) | Local propio, por ejemplo de una Pensión. La Residencia usa la dirección de cada propiedad. |
+| metodos_pago | lista de yape \| plin \| transferencia \| efectivo \| tarjeta | Los que acepta este negocio. |
+| dia_cobro | entero 1–31 (opcional) | Día del mes en que cobra. 31 = fin de mes (en meses cortos, el último día). |
+
+Cada negocio cobra por su cuenta (ver la regla "Recibo único" en `reglas-de-negocio.md`).
+
+## Propiedad (en la base)
+
+| Campo | Tipo | Regla o descripción |
+|---|---|---|
+| id | uuid | Identificador. |
+| negocio_id | → Negocio | El negocio de Residencia al que pertenece. El dueño se obtiene del negocio. No se puede borrar un negocio que tiene propiedades. |
 | nombre | texto |  |
 | direccion | texto |  |
 | distrito_ciudad | texto |  |
@@ -17,15 +65,20 @@ Propiedad → Piso → Unidad (departamento o cuarto). El precio vive siempre en
 | encargado_id | → Persona (opcional) | Solo si no vive ahí. |
 | moneda | texto | Predeterminada: PEN (S/). |
 
-## Piso
+## Piso (en la base)
 
 | Campo | Tipo | Regla o descripción |
 |---|---|---|
 | id | uuid |  |
 | propiedad_id | → Propiedad |  |
-| nivel | entero | El nombre "Piso N" se calcula del nivel; no se guarda. |
+| nivel | entero | El nombre "Piso N" se calcula del nivel; no se guarda. Al reordenar o borrar pisos, los niveles se renumeran solos (1, 2, 3…). |
+| contorno | lista de esquinas (x, z) en metros | La forma de la losa. Mínimo 4 esquinas, bordes en ángulo recto: un rectángulo tiene 4 esquinas y una L tiene 6. En el modo simple se crea sola, rectangular; la forma se ajusta en el 3D. |
 
-## Unidad
+## Unidad (en la base)
+
+Posición en la planta: `pos_x` y `pos_z` son la **esquina** de la unidad con los valores más chicos de x y z. La
+unidad ocupa de `pos_x` a `pos_x + ancho` y de `pos_z` a `pos_z + fondo`. Todo va en una cuadrícula de 0.1 m.
+Dos unidades pueden compartir una pared, pero no encimarse.
 
 | Campo | Tipo | Regla o descripción |
 |---|---|---|
@@ -39,9 +92,10 @@ Propiedad → Piso → Unidad (departamento o cuarto). El precio vive siempre en
 | precio_mensual | decimal (opcional) | Vacío si el departamento se alquila por cuartos. |
 | area_m2 | decimal |  |
 | bano | propio \| compartido |  |
+| tipo_ambiente | dormitorio \| estudio \| oficina \| deposito \| otro (opcional) | El "uso" de la historia ED-06. Opcional: las unidades creadas antes no lo tienen. |
 | amoblado | booleano |  |
-| estado | disponible \| ocupado \| mantenimiento | Se deriva del contrato vigente. |
-| pos_x, pos_z, ancho, fondo | decimal | Posición en la planta del 3D; el servidor valida límites y solapes. |
+| estado | disponible \| ocupado \| mantenimiento | **No se guarda**: se calcula del contrato vigente y del mantenimiento abierto. |
+| pos_x, pos_z, ancho, fondo | decimal | Posición en la planta (ver arriba). El servidor valida que quede dentro de la losa (y de su departamento, si es un cuarto interior) y sin encimarse. En el modo simple se ubica sola. |
 
 ## Amenity y servicio extra
 
@@ -55,12 +109,17 @@ Propiedad → Piso → Unidad (departamento o cuarto). El precio vive siempre en
 | servicio_extra.unidad_cobro | por_dia \| por_mes \| por_vez |  |
 | servicio_extra.activo | booleano |  |
 
-## Persona
+## Persona (en la base, sin dni ni rol todavía)
+
+Una Persona puede tener cuenta para entrar al sistema (`cuenta_id`) o no tenerla, por ejemplo un residente que aún
+no se registró. Al crear una cuenta, la base crea su Persona sola.
 
 | Campo | Tipo | Regla o descripción |
 |---|---|---|
 | id | uuid |  |
+| cuenta_id | → cuenta de Supabase Auth (opcional) | Única: una cuenta, una Persona. Si se borra la cuenta, la Persona queda sin cuenta. |
 | nombre, email, telefono | texto |  |
+| terminos_aceptados_en | fecha-hora (opcional) | Cuándo aceptó los Términos y la Política de privacidad al registrarse. |
 | dni | texto | Se verifica con el documento subido. |
 | rol | arrendador \| encargado \| residente \| externo \| contabilidad \| mantenimiento \| cocina | Una persona puede tener varios roles. |
 
