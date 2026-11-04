@@ -1,12 +1,11 @@
 "use client";
 
 import { ArrowDown, ArrowUp, ChevronRight, Plus } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
 import { ConfirmButton } from "@/components/confirm-button";
 import { Button } from "@/components/ui/button";
-import { ViewModeToggle } from "@/components/view-mode-toggle";
 import { formatSoles } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -85,7 +84,8 @@ function ApartmentRows({ unit, onOpen }: { unit: BuildingUnit; onOpen: (id: stri
   );
 }
 
-export function BuildingEditor({ building }: { building: BuildingView }) {
+// Modo simple de la pantalla Edificio. El interruptor 3D/Simple llega desde afuera (BuildingScreen).
+export function BuildingEditor({ building, toggle }: { building: BuildingView; toggle: ReactNode }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [message, setMessage] = useState<string>();
   const [pending, startTransition] = useTransition();
@@ -111,7 +111,7 @@ export function BuildingEditor({ building }: { building: BuildingView }) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <ViewModeToggle />
+        {toggle}
         <span className="rounded-full bg-primary-soft px-3 py-1.5 text-xs font-bold text-primary-text">
           {summary.floors} {summary.floors === 1 ? "piso" : "pisos"} · {summary.rentable} alquilables ·{" "}
           {summary.occupied} {summary.occupied === 1 ? "ocupado" : "ocupados"}

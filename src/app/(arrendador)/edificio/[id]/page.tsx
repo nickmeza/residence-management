@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { BuildingEditor } from "@/components/building/building-editor";
+import { BuildingScreenLoader } from "@/components/building/building-screen-loader";
 import { getBuilding } from "@/server/business/queries";
 
 export const metadata: Metadata = { title: "Edificio · Gestión de residencias" };
@@ -22,10 +22,10 @@ async function Content({ params }: { params: PageProps<"/edificio/[id]">["params
         </p>
         <h1 className="text-[34px] font-bold tracking-tight">Edificio</h1>
         <p className="text-muted-foreground">
-          Modo simple: pisos y unidades en acordeones, sin gráficos 3D. Toca una unidad para editarla.
+          Tu propiedad en 3D o en modo simple. Toca una unidad para ver y editar sus datos.
         </p>
       </div>
-      <BuildingEditor building={building} />
+      <BuildingScreenLoader building={building} />
     </>
   );
 }
