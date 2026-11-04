@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft, Plus } from "lucide-react";
-import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useOptimistic, useRef, useState, useTransition, type ReactNode } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
 import { findSheetTarget } from "@/components/building/sheet-target";
@@ -21,6 +21,7 @@ import { floorName } from "@/server/building/floors";
 import { STATUS_LABEL, type UnitStatus } from "@/server/building/status";
 import type { BuildingUnit, BuildingView } from "@/server/business/queries";
 
+import { applyMove, type PendingMove } from "./apply-move";
 import { BuildingScene, enterViewFor, type SceneSelection, type SceneView } from "./building-scene";
 import { SlabShapeDialog } from "./slab-shape-dialog";
 
@@ -64,7 +65,14 @@ function UnitLine({ unit, onOpen }: { unit: BuildingUnit; onOpen: () => void }) 
 
 // Modo 3D de la pantalla Edificio, con la estructura del diseño: el 3D a la izquierda y el panel a la derecha.
 // Este archivo y la escena solo se descargan al elegir el modo 3D (importación diferida).
-export function Building3DView({ building, toggle }: { building: BuildingView; toggle: ReactNode }) {
+export function Building3DView({ building: saved, toggle }: { building: BuildingView; toggle: ReactNode }) {
+  // Lo que se muestra: los datos guardados más los movimientos que todavía se están guardando.
+  // Si el servidor rechaza uno, ese movimiento desaparece solo y la unidad vuelve a su lugar.
+  const [building, addMove] = useOptimistic(saved, applyMove);
+  const [, startMove] = useTransition();
+  // Cola: los movimientos se guardan uno detrás de otro, en el orden en que se hicieron.
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const [saving, setSaving] = useState(0);
   const [view, setView] = useState<SceneView>({ level: "building" });
   const [selection, setSelection] = useState<SceneSelection>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -108,6 +116,21 @@ export function Building3DView({ building, toggle }: { building: BuildingView; t
         resolve();
       }),
     );
+
+  // Guarda un movimiento en segundo plano: se ve al instante y se envía en orden. No bloquea nada.
+  const saveMove = (move: PendingMove, action: () => Promise<BuildingResult>) =>
+    startMove(async () => {
+      addMove(move);
+      setSaving((n) => n + 1);
+      const result = queue.current.then(action);
+      queue.current = result.catch(() => undefined);
+      const outcome = await result.catch(() => ({
+        ok: false as const,
+        message: "No pudimos guardar el cambio. Vuelve a intentarlo.",
+      }));
+      setSaving((n) => n - 1);
+      if (!outcome.ok) setMessage(outcome.message);
+    });
 
   const crumbs = [
     "Edificio",
@@ -155,6 +178,14 @@ export function Building3DView({ building, toggle }: { building: BuildingView; t
           className="relative h-[420px] overflow-hidden rounded-xl border bg-background sm:h-[540px]"
         >
           <p className="absolute top-3 left-4 z-10 text-sm text-muted-foreground">{crumbs.join(" › ")}</p>
+          {saving > 0 ? (
+            <p
+              role="status"
+              className="absolute top-3 right-4 z-10 rounded-full bg-card px-3 py-1 text-xs font-semibold text-muted-foreground shadow-card"
+            >
+              Guardando {saving === 1 ? "1 cambio" : `${saving} cambios`}…
+            </p>
+          ) : null}
           {building.floors.length ? (
             <BuildingScene
               building={building}
@@ -162,8 +193,10 @@ export function Building3DView({ building, toggle }: { building: BuildingView; t
               selection={selection}
               onSelect={setSelection}
               onEnter={enter}
-              onMoveFloor={(id, level) => run(() => moveFloorToAction(id, level))}
-              onMoveUnit={(id, x, z) => run(() => moveUnitAction(id, x, z))}
+              onMoveFloor={(id, level) =>
+                saveMove({ type: "floor", id, level }, () => moveFloorToAction(id, level))
+              }
+              onMoveUnit={(id, x, z) => saveMove({ type: "unit", id, x, z }, () => moveUnitAction(id, x, z))}
             />
           ) : (
             <p className="p-6 pt-12 text-muted-foreground">
@@ -171,7 +204,7 @@ export function Building3DView({ building, toggle }: { building: BuildingView; t
             </p>
           )}
           <p className="absolute bottom-3 left-4 z-10 max-w-[80%] text-sm text-muted-foreground">
-            {pending ? "Guardando…" : HINT[safeView.level]}
+            {HINT[safeView.level]}
           </p>
           <p className="sr-only">
             Para recorrer el edificio con el teclado o un lector de pantalla, usa el modo Simple.

@@ -2,7 +2,7 @@
 
 import { Edges } from "@react-three/drei";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { ExtrudeGeometry, Group, OrthographicCamera, Plane, Shape, Vector2, Vector3 } from "three";
 
 import type { OutlinePoint } from "@/db/schema";
@@ -34,9 +34,9 @@ type Props = {
   selection: SceneSelection;
   onSelect: (selection: SceneSelection) => void;
   onEnter: (view: SceneView) => void;
-  // Guardan en el servidor. Si fallan, la escena vuelve a como estaba.
-  onMoveFloor: (floorId: string, level: number) => Promise<unknown>;
-  onMoveUnit: (unitId: string, x: number, z: number) => Promise<unknown>;
+  // Guardan en segundo plano. Quien los recibe muestra el cambio al instante y lo deshace si el servidor lo rechaza.
+  onMoveFloor: (floorId: string, level: number) => void;
+  onMoveUnit: (unitId: string, x: number, z: number) => void;
 };
 
 // Doble clic en un piso: si tiene un solo departamento que ocupa todo el piso, se entra directo a él.
@@ -135,9 +135,8 @@ const capture = (e: ThreeEvent<PointerEvent>) =>
 
 function Scene({ building, view, selection, onSelect, onEnter, onMoveFloor, onMoveUnit }: Props) {
   const colors = useThemeColors();
-  const [, startTransition] = useTransition();
   const press = useRef<Press | null>(null);
-  // Mientras se arrastra (y hasta que el servidor responde) se muestra el orden o la posición nueva.
+  // Mientras se arrastra se muestra el orden o la posición nueva; al soltar, el cambio pasa a quien guarda.
   const [floorDrag, setFloorDrag] = useState<{ id: string; y: number; order: string[] } | null>(null);
   const [unitDrag, setUnitDrag] = useState<{ id: string; rect: Rect } | null>(null);
 
@@ -222,12 +221,9 @@ function Scene({ building, view, selection, onSelect, onEnter, onMoveFloor, onMo
       setFloorDrag(null);
       return;
     }
-    // Queda en su nuevo lugar mientras el servidor guarda; luego se dibuja con los datos guardados.
-    setFloorDrag({ ...floorDrag, y: (level - 1) * FLOOR_HEIGHT });
-    startTransition(async () => {
-      await onMoveFloor(p.id, level);
-      startTransition(() => setFloorDrag(null));
-    });
+    // El cambio se ve al instante (optimista) y se guarda en segundo plano.
+    onMoveFloor(p.id, level);
+    setFloorDrag(null);
   };
 
   // ---- Arrastre de unidades (en la planta): en la cuadrícula de 0.1 m, sin salirse ni encimarse. ----
@@ -272,10 +268,8 @@ function Scene({ building, view, selection, onSelect, onEnter, onMoveFloor, onMo
       setUnitDrag(null);
       return;
     }
-    startTransition(async () => {
-      await onMoveUnit(u.id, x, z);
-      startTransition(() => setUnitDrag(null));
-    });
+    onMoveUnit(u.id, x, z);
+    setUnitDrag(null);
   };
   // R3F avisa cuánto se movió el puntero entre bajar y soltar: si fue un arrastre, no cuenta como clic.
   const wasDrag = (e: ThreeEvent<MouseEvent>) => e.delta > DRAG_THRESHOLD;
