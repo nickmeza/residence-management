@@ -152,6 +152,9 @@ La lista completa está en `docs/reglas-de-negocio.md`. Las más importantes:
 - El diseño de referencia está en https://claude.ai/code/artifact/86526841-fb83-484e-be72-58d868cbd9eb
   Cuando implementes una pantalla, lee el diseño, usa nuestros componentes y reglas, y no copies estilos sueltos.
 - Si el diseño cambia, se actualiza primero el diseño y después el código, para que no se desalineen.
+- La skill `ui-ux-pro-max` y su `design-system/<proyecto>/MASTER.md` son **propuestas**. Lo que yo apruebe se pasa a
+  `src/styles/tokens.css`, que es la única fuente que usa el código. No instales librerías que la skill recomiende
+  (GSAP, íconos, fuentes…) sin preguntarme.
 
 ## 10. Datos personales y seguridad
 
