@@ -192,6 +192,7 @@ y explícame cómo funciona.
 | `docs/pantallas.md` | Inventario de pantallas y sus versiones |
 | `docs/stack.md` | Stack y razones |
 | `docs/comandos-de-inicio.md` | Comandos para arrancar el proyecto |
+| `docs/sistema-de-diseno.md` | Paleta, tipografía y reglas visuales elegidas, con alternativas guardadas |
 
 Estos archivos salen de `matriz_requerimientos.xlsx` (hojas "Modelo de datos", "Reglas de negocio", "Pantallas" y las de historias).
 
