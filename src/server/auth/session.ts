@@ -2,6 +2,7 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 
 import { withRls, type SessionClaims } from "@/db/rls";
 import { person } from "@/db/schema";
@@ -10,6 +11,9 @@ import { createClient } from "@/lib/supabase/server";
 // Capa de acceso a datos: el único lugar que lee la sesión. Toda pantalla o acción privada
 // pasa por aquí; el proxy solo redirige, no protege los datos.
 export async function getSessionClaims(): Promise<SessionClaims> {
+  // Supabase mira la hora (Date.now()) para saber si el token venció. connection() le dice a
+  // Next.js que esto se calcula en cada visita y no al armar la página de antemano.
+  await connection();
   const supabase = await createClient();
   // getClaims verifica la firma del token; no basta con leer la cookie.
   const { data } = await supabase.auth.getClaims();
