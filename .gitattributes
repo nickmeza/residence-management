@@ -1,0 +1,13 @@
+# Saltos de línea LF en todo el proyecto (igual en Windows, Vercel y Prettier)
+* text=auto eol=lf
+
+# Binarios: no tocar
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.glb binary
+*.woff2 binary
+*.pdf binary

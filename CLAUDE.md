@@ -2,6 +2,8 @@
 
 Este archivo son las reglas del proyecto. Léelo completo antes de tocar código.
 
+Instrucciones oficiales de Next.js para esta versión: @AGENTS.md
+
 ## 1. Qué es este proyecto
 
 Un sistema para que un arrendador gestione su residencia: cuartos, departamentos, residentes, contratos, cobros, garantías,
