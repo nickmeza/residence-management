@@ -15,6 +15,20 @@
       "when": 1793812708258,
       "tag": "0001_persona_al_registrarse",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793824245670,
+      "tag": "0002_negocio",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793824248474,
+      "tag": "0003_propiedad_sin_owner",
+      "breakpoints": true
     }
   ]
 }

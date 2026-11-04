@@ -18,7 +18,8 @@ Reglas que el servidor debe cumplir.
 - **Nombre del piso:** "Piso N" se calcula del nivel; al reordenar pisos se renumeran solos.
 - **Pensión:** El precio del plan no debería superar la suma de las comidas sueltas. Es una advertencia, no un bloqueo.
 - **Reseñas:** Si la reseña es anónima, el arrendador ve las calificaciones y el comentario sin el nombre.
-- **Recibo único:** Renta, pensión, servicios extra y consumos se suman en un solo recibo mensual por residente.
+- **Negocios independientes:** Una persona puede tener varios negocios (Residencia, Pensión y, más adelante, otros como lavandería). Cada negocio es un servicio con sus propios datos: RUC, contacto y forma de cobrar. Ningún negocio depende de otro, aunque sean del mismo dueño. Un residente puede estar inscrito en negocios de dueños distintos; por ejemplo, vivir en la residencia de una persona y comer en la pensión de otra.
+- **Recibo único:** Cada negocio cobra por separado, con sus propios datos (RUC, métodos de pago). El residente ve un solo resumen mensual con todo lo que debe (renta, pensión, servicios extra y consumos), agrupado por negocio, aunque los negocios sean de dueños distintos. Así sabe qué le cobra cada uno. Se construye en la Fase 5.
 - **Pensión: confirmación:** La confirmación diaria cierra a la hora límite. Después de esa hora, solo la cocina puede cambiarla.
 - **Pensión: pausa:** Los días pausados no se cobran. La pausa no se puede solapar con días ya servidos.
 - **Reseñas:** Solo se puede calificar al terminar el contrato, y una sola vez por contrato.

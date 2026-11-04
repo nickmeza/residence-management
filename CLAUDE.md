@@ -81,10 +81,14 @@ La lógica de negocio va en `src/server/`, **nunca dentro de componentes de pant
 
 ## 6. Modelo de datos (resumen)
 
-**Propiedad → Piso → Unidad.** Una unidad es un **departamento** o un **cuarto**.
+**Persona → Negocio → Propiedad → Piso → Unidad.** Una unidad es un **departamento** o un **cuarto**.
 
+- Una persona puede tener **varios negocios**. Cada negocio es un servicio (Residencia, Pensión…) con sus propios
+  datos (RUC, contacto, cobros), independiente de los demás. Las propiedades cuelgan de un negocio de Residencia;
+  la Pensión tiene su propio local.
 - Una propiedad es de tipo `cuarto`, `piso` o `edificio`. Un cuarto suelto es una propiedad con un piso y una unidad.
 - El **nivel de un piso** es su posición. El nombre "Piso N" se calcula, no se guarda.
+- La losa de cada piso es un **contorno** de esquinas con ángulos rectos (rectángulo, L…), no solo ancho y fondo.
 - Un departamento tiene `ocupa_todo_piso` (booleano) y `modo_alquiler`: `completo` o `por_cuartos`.
 - Un cuarto puede estar suelto en un piso o dentro de un departamento (`unidad_padre_id`).
 - Los cuartos tienen posición en la planta: `pos_x`, `pos_z`, `ancho`, `fondo`.
@@ -96,6 +100,7 @@ El modelo completo está en `docs/modelo-de-datos.md`. Si el diseño y el modelo
 
 | Español | En el código |
 |---|---|
+| negocio | `business` |
 | propiedad | `property` |
 | piso | `floor` |
 | unidad | `unit` |
@@ -126,7 +131,10 @@ La lista completa está en `docs/reglas-de-negocio.md`. Las más importantes:
 10. **No se firma un contrato** hasta que los documentos obligatorios estén verificados.
 11. **Posición de los cuartos:** el servidor valida que estén dentro de la losa y sin solaparse. No basta validar en el navegador.
 12. **Pensión:** la confirmación diaria cierra a una hora límite. Los días pausados no se cobran.
-13. **Recibo único:** renta, pensión, extras y consumos se suman en un solo recibo mensual por residente.
+13. **Recibo único:** cada negocio cobra por separado, con su RUC; el residente ve un solo resumen mensual agrupado
+    por negocio, aunque sean de dueños distintos.
+14. **Negocios independientes:** un residente puede estar inscrito en negocios de dueños distintos (por ejemplo, la
+    residencia de uno y la pensión de otro).
 
 ## 8. El 3D y el modo simple
 
