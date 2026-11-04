@@ -1,0 +1,8 @@
+# Generados o de terceros: no se formatean
+pnpm-lock.yaml
+.next/
+node_modules/
+next-env.d.ts
+.claude/skills/
+src/components/ui/
+*.md
