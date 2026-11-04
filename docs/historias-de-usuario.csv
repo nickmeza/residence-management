@@ -1,0 +1,228 @@
+﻿Hoja,ID,Historia,Vista,Actores,Fase,Prioridad,Estado,Notas
+0 Registro,RG-01,"Como administrador, quiero elegir si ofrezco Residencia, Pensión o ambas para armar mi sistema.",Servicios,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+0 Registro,RG-02,"Como administrador, quiero ver más opciones de servicios y saber que lavandería y cowork llegarán pronto.",Servicios,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+0 Registro,RG-03,"Como administrador, quiero registrar mi negocio (persona natural o empresa, RUC, contacto).",Tu negocio,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+0 Registro,RG-04,"Como administrador, quiero indicar los métodos de pago que acepto y mi día de cobro.",Tu negocio,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+0 Registro,RG-05,"Como administrador, quiero elegir si ofrezco un cuarto, un piso o un edificio.",¿Qué ofreces?,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+0 Registro,RG-06,"Como administrador, quiero indicar si vivo en la propiedad o la administra un encargado.",¿Qué ofreces?,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+0 Registro,RG-07,"Como administrador, quiero armar mi edificio agregando pisos y unidades (departamentos y cuartos).",Arma tu edificio,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+0 Registro,RG-08,"Como administrador, quiero elegir ver todo en 3D o en modo simple, según mi dispositivo.",Todas las pantallas,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+0 Registro,RG-09,"Como administrador, quiero configurar mi pensión (comidas, horarios, plan y cómo se sirve).",Configura tu pensión,"Administrador, Cocina",Fase 1,Alta,Pendiente,Vista diseñada
+0 Registro,RG-10,"Como administrador, quiero crear mi cuenta con contraseña segura y aceptar los términos.",Cuenta,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+0 Registro,RG-11,"Como administrador, quiero revisar y editar el resumen de mi configuración antes de crear la cuenta.",Cuenta,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+0 Registro,RG-12,"Como administrador, quiero que el paso de pensión aparezca solo si elegí ese servicio.",Configura tu pensión,Sistema,Fase 1,Alta,Pendiente,Vista diseñada
+0 Registro,RG-13,"Como administrador, quiero que el sistema sugiera el modo simple en equipos con pocos recursos.",Todas las pantallas,Sistema,Fase 2,Media,Pendiente,Pendiente de diseño
+1 Panel,DB-01,"Como administrador, quiero ver ocupación, cobros pendientes y solicitudes abiertas del día para saber qué atender primero.",Dashboard,"Administrador, Recepción",Fase 1,Alta,Pendiente,Vista diseñada
+1 Panel,DB-02,"Como recepción, quiero ver las llegadas y salidas próximas para preparar cuartos y llaves.",Dashboard,Recepción,Fase 1,Alta,Pendiente,Vista diseñada
+1 Panel,DB-03,"Como administrador, quiero recibir alertas (deudas altas, contratos por vencer, fallas) para actuar a tiempo.",Dashboard,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+1 Panel,DB-04,"Como administrador, quiero un calendario con check-ins, check-outs, vencimientos y mantenimientos para planificar.",Calendario general,"Administrador, Recepción, Mantenimiento",Fase 1,Alta,Pendiente,Pendiente de diseño
+2 Edificio,ED-01,"Como administrador, quiero ver el edificio en 3D con sus pisos y cuartos para entender la distribución.",Edificio 3D,"Administrador, Recepción",Hecha,—,Hecha,Vista diseñada y prototipo funcional
+2 Edificio,ED-02,"Como administrador, quiero arrastrar un piso para reordenar los niveles.",Edificio 3D,Administrador,Hecha,—,Hecha,Vista diseñada y prototipo funcional
+2 Edificio,ED-03,"Como administrador, quiero entrar a la planta de un piso y mover sus cuartos arrastrándolos.",Edificio 3D,Administrador,Hecha,—,Hecha,Vista diseñada y prototipo funcional
+2 Edificio,ED-04,"Como administrador, quiero hacer clic en un piso o cuarto para ver sus datos.",Edificio 3D,"Administrador, Recepción",Hecha,—,Hecha,Vista diseñada y prototipo funcional
+2 Edificio,ED-05,"Como administrador, quiero agregar pisos y cuartos desde formularios.",Lista de pisos y cuartos,Administrador,Hecha,—,Hecha,Vista diseñada y prototipo funcional
+2 Edificio,ED-06,"Como administrador, quiero editar nombre, uso, m², precio y estado de un cuarto.",Lista de pisos y cuartos,"Administrador, Recepción",Hecha,—,Hecha,Vista diseñada y prototipo funcional
+2 Edificio,ED-07,"Como administrador, quiero un resumen con total de pisos, cuartos, ocupados y disponibles.",Lista de pisos y cuartos,Administrador,Hecha,—,Hecha,Vista diseñada y prototipo funcional
+2 Edificio,ED-08,"Como administrador, quiero que 3D y lista muestren siempre los mismos datos.",Ambas vistas,Sistema,Hecha,—,Hecha,Vista diseñada y prototipo funcional
+2 Edificio,ED-09,"Como administrador, quiero ver una línea de tiempo por cuarto con quién lo ocupa y los huecos libres para llenar vacíos.",Mapa de ocupación,"Administrador, Recepción",Fase 1,Alta,Pendiente,Pendiente de diseño
+2 Edificio,ED-10,"Como recepción, quiero ver fotos, características e historial de un cuarto para atender consultas.",Detalle de cuarto,"Administrador, Recepción",Fase 1,Alta,Pendiente,Diseño parcial
+2 Edificio,ED-11,"Como administrador, quiero definir áreas comunes con horarios y reglas.",Áreas comunes,Administrador,Fase 2,Media,Pendiente,Pendiente de diseño
+2 Edificio,ED-12,"Como residente, quiero reservar un área común por hora para usarla sin cruces.",Reserva de áreas comunes,"Residente, Recepción",Fase 2,Media,Pendiente,Pendiente de diseño
+2 Edificio,ED-13,"Como administrador, quiero registrar mobiliario y equipos de cada cuarto con su estado para controlarlos.",Inventario y mobiliario,"Administrador, Mantenimiento",Fase 2,Media,Pendiente,Pendiente de diseño
+2 Edificio,ED-14,"Como administrador, quiero registrar un solo cuarto de mi casa, sin pisos ni edificio.",¿Qué ofreces?,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+2 Edificio,ED-15,"Como administrador, quiero registrar un piso con sus cuartos cuando yo vivo en otro piso.",¿Qué ofreces?,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+2 Edificio,ED-16,"Como administrador, quiero indicar si vivo en la propiedad o si la administra un encargado.",¿Qué ofreces?,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+2 Edificio,ED-17,"Como administrador, quiero mezclar departamentos y cuartos en un mismo piso.",Arma tu edificio,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+2 Edificio,ED-18,"Como administrador, quiero que un departamento se alquile completo o por cuartos, para no alquilar lo mismo dos veces.",Arma tu edificio,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+2 Edificio,ED-19,"Como administrador, quiero marcar que un departamento ocupa todo el piso para entrar directo a él, sin pasar por dos niveles.","Arma tu edificio, Edificio 3D","Administrador, Sistema",Fase 1,Alta,Pendiente,Vista diseñada (3D funcional pendiente)
+2 Edificio,ED-20,"Como administrador, quiero poner el precio en la unidad que se alquila (cuarto o departamento).",Arma tu edificio,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+2 Edificio,ED-21,"Como residente, quiero ver características, lo incluido y los servicios extra de un cuarto al hacer clic en él.",Detalle del cuarto,Residente,Fase 1,Alta,Pendiente,Vista diseñada
+2 Edificio,ED-22,"Como administrador, quiero ver mi edificio en 3D dentro de la app, con sus pisos y unidades.",Edificio (3D),"Administrador, Recepción",Fase 1,Alta,Pendiente,Vista diseñada
+2 Edificio,ED-23,"Como administrador, quiero ver pisos y unidades en acordeones anidados, sin gráficos 3D, cuando mi equipo es lento.",Edificio (modo simple),"Administrador, Recepción",Fase 1,Alta,Pendiente,Vista diseñada
+3 Residentes,RS-01,"Como recepción, quiero buscar y filtrar residentes por estado, piso o universidad.",Lista de residentes,"Administrador, Recepción",Fase 1,Alta,Pendiente,Vista diseñada
+3 Residentes,RS-02,"Como administrador, quiero un perfil con datos, contacto de emergencia, documentos, cuarto, pagos e incidencias.",Perfil del residente,"Administrador, Recepción",Fase 1,Alta,Pendiente,Vista diseñada
+3 Residentes,RS-03,"Como postulante, quiero llenar un formulario con mis datos y documentos para pedir un cuarto.",Formulario de postulación,Postulante,Fase 1,Alta,Pendiente,Vista diseñada
+3 Residentes,RS-04,"Como administrador, quiero revisar postulantes y aprobarlos o rechazarlos.",Postulantes y lista de espera,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+3 Residentes,RS-05,"Como administrador, quiero una lista de espera cuando no hay cuartos libres.",Postulantes y lista de espera,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+3 Residentes,RS-06,"Como recepción, quiero ver los cuartos disponibles y asignar uno al postulante aprobado.",Asignación de cuarto,"Administrador, Recepción",Fase 1,Alta,Pendiente,Diseño parcial
+3 Residentes,RS-07,"Como recepción, quiero registrar personas externas, sin cuarto, que solo usan cowork o pensión.",Lista de residentes (externos),"Administrador, Recepción",Fase 2,Media,Pendiente,Diseño parcial
+3 Residentes,RS-08,"Como postulante, quiero buscar unidades disponibles y postular en línea.",Buscar y postular,Postulante,Fase 1,Alta,Pendiente,Vista diseñada
+4 Contratos,CT-01,"Como administrador, quiero listar contratos por estado (vigente, por vencer, terminado).",Contratos,"Administrador, Contabilidad",Fase 1,Alta,Pendiente,Vista diseñada
+4 Contratos,CT-02,"Como administrador, quiero crear un contrato desde una plantilla con fechas, depósito y reglas.",Detalle y creación de contrato,Administrador,Fase 1,Alta,Pendiente,Diseño parcial
+4 Contratos,CT-03,"Como residente, quiero firmar mi contrato digitalmente.",Detalle de contrato,"Residente, Administrador",Fase 1,Alta,Pendiente,Vista diseñada
+4 Contratos,CT-04,"Como administrador, quiero ver quiénes vencen pronto y proponer renovación.",Renovaciones y cambios,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+4 Contratos,CT-05,"Como recepción, quiero trasladar a un residente a otro cuarto.",Renovaciones y cambios,"Administrador, Recepción",Fase 1,Alta,Pendiente,Pendiente de diseño
+4 Contratos,CT-06,"Como recepción, quiero un checklist de ingreso con entrega de llaves y fotos del estado inicial del cuarto.",Check-in,"Recepción, Residente",Fase 1,Alta,Pendiente,Vista diseñada
+4 Contratos,CT-07,"Como recepción, quiero comparar el cuarto con su estado inicial y descontar daños del depósito.",Check-out,"Recepción, Contabilidad",Fase 1,Alta,Pendiente,Vista diseñada
+4 Contratos,CT-08,"Como administrador, quiero indicar si un contrato lleva garantía y de cuánto.",Detalle y creación de contrato,Administrador,Fase 1,Alta,Pendiente,Vista diseñada (en Configurar garantía)
+4 Contratos,CT-09,"Como residente, quiero solicitar renovación para el siguiente ciclo académico.",Renovación,Residente,Fase 2,Media,Pendiente,Vista diseñada
+5 Pagos,PG-01,"Como contabilidad, quiero ver los recibos del mes con su estado (pagado, pendiente, vencido).",Cobros y pagos,"Contabilidad, Administrador",Fase 1,Alta,Pendiente,Vista diseñada
+5 Pagos,PG-02,"Como contabilidad, quiero registrar un pago con método y comprobante.",Detalle de recibo,"Contabilidad, Recepción",Fase 1,Alta,Pendiente,Vista diseñada
+5 Pagos,PG-03,"Como residente, quiero un solo recibo mensual con cuarto, pensión, lavandería, cowork y consumos.",Detalle de recibo,"Residente, Contabilidad",Fase 2,Media,Pendiente,Vista diseñada
+5 Pagos,PG-04,"Como contabilidad, quiero ver morosos con días de atraso y enviar recordatorios.",Morosidad,"Contabilidad, Administrador",Fase 1,Alta,Pendiente,Vista diseñada
+5 Pagos,PG-05,"Como contabilidad, quiero registrar los gastos de la residencia (servicios, sueldos, reparaciones).",Gastos,Contabilidad,Fase 1,Alta,Pendiente,Pendiente de diseño
+5 Pagos,PG-06,"Como administrador, quiero ver ingresos contra gastos por mes y por edificio.",Resumen financiero,"Administrador, Contabilidad",Fase 1,Alta,Pendiente,Diseño parcial
+5 Pagos,PG-07,"Como residente, quiero pagar en línea (Yape, Plin, tarjeta) y que el pago se confirme solo.","Mis pagos, integración de pagos","Residente, Sistema",Fase 2,Media,Pendiente,Diseño parcial
+5 Pagos,PG-08,"Como residente, quiero subir mi comprobante de pago desde mis pagos.",Mis pagos,Residente,Fase 1,Alta,Pendiente,Vista diseñada
+5 Pagos,PG-09,"Como contabilidad, quiero ver el comprobante, compararlo con el recibo y aprobarlo o rechazarlo.",Cobros y pagos,"Contabilidad, Recepción",Fase 1,Alta,Pendiente,Pendiente de diseño
+6 Mantenimiento,MT-01,"Como residente, quiero reportar un problema con foto desde mi cuarto.",Pedir mantenimiento,Residente,Fase 1,Alta,Pendiente,Vista diseñada
+6 Mantenimiento,MT-02,"Como mantenimiento, quiero ver las solicitudes por estado y prioridad.",Solicitudes de mantenimiento,"Mantenimiento, Administrador",Fase 1,Alta,Pendiente,Vista diseñada
+6 Mantenimiento,MT-03,"Como mantenimiento, quiero registrar responsable, comentarios y costo de cada solicitud.",Detalle de solicitud,"Mantenimiento, Administrador",Fase 1,Alta,Pendiente,Diseño parcial
+6 Mantenimiento,MT-04,"Como administrador, quiero programar tareas periódicas (extintores, tanques, ascensor).",Mantenimiento preventivo,"Administrador, Mantenimiento",Fase 2,Media,Pendiente,Pendiente de diseño
+6 Mantenimiento,MT-05,"Como limpieza, quiero ver el estado de cada cuarto (sucio, limpio, inspeccionado) y mis asignaciones.",Limpieza,"Limpieza, Administrador",Fase 2,Media,Pendiente,Pendiente de diseño
+6 Mantenimiento,MT-06,"Como administrador, quiero un directorio de proveedores con su historial de trabajos.",Proveedores,Administrador,Fase 2,Media,Pendiente,Pendiente de diseño
+6 Mantenimiento,MT-07,"Como residente, quiero ver el estado de mis solicitudes anteriores.",Pedir mantenimiento,Residente,Fase 1,Alta,Pendiente,Vista diseñada
+7 Pensiones,PN-01,"Como administrador, quiero crear planes de pensión (desayuno, almuerzo, cena, las tres) con precio diario y mensual.",Planes de pensión,"Administrador, Cocina",Fase 2,Media,Pendiente,Vista diseñada
+7 Pensiones,PN-02,"Como residente, quiero comparar el precio del menú suelto (ej. S/ 11) con la pensión de tres comidas (ej. S/ 15).",Planes de pensión,"Residente, Administrador",Fase 2,Media,Pendiente,Vista diseñada
+7 Pensiones,PN-03,"Como cocina, quiero publicar el menú semanal por comida, con opciones de dieta.",Menú semanal,Cocina,Fase 2,Media,Pendiente,Vista diseñada
+7 Pensiones,PN-04,"Como recepción, quiero afiliar a un residente o externo a un plan y pausarlo por viajes.",Suscripciones de pensión,"Administrador, Recepción, Cocina",Fase 2,Media,Pendiente,Vista diseñada
+7 Pensiones,PN-05,"Como residente, quiero confirmar antes de cierta hora si comeré hoy para que no se desperdicie comida.",Confirmación diaria,Residente,Fase 2,Media,Pendiente,Vista diseñada
+7 Pensiones,PN-06,"Como cocina, quiero ver cuántas porciones preparar hoy según las confirmaciones.",Panel de cocina,Cocina,Fase 2,Media,Pendiente,Vista diseñada
+7 Pensiones,PN-07,"Como cocina, quiero registrar quién comió con lista o QR.",Registro de comidas,"Cocina, Residente",Fase 2,Media,Pendiente,Vista diseñada
+7 Pensiones,PN-08,"Como cocina, quiero ver dietas y alergias de cada comensal.",Dietas y alergias,"Cocina, Residente",Fase 2,Media,Pendiente,Vista diseñada
+7 Pensiones,PN-09,"Como administrador, quiero aceptar comensales externos con su propio plan.",Suscripciones de pensión,"Administrador, Externo",Fase 2,Media,Pendiente,Vista diseñada
+7 Pensiones,PN-10,"Como contabilidad, quiero que la pensión se cargue al recibo mensual o se cobre aparte.",Cobros y pagos,"Contabilidad, Sistema",Fase 2,Media,Pendiente,Pendiente de diseño
+7 Pensiones,PN-11,"Como administrador, quiero configurar comidas, horarios y precios de mi pensión al registrarme.",Configura tu pensión,"Administrador, Cocina",Fase 1,Alta,Pendiente,Vista diseñada
+7 Pensiones,PN-12,"Como administrador, quiero definir cómo se sirve (comedor, para llevar, delivery) y cuántos comensales por turno.",Configura tu pensión,"Administrador, Cocina",Fase 1,Alta,Pendiente,Vista diseñada
+7 Pensiones,PN-13,"Como administrador, quiero definir la hora límite de confirmación, dietas que atiendo y si acepto externos.",Configura tu pensión,"Administrador, Cocina",Fase 1,Alta,Pendiente,Vista diseñada
+7 Pensiones,PN-14,"Como cocina, quiero recordar a los comensales que no han confirmado su asistencia.",Cocina · Hoy,"Cocina, Sistema",Fase 2,Media,Pendiente,Vista diseñada
+7 Pensiones,PN-15,"Como residente, quiero pausar mi pensión por un viaje y que no se cobren esos días.",Mi pensión,Residente,Fase 2,Media,Pendiente,Vista diseñada
+7 Pensiones,PN-16,"Como residente, quiero ver mi consumo del mes y el estimado a pagar de mi pensión.",Mi pensión,Residente,Fase 2,Media,Pendiente,Vista diseñada
+8 Lavandería,LV-01,"Como encargado de lavandería, quiero recibir un encargo, pesarlo, calcular el precio y fijar el día de recojo.",Registro de encargos,Encargado de lavandería,Fase 3 · Standby,Baja,Pendiente,En pausa
+8 Lavandería,LV-02,"Como encargado de lavandería, quiero imprimir un QR por bolsa con peso, precio y estado para no perder ropa.",Registro de encargos,Encargado de lavandería,Fase 3 · Standby,Baja,Pendiente,En pausa
+8 Lavandería,LV-03,"Como encargado de lavandería, quiero cambiar el estado (recibido, lavando, listo, entregado) escaneando el QR.",Estado del encargo,Encargado de lavandería,Fase 3 · Standby,Baja,Pendiente,En pausa
+8 Lavandería,LV-04,"Como residente, quiero ver el estado de mi ropa y cuándo recogerla.",Mis encargos,Residente,Fase 3 · Standby,Baja,Pendiente,En pausa
+8 Lavandería,LV-05,"Como residente, quiero recibir un aviso cuando mi ropa esté lista.",Notificaciones,"Residente, Sistema",Fase 3 · Standby,Baja,Pendiente,En pausa
+8 Lavandería,LV-06,"Como encargado de lavandería, quiero registrar la entrega y quién retira la ropa.",Entrega de encargo,"Encargado de lavandería, Residente",Fase 3 · Standby,Baja,Pendiente,En pausa
+8 Lavandería,LV-07,"Como contabilidad, quiero que cada encargo o ciclo se cargue al recibo mensual.",Cobros y pagos,"Contabilidad, Sistema",Fase 3 · Standby,Baja,Pendiente,En pausa
+8 Lavandería,LV-08,"Como residente, quiero reportar ropa perdida o dañada y seguir mi caso.",Incidencias de lavandería,"Residente, Encargado de lavandería",Fase 3 · Standby,Baja,Pendiente,En pausa
+8 Lavandería,LV-09,"Como residente, quiero ver qué máquinas están libres, en uso o malogradas (modo autoservicio).",Estado de máquinas,"Residente, Encargado de lavandería",Fase 3 · Standby,Baja,Pendiente,En pausa
+8 Lavandería,LV-10,"Como residente, quiero reservar un turno de máquina.",Reserva de turno,Residente,Fase 3 · Standby,Baja,Pendiente,En pausa
+8 Lavandería,LV-11,"Como residente, quiero reportar una máquina con falla.",Incidencias de máquinas,"Residente, Mantenimiento",Fase 3 · Standby,Baja,Pendiente,En pausa
+8 Lavandería,LV-12,"Como administrador, quiero elegir si cada local usa modo encargo, autoservicio o ambos.",Configuración de lavandería,Administrador,Fase 3 · Standby,Baja,Pendiente,En pausa
+9 Cowork,CW-01,"Como administrador, quiero definir salas, cubículos y mesas con capacidad, equipamiento y reglas.",Espacios,Administrador,Fase 3 · Standby,Baja,Pendiente,En pausa
+9 Cowork,CW-02,"Como residente, quiero reservar un espacio por hora o por día.",Calendario de reservas,"Residente, Externo",Fase 3 · Standby,Baja,Pendiente,En pausa
+9 Cowork,CW-03,"Como administrador, quiero crear planes (pase diario, paquete de horas, mensual).",Planes y membresías,Administrador,Fase 3 · Standby,Baja,Pendiente,En pausa
+9 Cowork,CW-04,"Como externo, quiero registrarme y contratar un plan sin tener cuarto.",Miembros externos,"Externo, Recepción",Fase 3 · Standby,Baja,Pendiente,En pausa
+9 Cowork,CW-05,"Como recepción, quiero ver la ocupación en tiempo real y registrar check-ins con QR o código.",Check-in de cowork,"Recepción, Residente, Externo",Fase 3 · Standby,Baja,Pendiente,En pausa
+9 Cowork,CW-06,"Como contabilidad, quiero cobrar planes y pases al residente o al externo.",Cobros y pagos,"Contabilidad, Sistema",Fase 3 · Standby,Baja,Pendiente,En pausa
+10 Comunicación,CM-01,"Como administrador, quiero publicar avisos al edificio, a un piso o a una persona.",Avisos y comunicados,"Administrador, Recepción",Fase 2,Media,Pendiente,Vista diseñada
+10 Comunicación,CM-02,"Como residente, quiero ver los avisos que me llegan.",Portal del residente,Residente,Fase 2,Media,Pendiente,Vista diseñada
+10 Comunicación,CM-03,"Como residente, quiero escribir a la administración y recibir respuesta.",Mensajes,"Residente, Administrador",Fase 2,Media,Pendiente,Vista diseñada
+10 Comunicación,CM-04,"Como administrador, quiero registrar quejas e infracciones y su seguimiento.",Incidencias y reglamento,"Administrador, Recepción",Fase 2,Media,Pendiente,Pendiente de diseño
+10 Comunicación,CM-05,"Como recepción, quiero registrar visitantes, a quién visitan y la hora.",Visitas,Recepción,Fase 2,Media,Pendiente,Pendiente de diseño
+10 Comunicación,CM-06,"Como recepción, quiero registrar paquetes recibidos y avisar al residente.",Encomiendas,"Recepción, Residente",Fase 2,Media,Pendiente,Pendiente de diseño
+11 Accesos,AC-01,"Como recepción, quiero controlar quién tiene cada llave o tarjeta y registrar entregas y pérdidas.",Control de llaves y accesos,"Recepción, Administrador",Fase 1,Alta,Pendiente,Pendiente de diseño
+11 Accesos,AC-02,"Como residente, quiero abrir la puerta con mi celular (llave digital).",Llave digital,"Residente, Sistema",Fase 2,Media,Pendiente,Pendiente de diseño
+11 Accesos,AC-03,"Como administrador, quiero que el acceso se anule solo cuando termina el contrato.",Control de llaves y accesos,"Administrador, Sistema",Fase 2,Media,Pendiente,Pendiente de diseño
+11 Accesos,AC-04,"Como residente, quiero generar un QR de un solo uso para que entre mi visita.",Pases de visita,"Residente, Recepción",Fase 2,Media,Pendiente,Pendiente de diseño
+11 Accesos,AC-05,"Como recepción, quiero que las entradas y salidas queden registradas automáticamente.",Registro de accesos,"Recepción, Sistema",Fase 2,Media,Pendiente,Pendiente de diseño
+11 Accesos,AC-06,"Como administrador, quiero contactos, protocolo y lista de residentes presentes para emergencias.",Emergencias,"Administrador, Recepción",Fase 2,Media,Pendiente,Pendiente de diseño
+12 Medidores,MD-01,"Como administrador, quiero que el consumo de luz y agua de cada cuarto se registre automáticamente.",Consumo por cuarto,"Administrador, Sistema",Fase 2,Media,Pendiente,Pendiente de diseño
+12 Medidores,MD-02,"Como residente, quiero ver cuánto he consumido.",Mis consumos,Residente,Fase 2,Media,Pendiente,Pendiente de diseño
+12 Medidores,MD-03,"Como contabilidad, quiero cobrar el consumo real en el recibo mensual.",Cobros y pagos,"Contabilidad, Sistema",Fase 2,Media,Pendiente,Pendiente de diseño
+12 Medidores,MD-04,"Como administrador, quiero una alerta de consumo anormal o fuga.",Alertas,"Administrador, Mantenimiento",Fase 2,Media,Pendiente,Pendiente de diseño
+13 Sensores,SN-01,"Como mantenimiento, quiero que sensores de fuga, humedad o falla de terma avisen antes de que el residente reclame.",Mantenimiento predictivo,"Mantenimiento, Sistema",Fase 3 · Standby,Baja,Pendiente,Pendiente de diseño
+13 Sensores,SN-02,"Como administrador, quiero que una alerta de sensor cree sola una solicitud de mantenimiento.",Solicitudes de mantenimiento,"Administrador, Sistema",Fase 3 · Standby,Baja,Pendiente,Pendiente de diseño
+13 Sensores,SN-03,"Como mantenimiento, quiero ver el historial de fallas por equipo o cuarto.",Detalle de equipo,"Mantenimiento, Administrador",Fase 3 · Standby,Baja,Pendiente,Pendiente de diseño
+14 Reportes,RP-01,"Como administrador, quiero ver la ocupación por piso y mes y el tiempo promedio de cuarto vacío.",Reporte de ocupación,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+14 Reportes,RP-02,"Como administrador, quiero ver ingresos, morosidad y proyección.",Reporte financiero,"Administrador, Contabilidad",Fase 1,Alta,Pendiente,Diseño parcial
+14 Reportes,RP-03,"Como contabilidad, quiero exportar cualquier tabla a Excel o PDF.",Exportaciones,"Contabilidad, Administrador",Fase 1,Alta,Pendiente,Vista diseñada
+14 Reportes,RP-04,"Como administrador, quiero reportes de uso de pensión, lavandería y cowork.",Reportes de servicios,Administrador,Fase 2,Media,Pendiente,Diseño parcial
+14 Reportes,RP-05,"Como administrador, quiero comparar ocupación e ingresos por mes y por unidad.",Reportes,"Administrador, Contabilidad",Fase 1,Alta,Pendiente,Vista diseñada
+15 Configuración,CF-01,"Como administrador, quiero crear y configurar edificios y pisos.",Edificios y pisos,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+15 Configuración,CF-02,"Como administrador, quiero definir tipos de cuarto, tarifas base, descuentos y depósitos.",Tipos de cuarto y tarifas,Administrador,Fase 1,Alta,Pendiente,Pendiente de diseño
+15 Configuración,CF-03,"Como administrador, quiero crear usuarios con roles y permisos distintos.",Usuarios y roles,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+15 Configuración,CF-04,"Como administrador, quiero plantillas de contratos, comunicados y correos.",Plantillas,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+15 Configuración,CF-05,"Como administrador, quiero activar recordatorios automáticos de pago y vencimiento de contrato.",Notificaciones y automatizaciones,"Administrador, Sistema",Fase 2,Media,Pendiente,Vista diseñada
+15 Configuración,CF-06,"Como administrador, quiero guardar nombre, logo e información fiscal de la empresa.",Datos de la empresa,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+15 Configuración,CF-07,"Como administrador, quiero un catálogo de servicios y planes que un residente pueda contratar.",Catálogo de servicios,Administrador,Fase 2,Media,Pendiente,Pendiente de diseño
+15 Configuración,CF-08,"Como administrador, quiero configurar los webhooks que conectan sistemas externos.",Integraciones,Administrador,Fase 2,Media,Pendiente,Pendiente de diseño
+15 Configuración,CF-09,"Como administrador, quiero invitar usuarios por correo con un rol (encargado, mantenimiento, cocina o contabilidad).",Usuarios y roles,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+15 Configuración,CF-10,"Como administrador, quiero usar variables ({nombre}, {unidad}, {monto}, {fecha}) en mis plantillas.",Plantillas,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+15 Configuración,CF-11,"Como administrador, quiero editar mis métodos de pago y mi día de cobro.",Configuración · Negocio,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+16 Portal,PR-01,"Como residente, quiero ver mi cuarto, mi contrato y mis documentos.",Mi cuarto y mi contrato,Residente,Fase 2,Media,Pendiente,Vista diseñada
+16 Portal,PR-02,"Como residente, quiero ver mi deuda e historial de pagos y pagar en línea.",Mis pagos,Residente,Fase 2,Media,Pendiente,Vista diseñada
+16 Portal,PR-03,"Como residente, quiero reservar áreas comunes y ver avisos desde un solo lugar.",Reservas y avisos,Residente,Fase 2,Media,Pendiente,Diseño parcial
+16 Portal,PR-04,"Como residente, quiero ver mi garantía y su liquidación desde un solo lugar.","Mi garantía, Tu garantía",Residente,Fase 1,Alta,Pendiente,Vista diseñada
+16 Portal,PR-05,"Como residente, quiero ver mi contrato y mis documentos en una sola vista.",Contrato y documentos,Residente,Fase 1,Alta,Pendiente,Vista diseñada
+16 Portal,PR-06,"Como residente, quiero un inicio con mis tareas del día, mi próximo pago y los avisos recientes.",Inicio del residente,Residente,Fase 1,Alta,Pendiente,Vista diseñada
+17 Transversales,TR-01,"Como administrador, quiero que los datos se guarden en una base de datos y no se pierdan al recargar.",Todas,Sistema,Fase 1,Alta,Pendiente,Técnico (sin vista)
+17 Transversales,TR-02,"Como administrador, quiero que el servidor valide límites y solapamientos de cuartos, no solo el navegador.","Edificio 3D, Lista",Sistema,Fase 1,Alta,Pendiente,Técnico (sin vista)
+17 Transversales,TR-03,"Como administrador, quiero un motor común de servicios (recurso, reserva, plan, cargo) para agregar servicios sin rediseñar.",Catálogo de servicios,"Sistema, Administrador",Fase 2,Media,Pendiente,Técnico (sin vista)
+17 Transversales,TR-04,"Como sistema externo, quiero recibir webhooks salientes (reserva creada, cambio de estado, pago recibido, comida registrada).",Integraciones,Sistema,Fase 2,Media,Pendiente,Técnico (sin vista)
+17 Transversales,TR-05,"Como sistema, quiero aceptar webhooks entrantes (ciclo de lavadora, cerradura, pasarela de pagos, sensores).",Integraciones,Sistema,Fase 2,Media,Pendiente,Técnico (sin vista)
+18 Garantía,GA-01,"Como administrador, quiero decidir si pido garantía y cuánto (1 mes, 2 meses o monto fijo) por tipo de unidad.",Configurar garantía,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+18 Garantía,GA-02,"Como administrador, quiero definir excepciones de garantía por unidad (sin garantía u otro monto).",Configurar garantía,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+18 Garantía,GA-03,"Como administrador, quiero definir qué cubre la garantía, el plazo y el método de devolución.",Configurar garantía,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+18 Garantía,GA-04,"Como residente, quiero ver cuánto dejé de garantía y en qué estado está.",Mi garantía,Residente,Fase 1,Alta,Pendiente,Vista diseñada
+18 Garantía,GA-05,"Como residente, quiero entender cómo funciona la garantía y qué cubre.",Mi garantía,Residente,Fase 1,Alta,Pendiente,Vista diseñada
+18 Garantía,GA-06,"Como recepción, quiero registrar el estado del cuarto al ingresar, con fotos, como base de comparación.","Check-in, Mi garantía","Recepción, Administrador, Residente",Fase 1,Alta,Pendiente,Vista diseñada (vista del residente)
+18 Garantía,GA-07,"Como administrador, quiero ver las garantías retenidas, por liquidar y devueltas, con sus totales.",Garantías,"Administrador, Contabilidad",Fase 1,Alta,Pendiente,Vista diseñada
+18 Garantía,GA-08,"Como administrador, quiero revisar el cuarto al salir rubro por rubro y registrar descuentos con nota y foto.",Liquidar garantía,"Administrador, Recepción",Fase 1,Alta,Pendiente,Vista diseñada
+18 Garantía,GA-09,"Como sistema, quiero calcular el monto a devolver (garantía menos descuentos) sin que sea negativo.",Liquidar garantía,Sistema,Fase 1,Alta,Pendiente,Vista diseñada
+18 Garantía,GA-10,"Como administrador, quiero enviar la liquidación al residente y guardar borradores.",Liquidar garantía,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+18 Garantía,GA-11,"Como residente, quiero ver la liquidación con el detalle y las fotos de cada descuento.",Tu garantía,Residente,Fase 1,Alta,Pendiente,Vista diseñada
+18 Garantía,GA-12,"Como residente, quiero aceptar la liquidación.",Tu garantía,Residente,Fase 1,Alta,Pendiente,Vista diseñada
+18 Garantía,GA-13,"Como residente, quiero disputar un descuento y que el arrendador lo revise.","Tu garantía, Liquidar garantía","Residente, Administrador",Fase 1,Alta,Pendiente,Vista diseñada (respuesta a disputa pendiente)
+18 Garantía,GA-14,"Como residente, quiero elegir dónde recibir mi devolución (Yape, Plin o transferencia).",Tu garantía,Residente,Fase 1,Alta,Pendiente,Vista diseñada
+18 Garantía,GA-15,"Como administrador, quiero registrar que la devolución ya se pagó.",Garantías,"Administrador, Contabilidad",Fase 1,Alta,Pendiente,Vista diseñada
+18 Garantía,GA-16,"Como residente, quiero ver la línea de tiempo del proceso de devolución.",Tu garantía,Residente,Fase 2,Media,Pendiente,Vista diseñada
+19 Cierre y renovación,CR-01,"Como administrador, quiero escribir un mensaje de agradecimiento personalizado para el residente.",Liquidar garantía,Administrador,Fase 2,Media,Pendiente,Vista diseñada
+19 Cierre y renovación,CR-02,"Como residente, quiero leer el mensaje de mi arrendador al terminar mi contrato.",Agradecimiento,Residente,Fase 2,Media,Pendiente,Vista diseñada
+19 Cierre y renovación,CR-03,"Como residente, quiero calificar mi estadía por cuarto, limpieza, trato, convivencia y pensión.",Calificación,Residente,Fase 2,Media,Pendiente,Vista diseñada
+19 Cierre y renovación,CR-04,"Como residente, quiero dejar un comentario, decir si recomiendo y elegir si mi reseña es anónima.",Calificación,Residente,Fase 2,Media,Pendiente,Vista diseñada
+19 Cierre y renovación,CR-05,"Como administrador, quiero ver las reseñas que recibo, con promedio por rubro.",Reseñas recibidas,Administrador,Fase 2,Media,Pendiente,Vista diseñada
+19 Cierre y renovación,CR-06,"Como residente, quiero renovar mi cuarto, cambiar de cuarto o no renovar.",Renovación,Residente,Fase 2,Media,Pendiente,Vista diseñada
+19 Cierre y renovación,CR-07,"Como sistema, quiero mantener la garantía actual al renovar, sin pedir otra ni liquidarla.",Renovación,Sistema,Fase 2,Media,Pendiente,Vista diseñada
+19 Cierre y renovación,CR-08,"Como residente, quiero ver la fecha límite para responder sobre mi renovación.",Renovación,"Residente, Sistema",Fase 2,Media,Pendiente,Vista diseñada
+19 Cierre y renovación,CR-09,"Como administrador, quiero ver y aprobar las solicitudes de renovación y proponer el nuevo precio.",Renovaciones (arrendador),Administrador,Fase 2,Media,Pendiente,Vista diseñada
+19 Cierre y renovación,CR-10,"Como recepción, quiero coordinar una cita de entrega de llaves y revisión final con el residente.",Check-out,"Recepción, Residente",Fase 2,Media,Pendiente,Vista diseñada
+20 Documentos,DOC-01,"Como residente, quiero ver qué documentos pide mi arrendador para firmar mi contrato.",Contrato y documentos,Residente,Fase 1,Alta,Pendiente,Vista diseñada
+20 Documentos,DOC-02,"Como residente, quiero subir cada documento (PDF o foto, máximo 5 MB).",Contrato y documentos,Residente,Fase 1,Alta,Pendiente,Vista diseñada
+20 Documentos,DOC-03,"Como residente, quiero ver el estado de cada documento (verificado, en revisión, pendiente).",Contrato y documentos,Residente,Fase 1,Alta,Pendiente,Vista diseñada
+20 Documentos,DOC-04,"Como residente, quiero firmar mi contrato solo cuando mis documentos estén completos.",Contrato y documentos,"Residente, Sistema",Fase 1,Alta,Pendiente,Vista diseñada
+20 Documentos,DOC-05,"Como administrador, quiero elegir qué documentos pido a mis inquilinos, por edificio o por unidad.",Configurar documentos,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+20 Documentos,DOC-06,"Como administrador, quiero revisar y verificar o rechazar cada documento, con motivo.",Revisión de documentos,"Administrador, Recepción",Fase 1,Alta,Pendiente,Vista diseñada
+20 Documentos,DOC-07,"Como administrador, quiero un aviso cuando un residente sube un documento.",Notificaciones,"Administrador, Sistema",Fase 2,Media,Pendiente,Vista diseñada
+20 Documentos,DOC-08,"Como residente, quiero descargar plantillas (por ejemplo, la declaración de convivencia).",Contrato y documentos,Residente,Fase 2,Media,Pendiente,Vista diseñada
+21 Entrada y acceso,EN-01,"Como visitante, quiero conocer qué hace el sistema, para quién es y cómo funciona.",Landing,Visitante,Fase 1,Alta,Pendiente,Vista diseñada
+21 Entrada y acceso,EN-02,"Como visitante, quiero dejar mis datos de contacto para que me muestren el sistema.",Landing,"Visitante, Administrador",Fase 1,Alta,Pendiente,Vista diseñada
+21 Entrada y acceso,EN-03,"Como usuario, quiero iniciar sesión con mi correo y contraseña.",Iniciar sesión,"Administrador, Residente, Recepción, Contabilidad, Mantenimiento, Cocina",Fase 1,Alta,Pendiente,Vista diseñada
+21 Entrada y acceso,EN-04,"Como usuario, quiero recuperar mi contraseña con un enlace por correo.",Recuperar contraseña,"Administrador, Residente, Recepción",Fase 1,Alta,Pendiente,Vista diseñada
+21 Entrada y acceso,EN-05,"Como administrador, quiero confirmar mi correo y ver mis primeros pasos al registrarme.",Bienvenida,Administrador,Fase 1,Alta,Pendiente,Vista diseñada
+21 Entrada y acceso,EN-06,"Como sistema, quiero llevar a cada persona a la vista que le corresponde según su rol al iniciar sesión.",Iniciar sesión,Sistema,Fase 1,Alta,Pendiente,Pendiente de diseño
+21 Entrada y acceso,EN-07,"Como visitante, quiero crear mi cuenta desde la landing y entrar al registro.","Landing, Servicios",Visitante,Fase 1,Alta,Pendiente,Vista diseñada
+22 Estados y mensajes,ES-01,"Como usuario, quiero ver un mensaje útil, con qué hacer, cuando no hay datos que mostrar.",Estados vacíos,"Administrador, Residente",Fase 1,Alta,Pendiente,Vista diseñada
+22 Estados y mensajes,ES-02,"Como usuario, quiero ver una pantalla clara cuando la página no existe, no tengo permiso, el servidor falla, no hay conexión o venció mi sesión.",Errores,"Administrador, Residente",Fase 1,Alta,Pendiente,Vista diseñada
+22 Estados y mensajes,ES-03,"Como usuario, quiero ver los errores de un formulario campo por campo, sin perder lo que escribí.",Errores,"Administrador, Residente",Fase 1,Alta,Pendiente,Vista diseñada
+22 Estados y mensajes,ES-04,"Como usuario, quiero poder reintentar cuando una lista no carga.",Errores,"Administrador, Residente",Fase 1,Alta,Pendiente,Vista diseñada
+22 Estados y mensajes,ES-05,"Como usuario, quiero saber por qué falló la subida de un archivo (peso, formato) y poder elegir otro.",Errores,"Residente, Administrador",Fase 1,Alta,Pendiente,Vista diseñada
+22 Estados y mensajes,ES-06,"Como usuario, quiero avisos emergentes de éxito, error, advertencia e información.",Notificaciones,"Administrador, Residente",Fase 1,Alta,Pendiente,Vista diseñada
+22 Estados y mensajes,ES-07,"Como usuario, quiero banners para pagos vencidos, falta de conexión y mantenimiento programado.",Notificaciones,"Administrador, Residente",Fase 2,Media,Pendiente,Vista diseñada
+22 Estados y mensajes,ES-08,"Como usuario, quiero un centro de notificaciones con las no leídas marcadas.",Notificaciones,"Administrador, Residente",Fase 2,Media,Pendiente,Vista diseñada
+22 Estados y mensajes,ES-09,"Como usuario, quiero elegir qué avisos recibo y por qué canal (app, correo o WhatsApp).",Notificaciones,"Administrador, Residente, Cocina",Fase 2,Media,Pendiente,Vista diseñada
+22 Estados y mensajes,ES-10,"Como sistema, quiero enviar mensajes por correo o WhatsApp (por ejemplo, el recordatorio de un recibo).",Notificaciones,"Sistema, Residente",Fase 2,Media,Pendiente,Vista diseñada
+22 Estados y mensajes,ES-11,"Como usuario, quiero que el sistema me pida confirmar antes de eliminar, liquidar, descartar cambios o cerrar sesión.",Confirmaciones y carga,"Administrador, Residente",Fase 1,Alta,Pendiente,Vista diseñada
+22 Estados y mensajes,ES-12,"Como usuario, quiero ver esqueletos de carga y botones en curso mientras el sistema espera.",Confirmaciones y carga,"Administrador, Residente",Fase 1,Alta,Pendiente,Vista diseñada
+22 Estados y mensajes,ES-13,"Como usuario, quiero ver el progreso de la subida de un archivo.",Confirmaciones y carga,"Residente, Administrador",Fase 1,Alta,Pendiente,Vista diseñada
+22 Estados y mensajes,ES-14,"Como usuario, quiero ver los estados vacíos, errores y notificaciones también en móvil y tablet.",Estados (móvil y tablet),"Administrador, Residente",Fase 1,Alta,Pendiente,Pendiente de diseño
+23 Móvil y tablet,MV-01,"Como residente, quiero usar el sistema desde el celular (390 px) con una sola columna.",Todas las pantallas (móvil),Residente,Fase 1,Alta,Pendiente,Vista diseñada
+23 Móvil y tablet,MV-02,"Como arrendador, quiero usar el sistema desde una tablet (1024 px).",Todas las pantallas (tablet),"Administrador, Recepción",Fase 1,Alta,Pendiente,Vista diseñada
+23 Móvil y tablet,MV-03,"Como usuario, quiero deslizar las tablas de lado en el celular sin perder columnas.",Tablas (móvil),"Administrador, Residente",Fase 1,Alta,Pendiente,Vista diseñada
+23 Móvil y tablet,MV-04,"Como usuario, quiero que la navegación superior se deslice de lado en el celular.",Barra de navegación (móvil),"Administrador, Residente",Fase 1,Alta,Pendiente,Vista diseñada
+23 Móvil y tablet,MV-05,"Como residente, quiero una barra de navegación inferior o un menú tipo hamburguesa en el celular.",Navegación (móvil),Residente,Fase 1,Alta,Pendiente,Pendiente de diseño
+23 Móvil y tablet,MV-06,"Como usuario con un equipo lento, quiero el modo simple en vez del 3D.",Interruptor 3D / Simple,"Administrador, Residente",Fase 1,Alta,Pendiente,Vista diseñada
+23 Móvil y tablet,MV-07,"Como residente, quiero confirmar mi pensión, ver mi cuarto, pagar y ver mi garantía con una mano en el celular.",Pantallas del residente (móvil),Residente,Fase 1,Alta,Pendiente,Diseño parcial
+23 Móvil y tablet,MV-08,"Como arrendador, quiero revisar el panel, cobros y avisos desde el celular.",Pantallas del arrendador (móvil),Administrador,Fase 2,Media,Pendiente,Diseño parcial
+24 Prototipo 3D,PT-01,"Como administrador, quiero ver el edificio en 3D con pisos que caen y una cámara isométrica.",Prototipo,Administrador,Hecha,—,Hecha,Prototipo funcional
+24 Prototipo 3D,PT-02,"Como administrador, quiero que el doble clic entre directo al departamento cuando el piso tiene uno solo que ocupa todo.",Prototipo,Administrador,Hecha,—,Hecha,Prototipo funcional
+24 Prototipo 3D,PT-03,"Como administrador, quiero entrar a la planta de un piso y mover sus unidades sin que se solapen.",Prototipo,Administrador,Hecha,—,Hecha,Prototipo funcional
+24 Prototipo 3D,PT-04,"Como administrador, quiero entrar a un departamento y ver sus ambientes o sus cuartos con precio.",Prototipo,Administrador,Hecha,—,Hecha,Prototipo funcional
+24 Prototipo 3D,PT-05,"Como administrador, quiero editar nombre, precio y estado desde un panel al seleccionar una unidad.",Prototipo,Administrador,Hecha,—,Hecha,Prototipo funcional
+24 Prototipo 3D,PT-06,"Como administrador, quiero alternar “Ocupa todo el piso” y “Completo / Por cuartos” en un departamento.",Prototipo,Administrador,Hecha,—,Hecha,Prototipo funcional
+24 Prototipo 3D,PT-07,"Como administrador, quiero agregar pisos y cuartos desde botones.",Prototipo,Administrador,Hecha,—,Hecha,Prototipo funcional
+24 Prototipo 3D,PT-08,"Como administrador, quiero reordenar los pisos arrastrándolos.",Prototipo,Administrador,Hecha,—,Hecha,Prototipo funcional
+24 Prototipo 3D,PT-09,"Como administrador, quiero que los cambios del prototipo se guarden y no se pierdan al recargar.",Prototipo,Administrador,Fase 1,Alta,Pendiente,Pendiente
+24 Prototipo 3D,PT-10,"Como administrador, quiero un modo simple (lista y acordeones) dentro del prototipo.",Prototipo,Administrador,Fase 1,Alta,Pendiente,Pendiente
+24 Prototipo 3D,PT-11,"Como administrador, quiero agregar un departamento nuevo desde el prototipo.",Prototipo,Administrador,Fase 1,Alta,Pendiente,Pendiente
