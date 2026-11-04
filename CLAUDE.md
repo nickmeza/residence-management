@@ -2,6 +2,8 @@
 
 Este archivo son las reglas del proyecto. Léelo completo antes de tocar código.
 
+Instrucciones oficiales de Next.js para esta versión: @AGENTS.md
+
 ## 1. Qué es este proyecto
 
 Un sistema para que un arrendador gestione su residencia: cuartos, departamentos, residentes, contratos, cobros, garantías,
@@ -147,9 +149,13 @@ La lista completa está en `docs/reglas-de-negocio.md`. Las más importantes:
 - **Todo estado lleva texto además de color** (por ejemplo "Ocupado", no solo rojo).
 - Cada pantalla debe cubrir: **estado vacío, error, carga y confirmación** de acciones destructivas.
 - Cada pantalla debe funcionar en **escritorio, tablet (1024 px) y móvil (390 px)**. Las tablas se deslizan de lado en móvil.
-- El diseño de referencia está en https://claude.ai/code/artifact/86526841-fb83-484e-be72-58d868cbd9eb
-  Cuando implementes una pantalla, lee el diseño, usa nuestros componentes y reglas, y no copies estilos sueltos.
-- Si el diseño cambia, se actualiza primero el diseño y después el código, para que no se desalineen.
+- El prototipo en https://claude.ai/code/artifact/86526841-fb83-484e-be72-58d868cbd9eb es una **referencia de flujos
+  y contenido**: qué pantallas existen, qué hace cada una, qué datos y acciones muestra y qué estados cubre.
+  **Sus colores y estilos no se copian ni se mantienen actualizados.** Lo visual sale siempre de `tokens.css` y
+  `src/components/ui/`.
+- La skill `ui-ux-pro-max` y su `design-system/<proyecto>/MASTER.md` son **propuestas**. Lo que yo apruebe se pasa a
+  `src/styles/tokens.css`, que es la única fuente que usa el código. No instales librerías que la skill recomiende
+  (GSAP, íconos, fuentes…) sin preguntarme.
 
 ## 10. Datos personales y seguridad
 
@@ -186,6 +192,7 @@ y explícame cómo funciona.
 | `docs/pantallas.md` | Inventario de pantallas y sus versiones |
 | `docs/stack.md` | Stack y razones |
 | `docs/comandos-de-inicio.md` | Comandos para arrancar el proyecto |
+| `docs/sistema-de-diseno.md` | Paleta, tipografía y reglas visuales elegidas, con alternativas guardadas |
 
 Estos archivos salen de `matriz_requerimientos.xlsx` (hojas "Modelo de datos", "Reglas de negocio", "Pantallas" y las de historias).
 
