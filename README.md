@@ -162,9 +162,9 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-04 | 3D con **three.js + React Three Fiber v9 + drei** | Los del stack. Fiber v9 es compatible con React 19.3. Zustand no hizo falta: el estado del 3D cabe en el componente. |
 | 2026-11-04 | El 3D se carga **solo al elegirlo** (importación diferida); three.js va en un archivo aparte | El modo simple no debe descargar nada de 3D (CLAUDE.md, sección 8). Comprobado en la compilación. |
 | 2026-11-04 | Modo inicial: **3D salvo equipo lento** (4 núcleos o menos, o 4 GB o menos); se recuerda en el dispositivo | Lo eligió el dueño. Depende del equipo, no de la cuenta. |
-| 2026-11-04 | Etiquetas del 3D **dibujadas en la escena**, no con  de drei |  crea otra raíz de React y fallaba al desmontarse con React 19. |
+| 2026-11-04 | Etiquetas del 3D **dibujadas en la escena**, no con `<Html>` de drei | `<Html>` crea otra raíz de React y fallaba al desmontarse con React 19. |
 | 2026-11-04 | Los colores del 3D salen de los **tokens** y cambian con el modo nocturno | El 3D no tiene colores propios. |
 | 2026-11-04 | Edición **básica de la losa** en el 3D: rectángulo o L | Lo pidió el dueño. El servidor no deja guardar si una unidad quedaría fuera. |
 | 2026-11-04 | Al mover un departamento, **sus cuartos se mueven con él** | Los cuartos están dentro del departamento. |
-| 2026-11-04 | **Guardado en segundo plano** en el 3D: cambio optimista () y cola de guardado | El dueño vio que al mover rápido dos unidades, la primera volvía atrás. La cola evita que dos cambios se validen sin conocerse. |
+| 2026-11-04 | **Guardado en segundo plano** en el 3D: cambio optimista (`useOptimistic`) y cola de guardado | El dueño vio que al mover rápido dos unidades, la primera volvía atrás. La cola evita que dos cambios se validen sin conocerse. |
 | 2026-11-04 | En el registro, el 3D es **vista previa** (sin arrastre) | Así lo muestra el prototipo. Nada está guardado todavía; luego se ajusta en la pantalla Edificio. |
