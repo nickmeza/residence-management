@@ -234,3 +234,72 @@ describe("editar el edificio", () => {
     });
   });
 });
+
+describe("cambios desde el 3D", () => {
+  const rect = (tx: Tx, name: string) =>
+    rows<{ pos_x: string; pos_z: string; width: string }>(
+      tx,
+      sql`select pos_x, pos_z, width from public.unit where name = ${name}`,
+    ).then((r) => r[0]);
+
+  it("mover un departamento mueve también sus cuartos", async () => {
+    await withBuilding(async (tx, { unitId }) => {
+      const before = await rect(tx, "Dormitorio 1");
+      const apt = await unitId("Departamento 201");
+      const [f] = await rows<{ floor_id: string }>(
+        tx,
+        sql`select floor_id from public.unit where id = ${apt}`,
+      );
+      // Hace lugar: la losa del piso pasa a ser más ancha.
+      await m.setFloorShape(tx, f.floor_id, { kind: "rect", width: 12, depth: 8 });
+      await m.moveUnit(tx, apt, 2, 1);
+      const after = await rect(tx, "Dormitorio 1");
+      expect(Number(after.pos_x) - Number(before.pos_x)).toBe(2);
+      expect(Number(after.pos_z) - Number(before.pos_z)).toBe(1);
+    });
+  });
+
+  it("no deja mover una unidad fuera de la losa ni encima de otra", async () => {
+    await withBuilding(async (tx, { unitId }) => {
+      const room = await unitId("Cuarto 101");
+      await expect(m.moveUnit(tx, room, 50, 0)).rejects.toThrow("no cabe en la losa");
+      const [f] = await rows<{ floor_id: string }>(
+        tx,
+        sql`select floor_id from public.unit where id = ${room}`,
+      );
+      await m.addUnit(tx, f.floor_id, "room");
+      const other = await rect(tx, "Cuarto 102");
+      await expect(m.moveUnit(tx, room, Number(other.pos_x), Number(other.pos_z))).rejects.toThrow(
+        "encimadas",
+      );
+    });
+  });
+
+  it("la losa puede pasar a forma de L, pero no si deja una unidad afuera", async () => {
+    await withBuilding(async (tx, { unitId }) => {
+      const room = await unitId("Cuarto 101");
+      const [f] = await rows<{ floor_id: string }>(
+        tx,
+        sql`select floor_id from public.unit where id = ${room}`,
+      );
+      await m.setFloorShape(tx, f.floor_id, { kind: "L", width: 8, depth: 8, cutWidth: 4, cutDepth: 4 });
+      const [saved] = await rows<{ corners: number }>(
+        tx,
+        sql`select jsonb_array_length(outline) as corners from public.floor where id = ${f.floor_id}`,
+      );
+      expect(saved.corners).toBe(6);
+      await expect(m.setFloorShape(tx, f.floor_id, { kind: "rect", width: 2, depth: 2 })).rejects.toThrow(
+        "quedaría fuera de la losa",
+      );
+    });
+  });
+
+  it("arrastrar un piso a otro nivel renumera los demás", async () => {
+    await withBuilding(async (tx, { propertyId }) => {
+      await m.addFloor(tx, propertyId);
+      const [piso1] = await rows<{ id: string }>(tx, sql`select id from public.floor where level = 1`);
+      await m.moveFloorTo(tx, piso1.id, 3);
+      expect((await floorLevels(tx)).map((f) => f.units)).toEqual(["Departamento 201", "", "Cuarto 101"]);
+    });
+  });
+});

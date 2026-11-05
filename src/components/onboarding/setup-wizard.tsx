@@ -10,6 +10,7 @@ import { ConfirmButton } from "@/components/confirm-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
+import { decideMode, readDeviceInfo, saveViewMode, type ViewMode } from "@/lib/view-mode";
 import { createAccountWithSetup, saveSetupForCurrentUser } from "@/server/onboarding/actions";
 import {
   initialSetupForm,
@@ -100,6 +101,21 @@ function clearDraft(mode: Mode) {
 // Corre solo en el navegador (ver setup-wizard-loader.tsx), así el borrador se lee desde el inicio.
 export function SetupWizard({ mode }: { mode: Mode }) {
   const [draft] = useState(() => readDraft(mode));
+  // Modo de vista (3D o Simple): la misma preferencia guardada que la pantalla Edificio.
+  const [device] = useState(() => decideMode(readDeviceInfo()));
+  const [viewMode, setViewMode] = useState<ViewMode>(device.mode);
+  const changeViewMode = (next: ViewMode) => {
+    setViewMode(next);
+    saveViewMode(next);
+  };
+  const can3d = device.notice !== "no_webgl";
+  const toggle = (
+    <ViewModeToggle
+      mode={viewMode}
+      onChange={changeViewMode}
+      disable3d={can3d ? undefined : "Este navegador no puede mostrar 3D"}
+    />
+  );
   const methods = useForm<SetupForm>({ defaultValues: draft?.form ?? initialSetupForm() });
   const { getValues, setError, clearErrors, reset, handleSubmit, subscribe } = methods;
   const services = useWatch({ control: methods.control, name: "services" });
@@ -186,7 +202,7 @@ export function SetupWizard({ mode }: { mode: Mode }) {
 
   if (sentTo) {
     return (
-      <Shell mode={mode}>
+      <Shell mode={mode} toggle={toggle}>
         <div role="status" className="flex max-w-xl flex-col gap-3 rounded-xl border bg-card p-6 shadow-card">
           <p className="w-fit rounded-lg bg-ok-soft px-3 py-1 text-sm font-bold text-ok">Revisa tu correo</p>
           <p>
@@ -206,7 +222,7 @@ export function SetupWizard({ mode }: { mode: Mode }) {
   const position = stepPosition(steps, step);
 
   return (
-    <Shell mode={mode}>
+    <Shell mode={mode} toggle={toggle}>
       <div ref={topRef} className="flex flex-col gap-7">
         <Stepper groups={position.groups} current={position.index} />
         {restored ? (
@@ -244,7 +260,9 @@ export function SetupWizard({ mode }: { mode: Mode }) {
             {step === "services" ? <StepServices /> : null}
             {step === "business" ? <StepBusiness goTo={goTo} /> : null}
             {step === "offer" ? <StepOffer /> : null}
-            {step === "building" ? <StepBuilding /> : null}
+            {step === "building" ? (
+              <StepBuilding mode={viewMode} onModeChange={changeViewMode} can3d={can3d} />
+            ) : null}
             {step === "account" ? <StepAccount goTo={goTo} /> : null}
 
             <FormMessage message={message} />
@@ -280,7 +298,7 @@ export function SetupWizard({ mode }: { mode: Mode }) {
 }
 
 // Encabezado del prototipo: marca a la izquierda, interruptor 3D/Simple al centro, acceso a la derecha.
-function Shell({ mode, children }: { mode: Mode; children: ReactNode }) {
+function Shell({ mode, toggle, children }: { mode: Mode; toggle: ReactNode; children: ReactNode }) {
   return (
     <div className="flex flex-1 flex-col">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-4 py-4 sm:px-8 lg:px-12">
@@ -296,7 +314,7 @@ function Shell({ mode, children }: { mode: Mode; children: ReactNode }) {
           </div>
         </div>
         <div className="order-3 flex w-full items-center justify-center gap-2 sm:order-none sm:w-auto">
-          <ViewModeToggle />
+          {toggle}
           <ThemeToggle />
         </div>
         {mode === "signup" ? (

@@ -5,7 +5,7 @@ import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { withRls } from "@/db/rls";
-import { business, floor, property, unit } from "@/db/schema";
+import { business, floor, property, unit, type OutlinePoint } from "@/db/schema";
 import { getSessionClaims } from "@/server/auth/session";
 import { buildingSummary, type UnitInput } from "@/server/building/rules";
 import { unitStatus, type UnitStatus } from "@/server/building/status";
@@ -32,6 +32,8 @@ export type BuildingUnit = {
   bathroom: "private" | "shared" | null;
   furnished: boolean;
   spaceType: "bedroom" | "studio" | "office" | "storage" | "other" | null;
+  // Rectángulo en la planta, en metros (para el 3D).
+  rect: { x: number; z: number; width: number; depth: number };
   status: UnitStatus;
   rooms: BuildingUnit[];
 };
@@ -40,7 +42,7 @@ export type BuildingView = {
   id: string;
   name: string;
   businessId: string;
-  floors: { id: string; level: number; units: BuildingUnit[] }[];
+  floors: { id: string; level: number; outline: OutlinePoint[]; units: BuildingUnit[] }[];
   summary: { floors: number; apartments: number; rentable: number; occupied: number };
 };
 
@@ -56,7 +58,7 @@ export async function getBuilding(propertyId: string): Promise<BuildingView | nu
       .limit(1);
     if (!prop) return null;
     const floors = await tx
-      .select({ id: floor.id, level: floor.level })
+      .select({ id: floor.id, level: floor.level, outline: floor.outline })
       .from(floor)
       .where(eq(floor.propertyId, prop.id))
       .orderBy(asc(floor.level));
@@ -84,6 +86,7 @@ export async function getBuilding(propertyId: string): Promise<BuildingView | nu
       bathroom: u.bathroom,
       furnished: u.furnished,
       spaceType: u.spaceType,
+      rect: { x: u.posX, z: u.posZ, width: u.width, depth: u.depth },
       status: unitStatus(),
       rooms: units.filter((r) => r.parentUnitId === u.id).map(toView),
     });
@@ -104,6 +107,7 @@ export async function getBuilding(propertyId: string): Promise<BuildingView | nu
     const viewFloors = floors.map((f) => ({
       id: f.id,
       level: f.level,
+      outline: f.outline,
       units: units.filter((u) => u.floorId === f.id && !u.parentUnitId).map(toView),
     }));
     const summary = buildingSummary(

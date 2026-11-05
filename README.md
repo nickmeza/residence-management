@@ -49,7 +49,8 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 0 · Base del proyecto | ✅ Terminada |
 | 1 · Datos y cuentas | ✅ Terminada |
 | 2 · Registro y edificio en modo simple | ✅ Terminada |
-| 3 · Edificio en 3D | Siguiente |
+| 3 · Edificio en 3D | ✅ Terminada |
+| 4 · Residentes, contratos y documentos | Siguiente |
 
 ### Fase 0, paso a paso
 
@@ -81,6 +82,16 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 4. App y edificio | Menú lateral, selector de negocio (estilo GCP), saludo, Configuración › Negocio, `/negocios` y la pantalla Edificio en modo simple, que se edita con un panel lateral |
 | 5. Cierre | Revisión en escritorio, tablet y móvil, y despliegue |
 
+### Fase 3, paso a paso
+
+| Paso | Qué se hizo |
+| ---- | ----------- |
+| 1. Reglas del arrastre | `src/server/building/drag.ts`: cuadrícula de 0.1 m, no salirse de la losa (también en L), deslizarse al chocar; forma de la losa (rectángulo o L). Acciones para mover unidades, cambiar la losa y llevar un piso a otro nivel |
+| 2. Interruptor 3D / Simple | El 3D se descarga solo al elegirlo; el modo se recuerda en el dispositivo; equipos lentos abren en Simple con aviso |
+| 3. Clic y doble clic | Panel de datos a la derecha; doble clic entra al piso o directo al departamento; Esc o Volver; transiciones de cámara |
+| 4. Arrastre | Arrastrar pisos (reordenar) y unidades (en la planta), guardado en segundo plano: el cambio se ve al instante y se envía en cola |
+| 5. Registro en 3D | Vista previa 3D en "Arma tu edificio", calculada con las mismas reglas que el servidor |
+
 ### Pantallas de la app (después de iniciar sesión)
 
 | Dirección | Qué es |
@@ -88,7 +99,7 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | `/panel` | Saludo y el negocio elegido arriba, con sus propiedades |
 | `/negocios` | Todos los negocios del arrendador ("Abrir" cambia el negocio elegido) |
 | `/negocio/[id]` | Configuración › Negocio: datos y métodos de pago |
-| `/edificio/[id]` | Edificio en modo simple: pisos y unidades en acordeones; tocar una unidad abre su panel de edición |
+| `/edificio/[id]` | Edificio en 3D o en modo simple. En 3D: clic, doble clic para entrar, arrastrar pisos y unidades, forma de la losa. En simple: acordeones. En los dos, tocar una unidad abre su panel de edición |
 | `/configurar` | Configuración inicial para cuentas que todavía no tienen negocio |
 
 ## Base de datos
@@ -148,3 +159,12 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-04 | Sin m² en el registro; el logo del negocio aparece como "pronto" | Como el prototipo; el logo necesita Supabase Storage. |
 | 2026-11-04 | Columna `area_m_2` renombrada a `area_m2` | Drizzle la había nombrado así al convertir `areaM2`; ahora coincide con el modelo. |
 | 2026-11-04 | Local y producción usan **la misma base** por ahora | Hay un solo proyecto de Supabase. Antes de usar datos reales conviene uno aparte para pruebas. |
+| 2026-11-04 | 3D con **three.js + React Three Fiber v9 + drei** | Los del stack. Fiber v9 es compatible con React 19.3. Zustand no hizo falta: el estado del 3D cabe en el componente. |
+| 2026-11-04 | El 3D se carga **solo al elegirlo** (importación diferida); three.js va en un archivo aparte | El modo simple no debe descargar nada de 3D (CLAUDE.md, sección 8). Comprobado en la compilación. |
+| 2026-11-04 | Modo inicial: **3D salvo equipo lento** (4 núcleos o menos, o 4 GB o menos); se recuerda en el dispositivo | Lo eligió el dueño. Depende del equipo, no de la cuenta. |
+| 2026-11-04 | Etiquetas del 3D **dibujadas en la escena**, no con `<Html>` de drei | `<Html>` crea otra raíz de React y fallaba al desmontarse con React 19. |
+| 2026-11-04 | Los colores del 3D salen de los **tokens** y cambian con el modo nocturno | El 3D no tiene colores propios. |
+| 2026-11-04 | Edición **básica de la losa** en el 3D: rectángulo o L | Lo pidió el dueño. El servidor no deja guardar si una unidad quedaría fuera. |
+| 2026-11-04 | Al mover un departamento, **sus cuartos se mueven con él** | Los cuartos están dentro del departamento. |
+| 2026-11-04 | **Guardado en segundo plano** en el 3D: cambio optimista (`useOptimistic`) y cola de guardado | El dueño vio que al mover rápido dos unidades, la primera volvía atrás. La cola evita que dos cambios se validen sin conocerse. |
+| 2026-11-04 | En el registro, el 3D es **vista previa** (sin arrastre) | Así lo muestra el prototipo. Nada está guardado todavía; luego se ajusta en la pantalla Edificio. |

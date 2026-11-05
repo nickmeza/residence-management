@@ -13,8 +13,9 @@ import {
   sizeForNew,
   uniqueName,
 } from "./edits";
+import { outlineFromShape, shapeProblem, type SlabShape } from "./drag";
 import { renumberFloors, reorderFloors } from "./floors";
-import type { Rect } from "./geometry";
+import { snapToGrid, type Rect } from "./geometry";
 import { floorProblems, type FloorProblem, type UnitInput } from "./rules";
 import type { UnitEdit } from "./schemas";
 
@@ -289,5 +290,64 @@ export async function deleteUnit(tx: Tx, unitId: string) {
     .select({ propertyId: floor.propertyId })
     .from(floor)
     .where(eq(floor.id, removed.floorId));
+  return { propertyId: f.propertyId };
+}
+
+// Mueve una unidad en la planta (arrastre en el 3D). Un departamento arrastra a sus cuartos con él.
+export async function moveUnit(tx: Tx, unitId: string, x: number, z: number) {
+  const [current] = await tx.select().from(unit).where(eq(unit.id, unitId)).limit(1);
+  if (!current) throw new BuildingError(NOT_FOUND);
+  const { floor: f, units } = await loadFloor(tx, current.floorId);
+  const dx = snapToGrid(snapToGrid(x) - current.posX);
+  const dz = snapToGrid(snapToGrid(z) - current.posZ);
+  const moves = (u: UnitRow) => u.id === current.id || u.parentUnitId === current.id;
+
+  assertValid(
+    f.outline,
+    units.map((u) =>
+      moves(u) ? { ...toRule(u), x: snapToGrid(u.posX + dx), z: snapToGrid(u.posZ + dz) } : toRule(u),
+    ),
+  );
+  for (const u of units.filter(moves)) {
+    await tx
+      .update(unit)
+      .set({ posX: snapToGrid(u.posX + dx), posZ: snapToGrid(u.posZ + dz) })
+      .where(eq(unit.id, u.id));
+  }
+  return { propertyId: f.propertyId };
+}
+
+// Cambia la forma de la losa (rectángulo o L). No se permite si alguna unidad quedaría afuera.
+export async function setFloorShape(tx: Tx, floorId: string, shape: SlabShape) {
+  if (shapeProblem(shape)) throw new BuildingError("Revisa las medidas de la losa.");
+  const { floor: f, units } = await loadFloor(tx, floorId);
+  const outline = outlineFromShape(shape);
+  try {
+    assertValid(outline, units.map(toRule));
+  } catch (e) {
+    if (e instanceof BuildingError && e.message === PROBLEM_MESSAGE.outside_slab.message) {
+      throw new BuildingError("Con esas medidas, alguna unidad quedaría fuera de la losa. Muévela primero.");
+    }
+    throw e;
+  }
+  await tx.update(floor).set({ outline }).where(eq(floor.id, f.id));
+  return { propertyId: f.propertyId };
+}
+
+// Lleva un piso a otro nivel (arrastre de pisos en el 3D) y renumera los demás.
+export async function moveFloorTo(tx: Tx, floorId: string, level: number) {
+  const [f] = await tx.select().from(floor).where(eq(floor.id, floorId)).limit(1);
+  if (!f) throw new BuildingError(NOT_FOUND);
+  const floors = await tx
+    .select()
+    .from(floor)
+    .where(eq(floor.propertyId, f.propertyId))
+    .orderBy(asc(floor.level));
+  const from = floors.findIndex((x) => x.id === floorId);
+  const to = Math.min(Math.max(level - 1, 0), floors.length - 1);
+  if (from === to) return { propertyId: f.propertyId };
+  for (const { id, level: next } of reorderFloors(floors, from, to)) {
+    await tx.update(floor).set({ level: next }).where(eq(floor.id, id));
+  }
   return { propertyId: f.propertyId };
 }

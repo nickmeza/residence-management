@@ -1,12 +1,14 @@
 "use client";
 
 import { ChevronRight, Info, X } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
 
 import { ConfirmButton } from "@/components/confirm-button";
 import { Button } from "@/components/ui/button";
 import { formatSoles } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { ViewMode } from "@/lib/view-mode";
 import { floorName } from "@/server/building/floors";
 import { formSummary, newRoom, newUnit, type SetupForm, type UnitForm } from "@/server/onboarding/form";
 
@@ -417,20 +419,90 @@ function BuildingPreview() {
   );
 }
 
-export function StepBuilding() {
+// La vista previa 3D (con three.js) solo se descarga al elegir el modo 3D.
+const BuildingPreview3D = dynamic(() => import("./building-preview-3d").then((m) => m.BuildingPreview3D), {
+  ssr: false,
+  loading: () => (
+    <p
+      role="status"
+      className="flex h-72 items-center justify-center rounded-lg border bg-background text-sm text-muted-foreground"
+    >
+      Cargando la vista 3D…
+    </p>
+  ),
+});
+
+// Columna derecha en modo 3D ("Vista previa 3D" del prototipo): el edificio que vas armando, sus cifras y una nota.
+function Preview3DAside() {
+  const property = useWatch<SetupForm, "property">({ name: "property" });
+  const summary = formSummary(property.floors);
+  return (
+    <aside
+      className="flex flex-col gap-4 rounded-xl border bg-card p-4 shadow-card sm:p-6 lg:sticky lg:top-6"
+      aria-label="Vista previa 3D"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-base font-bold">Vista previa 3D</h2>
+        <span className="rounded-full bg-chip px-2.5 py-1 text-xs font-bold text-chip-foreground">
+          {summary.floors} {summary.floors === 1 ? "piso" : "pisos"}
+        </span>
+      </div>
+      <BuildingPreview3D property={property} />
+      <dl className="grid grid-cols-3 gap-2 text-center">
+        {(
+          [
+            ["Pisos", summary.floors],
+            ["Departamentos", summary.apartments],
+            ["Alquilables", summary.rentable],
+          ] as const
+        ).map(([label, value]) => (
+          <div key={label} className="rounded-lg bg-muted/50 p-3">
+            <dd className="text-2xl font-bold">{value}</dd>
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+          </div>
+        ))}
+      </dl>
+      <p className="text-xs text-muted-foreground">
+        Doble clic en un piso con un solo departamento entra directo a él. En los demás, primero entras al
+        piso y luego a cada departamento.
+      </p>
+    </aside>
+  );
+}
+
+export function StepBuilding({
+  mode,
+  onModeChange,
+  can3d,
+}: {
+  mode: ViewMode;
+  onModeChange: (mode: ViewMode) => void;
+  can3d: boolean;
+}) {
   const { control } = useFormContext<SetupForm>();
   const type = useWatch<SetupForm, "property.type">({ name: "property.type" });
   const floors = useFieldArray({ control, name: "property.floors", keyName: "_id" });
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-primary-soft px-4 py-3 text-sm text-primary-text">
-        <span className="font-bold">Modo simple</span>
-        <span className="flex-1">
-          Sin gráficos 3D: más liviano y rápido en equipos con pocos recursos o conexión lenta.
-        </span>
-        <span className="text-muted-foreground">Usar 3D (pronto)</span>
-      </div>
+      {mode === "simple" ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-primary-soft px-4 py-3 text-sm text-primary-text">
+          <span className="font-bold">Modo simple</span>
+          <span className="flex-1">
+            Sin gráficos 3D: más liviano y rápido en equipos con pocos recursos o conexión lenta.
+          </span>
+          {can3d ? (
+            <Button
+              type="button"
+              variant="link"
+              className="h-9 px-1 text-link"
+              onClick={() => onModeChange("3d")}
+            >
+              Usar 3D
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
         <div className="flex flex-col gap-5">
@@ -474,7 +546,7 @@ export function StepBuilding() {
             ) : null}
           </FormSection>
         </div>
-        <BuildingPreview />
+        {mode === "3d" ? <Preview3DAside /> : <BuildingPreview />}
       </div>
     </div>
   );
