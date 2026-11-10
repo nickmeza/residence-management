@@ -100,6 +100,7 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 4.1 Datos y reglas | Tablas `resident`, `resident_invitation`, `contract`, `contract_template`, `document_requirement` y `document` con RLS. Reglas puras en `src/server/contracts/` (fase del contrato, solapes, confirmar, plantillas) y `src/server/residents/invitation.ts` |
 | 4.2 Residentes | `/residentes` (lista con filtros y buscador) y `/residentes/[id]` (perfil). Agregar y editar en un panel lateral; invitación por WhatsApp o copiando el mensaje |
 | 4.3 Contratos | `/contratos` (lista con filtros) y `/contratos/[id]`. Crear con modalidad (sin contrato, papel o plantilla) o como borrador; cambiar modalidad; cambiar condiciones (contrato nuevo enlazado); terminar y cancelar. El estado "Ocupado" de Edificio sale de los contratos |
+| 4.4 Plantillas y PDF | Configuración › Plantillas (`/negocio/[id]/plantillas`): editor con datos que se rellenan solos, vista previa y PDF de ejemplo. Los contratos desde plantilla se descargan en PDF (`/contratos/[id]/pdf`) para imprimir y firmar |
 ### Pantallas de la app (después de iniciar sesión)
 
 | Dirección | Qué es |
@@ -113,6 +114,8 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | `/residentes/[id]` | Perfil del residente: datos personales, documentos y contrato; editar datos e invitar |
 | `/contratos` | Contratos del negocio elegido: vigentes, por vencer, por cerrar y terminados; "Crear contrato" |
 | `/contratos/[id]` | Un contrato: condiciones, modalidad, historial y acciones (confirmar, cambiar modalidad o condiciones, terminar, cancelar) |
+| `/negocio/[id]/plantillas` | Configuración › Plantillas: crear, editar y borrar plantillas de contrato |
+| `/contratos/[id]/pdf` | PDF del contrato desde su plantilla, listo para imprimir |
 
 ## Base de datos
 
@@ -198,3 +201,7 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-10 | Un contrato acordado o firmado **se termina** (fecha de fin), no se cancela | Cancelar borraría que el residente vivió ahí. Cancelar queda para borradores y pendientes de firma. |
 | 2026-11-10 | Una unidad con contratos **no se puede quitar** del edificio | Se perdería con quién vivió ahí. |
 | 2026-11-10 | La sección "Solicitudes de renovación" del prototipo queda para la Fase 7 | Es la historia de renovaciones (CT-06/07), asignada a la Fase 7. |
+| 2026-11-10 | Una plantilla con un dato mal escrito (`{nombr}`) **no se guarda** | Saldría tal cual en el papel impreso. |
+| 2026-11-10 | El PDF lleva **líneas de firma** del arrendador y del residente, y el número de página | Se imprime para firmar a mano. |
+| 2026-11-10 | Una plantilla que usa algún contrato **no se borra** (sí se edita) | El contrato debe poder volver a generar su PDF. |
+| 2026-11-10 | Sin límite de plantillas por negocio | Limitar por plan de pago es una idea futura del dueño; la base ya admite varias. |

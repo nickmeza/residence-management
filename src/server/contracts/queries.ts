@@ -10,6 +10,7 @@ import { isUuid } from "@/server/business/queries";
 
 import { endsInLabel, limaToday } from "./dates";
 import { contractPhase, type ContractPaperwork, type ContractPhase, type ContractStatus } from "./rules";
+import type { TemplateData } from "./template";
 
 export type ContractListRow = {
   id: string;
@@ -185,10 +186,7 @@ export async function getContract(id: string): Promise<ContractDetail | null> {
       .from(contract)
       // El contrato al que reemplaza y el que lo reemplaza a él (si existen).
       .where(
-        or(
-          eq(contract.renewedFromId, k.id),
-          k.renewedFromId ? eq(contract.id, k.renewedFromId) : undefined,
-        ),
+        or(eq(contract.renewedFromId, k.id), k.renewedFromId ? eq(contract.id, k.renewedFromId) : undefined),
       );
     const from = linked.find((l) => l.id === k.renewedFromId);
     const to = linked.find((l) => l.renewedFromId === k.id);
@@ -212,6 +210,70 @@ export async function getContract(id: string): Promise<ContractDetail | null> {
       phase: contractPhase(k, today),
       renewedFrom: from ? { id: from.id, startDate: from.startDate } : null,
       renewedTo: to ? { id: to.id, startDate: to.startDate } : null,
+    };
+  });
+}
+
+export type ContractPdfData = {
+  templateName: string;
+  templateBody: string;
+  landlordName: string;
+  template: TemplateData;
+};
+
+// Lo que necesita el PDF de un contrato desde plantilla. null si no es de quien inició sesión o no tiene plantilla.
+export async function getContractPdfData(id: string): Promise<ContractPdfData | null> {
+  if (!isUuid(id)) return null;
+  const claims = await getSessionClaims();
+  return withRls(claims, async (tx) => {
+    const [row] = await tx
+      .select({
+        contract,
+        person,
+        businessName: business.tradeName,
+        legalName: business.legalName,
+        ruc: business.ruc,
+        unitName: unit.name,
+        propertyName: property.name,
+        propertyAddress: property.address,
+        districtCity: property.districtCity,
+        templateName: contractTemplate.name,
+        templateBody: contractTemplate.body,
+      })
+      .from(contract)
+      .innerJoin(resident, eq(resident.id, contract.residentId))
+      .innerJoin(business, eq(business.id, resident.businessId))
+      .innerJoin(person, eq(person.id, resident.personId))
+      .innerJoin(unit, eq(unit.id, contract.unitId))
+      .innerJoin(floor, eq(floor.id, unit.floorId))
+      .innerJoin(property, eq(property.id, floor.propertyId))
+      .innerJoin(contractTemplate, eq(contractTemplate.id, contract.templateId))
+      .where(eq(contract.id, id))
+      .limit(1);
+    if (!row) return null;
+    const k = row.contract;
+    const p = row.person;
+    return {
+      templateName: row.templateName,
+      templateBody: row.templateBody,
+      landlordName: row.legalName ?? row.businessName,
+      template: {
+        residentName: p.fullName,
+        identityDocument:
+          p.identityDocumentType && p.identityDocumentNumber
+            ? { type: p.identityDocumentType, number: p.identityDocumentNumber }
+            : null,
+        unitName: row.unitName,
+        propertyName: row.propertyName,
+        propertyAddress: `${row.propertyAddress}, ${row.districtCity}`,
+        monthlyRent: k.monthlyRent,
+        paymentDay: k.paymentDay,
+        startDate: k.startDate,
+        endDate: k.endDate,
+        businessName: row.businessName,
+        ruc: row.ruc,
+        today: limaToday(new Date()),
+      },
     };
   });
 }

@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileDown } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -83,6 +83,17 @@ async function Content({ params }: { params: PageProps<"/contratos/[id]">["param
             <p className="font-semibold">{PAPERWORK_LABEL[c.paperwork]}</p>
             <p className="text-sm text-muted-foreground">{PAPERWORK_HINT[c.paperwork]}</p>
             {c.templateName ? <p className="mt-2 text-sm">Plantilla: {c.templateName}</p> : null}
+            {c.paperwork === "template" && c.status !== "cancelled" ? (
+              <a
+                href={`/contratos/${c.id}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={buttonVariants({ variant: "outline", className: "mt-3 h-11 gap-2" })}
+              >
+                <FileDown className="size-4" aria-hidden="true" />
+                Descargar PDF para imprimir
+              </a>
+            ) : null}
             {c.status === "pending_signature" ? (
               <p className="mt-3 rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">
                 Falta subir la copia firmada. Esto llega con los documentos, en la siguiente parte.
