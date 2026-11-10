@@ -46,3 +46,7 @@ export function endsInLabel(endDate: IsoDate | null, today: IsoDate): string {
   if (days < 60) return `En ${days} días`;
   return `En ${Math.round(days / 30)} meses`;
 }
+
+// "2026-03-01" + 1 = "2026-03-02". Con -1 da el día anterior.
+export const addDays = (date: IsoDate, days: number): IsoDate =>
+  new Date(toUtc(date) + days * 86_400_000).toISOString().slice(0, 10);

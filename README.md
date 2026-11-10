@@ -99,6 +99,7 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | ---- | ----------- |
 | 4.1 Datos y reglas | Tablas `resident`, `resident_invitation`, `contract`, `contract_template`, `document_requirement` y `document` con RLS. Reglas puras en `src/server/contracts/` (fase del contrato, solapes, confirmar, plantillas) y `src/server/residents/invitation.ts` |
 | 4.2 Residentes | `/residentes` (lista con filtros y buscador) y `/residentes/[id]` (perfil). Agregar y editar en un panel lateral; invitación por WhatsApp o copiando el mensaje |
+| 4.3 Contratos | `/contratos` (lista con filtros) y `/contratos/[id]`. Crear con modalidad (sin contrato, papel o plantilla) o como borrador; cambiar modalidad; cambiar condiciones (contrato nuevo enlazado); terminar y cancelar. El estado "Ocupado" de Edificio sale de los contratos |
 ### Pantallas de la app (después de iniciar sesión)
 
 | Dirección | Qué es |
@@ -110,6 +111,8 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | `/configurar` | Configuración inicial para cuentas que todavía no tienen negocio |
 | `/residentes` | Residentes del negocio elegido: filtros (por vencer, documentos pendientes), buscador y "Agregar residente" |
 | `/residentes/[id]` | Perfil del residente: datos personales, documentos y contrato; editar datos e invitar |
+| `/contratos` | Contratos del negocio elegido: vigentes, por vencer, por cerrar y terminados; "Crear contrato" |
+| `/contratos/[id]` | Un contrato: condiciones, modalidad, historial y acciones (confirmar, cambiar modalidad o condiciones, terminar, cancelar) |
 
 ## Base de datos
 
@@ -190,3 +193,8 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-10 | En Residentes **no se muestran** pagos, deuda, garantía ni servicios todavía | Llegan con las Fases 5 y 6. Mejor no mostrar datos falsos. Lo aprobó el dueño. |
 | 2026-11-10 | Agregar y editar residente en un **panel lateral**; al agregar, se ofrece invitar | El prototipo no tiene ese formulario; se sigue la decisión del panel de unidades. |
 | 2026-11-10 | Cada "Invitar" crea un enlace nuevo y **anula los anteriores** sin usar | Si un mensaje se pierde o se manda a otra persona, el enlace viejo deja de servir. |
+| 2026-11-10 | Un **borrador** no ocupa la unidad y puede cruzarse con otros contratos; se revisa al confirmarlo | Sirve para preparar un contrato antes de que se libere la unidad. |
+| 2026-11-10 | Cambiar el **papel** edita el mismo contrato; cambiar las **condiciones** crea uno nuevo enlazado y el actual termina el día anterior | Lo pidió el dueño: cambiar de contrato debe ser una opción real, y así queda qué había antes. |
+| 2026-11-10 | Un contrato acordado o firmado **se termina** (fecha de fin), no se cancela | Cancelar borraría que el residente vivió ahí. Cancelar queda para borradores y pendientes de firma. |
+| 2026-11-10 | Una unidad con contratos **no se puede quitar** del edificio | Se perdería con quién vivió ahí. |
+| 2026-11-10 | La sección "Solicitudes de renovación" del prototipo queda para la Fase 7 | Es la historia de renovaciones (CT-06/07), asignada a la Fase 7. |

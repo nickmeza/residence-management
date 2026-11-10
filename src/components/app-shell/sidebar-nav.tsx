@@ -34,7 +34,7 @@ export function SidebarNav({ links, onNavigate }: { links: NavLinks; onNavigate?
       note: links.edificio ? undefined : "Solo Residencia",
     },
     { label: "Residentes", Icon: Users, href: "/residentes" },
-    { label: "Contratos", Icon: FileText, href: null, note: "Pronto" },
+    { label: "Contratos", Icon: FileText, href: "/contratos" },
     { label: "Cobros", Icon: Wallet, href: null, note: "Pronto" },
     { label: "Pensión", Icon: Soup, href: null, note: "Pronto" },
     { label: "Mantenimiento", Icon: Wrench, href: null, note: "Pronto" },

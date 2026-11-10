@@ -134,6 +134,7 @@ export type ResidentDetail = {
     notes: string | null;
   };
   contract: {
+    id: string;
     unitName: string;
     monthlyRent: string;
     paymentDay: number;
@@ -213,6 +214,7 @@ export async function getResident(id: string): Promise<ResidentDetail | null> {
       },
       contract: shown
         ? {
+            id: shown.id,
             unitName: shown.unitName,
             monthlyRent: shown.monthlyRent,
             paymentDay: shown.paymentDay,

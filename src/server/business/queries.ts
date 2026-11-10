@@ -5,10 +5,12 @@ import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { withRls } from "@/db/rls";
-import { business, floor, property, unit, type OutlinePoint } from "@/db/schema";
+import { business, contract, floor, property, unit, type OutlinePoint } from "@/db/schema";
 import { getSessionClaims } from "@/server/auth/session";
 import { buildingSummary, type UnitInput } from "@/server/building/rules";
 import { unitStatus, type UnitStatus } from "@/server/building/status";
+import { limaToday } from "@/server/contracts/dates";
+import { occupiesToday } from "@/server/contracts/rules";
 
 // Un id con formato inválido (por ejemplo, escrito a mano en la dirección) es "no encontrado", no un error.
 export const isUuid = (id: string) => z.uuid().safeParse(id).success;
@@ -74,6 +76,28 @@ export async function getBuilding(propertyId: string): Promise<BuildingView | nu
           )
           .orderBy(asc(unit.name))
       : [];
+    // Ocupada: ella o su departamento tiene un contrato que ocupa la unidad hoy (acordado, firmado o pendiente).
+    const contracts = units.length
+      ? await tx
+          .select({
+            id: contract.id,
+            unitId: contract.unitId,
+            startDate: contract.startDate,
+            endDate: contract.endDate,
+            status: contract.status,
+          })
+          .from(contract)
+          .where(
+            inArray(
+              contract.unitId,
+              units.map((u) => u.id),
+            ),
+          )
+      : [];
+    const today = limaToday(new Date());
+    const occupiedIds = new Set(contracts.filter((c) => occupiesToday(c, today)).map((c) => c.unitId));
+    const isOccupied = (u: (typeof units)[number]) =>
+      occupiedIds.has(u.id) || (u.parentUnitId !== null && occupiedIds.has(u.parentUnitId));
 
     const toView = (u: (typeof units)[number]): BuildingUnit => ({
       id: u.id,
@@ -87,7 +111,7 @@ export async function getBuilding(propertyId: string): Promise<BuildingView | nu
       furnished: u.furnished,
       spaceType: u.spaceType,
       rect: { x: u.posX, z: u.posZ, width: u.width, depth: u.depth },
-      status: unitStatus(),
+      status: unitStatus({ hasActiveContract: isOccupied(u) }),
       rooms: units.filter((r) => r.parentUnitId === u.id).map(toView),
     });
     const toRule = (u: (typeof units)[number]): UnitInput => ({

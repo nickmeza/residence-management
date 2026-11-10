@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { daysBetween, endsInLabel, formatLongDate, limaToday, periodsOverlap } from "./dates";
+import { addDays, daysBetween, endsInLabel, formatLongDate, limaToday, periodsOverlap } from "./dates";
 import {
   confirmProblems,
   contractPhase,
@@ -184,5 +184,12 @@ describe("cuánto falta para el fin", () => {
     expect(endsInLabel("2026-03-02", "2026-03-01")).toBe("Mañana");
     expect(endsInLabel("2026-03-06", "2026-03-01")).toBe("En 5 días");
     expect(endsInLabel("2026-09-01", "2026-03-01")).toBe("En 6 meses");
+  });
+});
+
+describe("sumar días", () => {
+  it("cruza meses y años", () => {
+    expect(addDays("2026-03-01", -1)).toBe("2026-02-28");
+    expect(addDays("2026-12-31", 1)).toBe("2027-01-01");
   });
 });

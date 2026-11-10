@@ -146,6 +146,22 @@ async function Content({ params }: { params: PageProps<"/residentes/[id]">["para
             ) : (
               <p className="text-sm text-muted-foreground">Todavía no tiene contrato.</p>
             )}
+            <div className="mt-3 flex flex-wrap gap-2.5">
+              {c ? (
+                <Link
+                  href={`/contratos/${c.id}`}
+                  className={buttonVariants({ variant: "outline", className: "h-11" })}
+                >
+                  Ver contrato
+                </Link>
+              ) : null}
+              {/* Con un contrato vigente, los cambios se hacen desde el contrato (Cambiar condiciones). */}
+              {!c || c.phase === "ended" || c.phase === "cancelled" ? (
+                <Link href={`/contratos?residente=${r.id}`} className={buttonVariants({ className: "h-11" })}>
+                  Crear contrato
+                </Link>
+              ) : null}
+            </div>
           </Card>
         </div>
       </div>
