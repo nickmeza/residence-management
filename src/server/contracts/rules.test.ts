@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { daysBetween, formatLongDate, limaToday, periodsOverlap } from "./dates";
+import { daysBetween, endsInLabel, formatLongDate, limaToday, periodsOverlap } from "./dates";
 import {
   confirmProblems,
   contractPhase,
@@ -173,5 +173,16 @@ describe("regla 10: confirmar el contrato", () => {
     expect(statusAfterDraft("none")).toBe("confirmed");
     expect(statusAfterDraft("paper")).toBe("pending_signature");
     expect(statusAfterDraft("template")).toBe("pending_signature");
+  });
+});
+
+describe("cuánto falta para el fin", () => {
+  it("lo dice en días o meses", () => {
+    expect(endsInLabel(null, "2026-03-01")).toBe("Sin fecha de fin");
+    expect(endsInLabel("2026-02-01", "2026-03-01")).toBe("Venció");
+    expect(endsInLabel("2026-03-01", "2026-03-01")).toBe("Hoy");
+    expect(endsInLabel("2026-03-02", "2026-03-01")).toBe("Mañana");
+    expect(endsInLabel("2026-03-06", "2026-03-01")).toBe("En 5 días");
+    expect(endsInLabel("2026-09-01", "2026-03-01")).toBe("En 6 meses");
   });
 });

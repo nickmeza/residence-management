@@ -50,7 +50,7 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 1 · Datos y cuentas | ✅ Terminada |
 | 2 · Registro y edificio en modo simple | ✅ Terminada |
 | 3 · Edificio en 3D | ✅ Terminada |
-| 4 · Residentes, contratos y documentos | Siguiente |
+| 4 · Residentes, contratos y documentos | En curso |
 
 ### Fase 0, paso a paso
 
@@ -92,6 +92,13 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 4. Arrastre | Arrastrar pisos (reordenar) y unidades (en la planta), guardado en segundo plano: el cambio se ve al instante y se envía en cola |
 | 5. Registro en 3D | Vista previa 3D en "Arma tu edificio", calculada con las mismas reglas que el servidor |
 
+
+### Fase 4, paso a paso
+
+| Paso | Qué se hizo |
+| ---- | ----------- |
+| 4.1 Datos y reglas | Tablas `resident`, `resident_invitation`, `contract`, `contract_template`, `document_requirement` y `document` con RLS. Reglas puras en `src/server/contracts/` (fase del contrato, solapes, confirmar, plantillas) y `src/server/residents/invitation.ts` |
+| 4.2 Residentes | `/residentes` (lista con filtros y buscador) y `/residentes/[id]` (perfil). Agregar y editar en un panel lateral; invitación por WhatsApp o copiando el mensaje |
 ### Pantallas de la app (después de iniciar sesión)
 
 | Dirección | Qué es |
@@ -101,6 +108,8 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | `/negocio/[id]` | Configuración › Negocio: datos y métodos de pago |
 | `/edificio/[id]` | Edificio en 3D o en modo simple. En 3D: clic, doble clic para entrar, arrastrar pisos y unidades, forma de la losa. En simple: acordeones. En los dos, tocar una unidad abre su panel de edición |
 | `/configurar` | Configuración inicial para cuentas que todavía no tienen negocio |
+| `/residentes` | Residentes del negocio elegido: filtros (por vencer, documentos pendientes), buscador y "Agregar residente" |
+| `/residentes/[id]` | Perfil del residente: datos personales, documentos y contrato; editar datos e invitar |
 
 ## Base de datos
 
@@ -178,3 +187,6 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-10 | Documentos **opcionales**; solo los que el arrendador marca obligatorios impiden confirmar el contrato | Puede bastar con el número de DNI. Se guarda quién subió cada archivo. |
 | 2026-11-10 | Función `is_resident_of_my_business` en la base (security definer) | Las políticas de Persona y de las fichas se consultaban entre sí y la base entraba en un bucle. |
 | 2026-11-10 | `@react-pdf/renderer` para los PDF de las plantillas | Arma el PDF en el servidor con márgenes y saltos de línea; lo aprobó el dueño. |
+| 2026-11-10 | En Residentes **no se muestran** pagos, deuda, garantía ni servicios todavía | Llegan con las Fases 5 y 6. Mejor no mostrar datos falsos. Lo aprobó el dueño. |
+| 2026-11-10 | Agregar y editar residente en un **panel lateral**; al agregar, se ofrece invitar | El prototipo no tiene ese formulario; se sigue la decisión del panel de unidades. |
+| 2026-11-10 | Cada "Invitar" crea un enlace nuevo y **anula los anteriores** sin usar | Si un mensaje se pierde o se manda a otra persona, el enlace viejo deja de servir. |

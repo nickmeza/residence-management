@@ -35,3 +35,14 @@ const longDate = new Intl.DateTimeFormat("es-PE", {
   timeZone: "UTC",
 });
 export const formatLongDate = (date: IsoDate) => longDate.format(new Date(toUtc(date)));
+
+// Cuánto falta para el fin, como en la lista de residentes: "En 5 días", "En 2 meses", "Venció".
+export function endsInLabel(endDate: IsoDate | null, today: IsoDate): string {
+  if (endDate === null) return "Sin fecha de fin";
+  const days = daysBetween(today, endDate);
+  if (days < 0) return "Venció";
+  if (days === 0) return "Hoy";
+  if (days === 1) return "Mañana";
+  if (days < 60) return `En ${days} días`;
+  return `En ${Math.round(days / 30)} meses`;
+}
