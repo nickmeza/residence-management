@@ -283,3 +283,136 @@ describe("reglas de unidades en la base", () => {
     });
   });
 });
+
+describe("RLS de residentes, contratos y documentos", () => {
+  const C = "00000000-0000-4000-8000-00000000000c";
+  const P = "00000000-0000-4000-8000-0000000000e1";
+
+  // A registra a una persona sin cuenta (P) como residente con un contrato en su cuarto.
+  async function setUpResident(tx: Tx) {
+    const ids = await setUp(tx);
+    await actAs(tx, A);
+    // Sin "returning": A todavía no ve a P hasta que exista su ficha.
+    await tx`insert into public.person (id, full_name, identity_document_type, identity_document_number)
+      values (${P}, 'Residente de prueba', 'dni', '12345678')`;
+    const [resident] = await tx`insert into public.resident (business_id, person_id, university)
+      values (${ids.businessId}, ${P}, 'Universidad de ejemplo') returning id`;
+    const [contract] = await tx`insert into public.contract
+      (unit_id, resident_id, start_date, end_date, monthly_rent, payment_day, paperwork)
+      values (${ids.unitId}, ${resident.id}, '2026-03-01', '2026-12-31', 500, 5, 'none') returning id`;
+    await actAsAdmin(tx);
+    return { ...ids, residentId: resident.id as string, contractId: contract.id as string };
+  }
+
+  // C crea su cuenta y queda enlazado a P (lo que hará el servidor al aceptar la invitación).
+  async function linkAccount(tx: Tx) {
+    await actAsAdmin(tx);
+    await tx`insert into auth.users (id, email, raw_user_meta_data, aud, role)
+      values (${C}, 'c@prueba.test', '{}', 'authenticated', 'authenticated')`;
+    await tx`delete from public.person where user_id = ${C}`;
+    await tx`update public.person set user_id = ${C} where id = ${P}`;
+  }
+
+  const countResidentData = (tx: Tx) =>
+    tx`select (select count(*) from public.person where id = ${P})::int pe,
+      (select count(*) from public.resident)::int r, (select count(*) from public.contract)::int c`;
+
+  it("el arrendador ve a sus residentes y otro arrendador no", async () => {
+    await inRollback(async (tx) => {
+      await setUpResident(tx);
+      await actAs(tx, A);
+      expect((await countResidentData(tx))[0]).toEqual({ pe: 1, r: 1, c: 1 });
+      await actAs(tx, B);
+      expect((await countResidentData(tx))[0]).toEqual({ pe: 0, r: 0, c: 0 });
+      expect(await tx`update public.person set full_name = 'x' where id = ${P} returning id`).toHaveLength(0);
+    });
+  });
+
+  it("el arrendador edita los datos personales solo mientras el residente no tenga cuenta", async () => {
+    await inRollback(async (tx) => {
+      await setUpResident(tx);
+      await actAs(tx, A);
+      expect(
+        await tx`update public.person set phone = '999000111' where id = ${P} returning id`,
+      ).toHaveLength(1);
+      await linkAccount(tx);
+      await actAs(tx, A);
+      expect(
+        await tx`update public.person set phone = '999000222' where id = ${P} returning id`,
+      ).toHaveLength(0);
+      // Sigue viéndolo.
+      expect((await countResidentData(tx))[0].pe).toBe(1);
+    });
+  });
+
+  it("el residente ve su ficha y su contrato, pero no los de otros", async () => {
+    await inRollback(async (tx) => {
+      await setUpResident(tx);
+      await linkAccount(tx);
+      await actAs(tx, C);
+      expect((await countResidentData(tx))[0]).toEqual({ pe: 1, r: 1, c: 1 });
+      await actAs(tx, B);
+      expect((await countResidentData(tx))[0]).toEqual({ pe: 0, r: 0, c: 0 });
+    });
+  });
+
+  it("nadie crea contratos sobre la unidad de otro arrendador", async () => {
+    await inRollback(async (tx) => {
+      const ids = await setUpResident(tx);
+      const businessB = await createBusinessForB(tx);
+      await tx`insert into public.person (id, full_name) values ('00000000-0000-4000-8000-0000000000e2', 'Otra persona')`;
+      const [residentB] = await tx`insert into public.resident (business_id, person_id)
+        values (${businessB}, '00000000-0000-4000-8000-0000000000e2') returning id`;
+      expect(
+        await fails(
+          tx,
+          (
+            s,
+          ) => s`insert into public.contract (unit_id, resident_id, start_date, monthly_rent, payment_day, paperwork)
+            values (${ids.unitId}, ${residentB.id}, '2026-03-01', 1, 5, 'none')`,
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it("el residente sube sus documentos, pero no puede marcarlos como verificados", async () => {
+    await inRollback(async (tx) => {
+      const { residentId } = await setUpResident(tx);
+      await linkAccount(tx);
+      await actAs(tx, C);
+      const upload = (s: Tx, path: string, status: string) =>
+        s`insert into public.document (resident_id, kind, storage_path, file_name, mime_type, size_bytes, status, uploaded_by)
+          values (${residentId}, 'other', ${path}, 'dni.jpg', 'image/jpeg', 1000, ${status}, ${P})`;
+      expect(await fails(tx, (s) => upload(s, "prueba/1.jpg", "in_review"))).toBe(false);
+      expect(await fails(tx, (s) => upload(s, "prueba/2.jpg", "verified"))).toBe(true);
+      expect(
+        await tx`update public.document set status = 'verified' where resident_id = ${residentId} returning id`,
+      ).toHaveLength(0);
+    });
+  });
+
+  it("la base rechaza contratos y documentos inválidos", async () => {
+    await inRollback(async (tx) => {
+      const { contractId, residentId } = await setUpResident(tx);
+      const invalid = [
+        tx`update public.contract set end_date = '2026-01-01' where id = ${contractId}`,
+        tx`update public.contract set status = 'pending_signature' where id = ${contractId}`,
+        tx`update public.contract set paperwork = 'template' where id = ${contractId}`,
+        tx`update public.contract set status = 'confirmed' where id = ${contractId}`,
+        tx`update public.person set identity_document_number = '123' where id = ${P}`,
+        tx`insert into public.document (resident_id, kind, storage_path, file_name, mime_type, size_bytes, status, uploaded_by)
+          values (${residentId}, 'other', 'prueba/3.pdf', 'x.pdf', 'application/pdf', 10, 'rejected', ${P})`,
+      ];
+      for (const query of invalid) {
+        expect(await fails(tx, () => query)).toBe(true);
+      }
+    });
+  });
+
+  it("solo los usuarios con sesión pueden usar la función de residentes", async () => {
+    const [row] = await sql`select
+      has_function_privilege('anon', 'public.is_resident_of_my_business(uuid)', 'execute') as anon,
+      has_function_privilege('authenticated', 'public.is_resident_of_my_business(uuid)', 'execute') as auth`;
+    expect(row).toEqual({ anon: false, auth: true });
+  });
+});

@@ -43,6 +43,13 @@
       "when": 1793831140937,
       "tag": "0005_renombrar_area_m2",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794295243170,
+      "tag": "0006_residentes_contratos_documentos",
+      "breakpoints": true
     }
   ]
 }

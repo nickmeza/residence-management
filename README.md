@@ -168,3 +168,13 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-04 | Al mover un departamento, **sus cuartos se mueven con él** | Los cuartos están dentro del departamento. |
 | 2026-11-04 | **Guardado en segundo plano** en el 3D: cambio optimista (`useOptimistic`) y cola de guardado | El dueño vio que al mover rápido dos unidades, la primera volvía atrás. La cola evita que dos cambios se validen sin conocerse. |
 | 2026-11-04 | En el registro, el 3D es **vista previa** (sin arrastre) | Así lo muestra el prototipo. Nada está guardado todavía; luego se ajusta en la pantalla Edificio. |
+| 2026-11-10 | El contrato tiene **modalidad**: sin contrato escrito, contrato en papel o desde plantilla | En Perú muchas veces no hay contrato, solo el pago, o hay un papel sin notario. Lo definió el dueño. |
+| 2026-11-10 | Estados guardados del contrato: borrador, pendiente de firma, confirmado y cancelado. Vigente, por vencer y terminado se calculan | "Confirmado" se muestra como "Firmado" si hay papel y "Acordado" si no. Sin papel no hay "pendiente de firma". |
+| 2026-11-10 | No hay firma dentro de la app: el contrato firmado se **sube escaneado** (foto o PDF) | Lo pidió el dueño. La firma electrónica queda para más adelante. |
+| 2026-11-10 | La fecha de fin del contrato es **opcional** | Casi siempre hay fin, pero un alquiler mes a mes puede no tenerlo. |
+| 2026-11-10 | Datos personales en **Persona** (compartidos); contacto de emergencia, universidad y notas en una **ficha por negocio** | Un residente puede estar en negocios de dueños distintos, y lo de cada negocio es suyo. |
+| 2026-11-10 | El arrendador edita los datos personales **solo mientras el residente no tenga cuenta** | Después los edita el residente: otros negocios también los ven. |
+| 2026-11-10 | Residente por **invitación**: enlace para WhatsApp o para copiar; se guarda solo su hash | Si alguien lee la tabla, no puede usar el enlace. |
+| 2026-11-10 | Documentos **opcionales**; solo los que el arrendador marca obligatorios impiden confirmar el contrato | Puede bastar con el número de DNI. Se guarda quién subió cada archivo. |
+| 2026-11-10 | Función `is_resident_of_my_business` en la base (security definer) | Las políticas de Persona y de las fichas se consultaban entre sí y la base entraba en un bucle. |
+| 2026-11-10 | `@react-pdf/renderer` para los PDF de las plantillas | Arma el PDF en el servidor con márgenes y saltos de línea; lo aprobó el dueño. |

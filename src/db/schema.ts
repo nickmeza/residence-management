@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -15,6 +16,7 @@ import {
   smallint,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
@@ -30,6 +32,20 @@ export const spaceType = pgEnum("space_type", ["bedroom", "studio", "office", "s
 export const businessService = pgEnum("business_service", ["residence", "meal_plan"]);
 export const businessKind = pgEnum("business_kind", ["natural", "company"]);
 export const paymentMethod = pgEnum("payment_method", ["yape", "plin", "transfer", "cash", "card"]);
+// DNI, carné de extranjería o pasaporte.
+export const identityDocumentType = pgEnum("identity_document_type", ["dni", "foreign_id", "passport"]);
+// Modalidad del contrato: sin contrato escrito, contrato en papel propio o generado desde una plantilla.
+export const contractPaperwork = pgEnum("contract_paperwork", ["none", "paper", "template"]);
+// Vigente, por vencer y terminado no se guardan: se calculan de las fechas.
+export const contractStatus = pgEnum("contract_status", [
+  "draft",
+  "pending_signature",
+  "confirmed",
+  "cancelled",
+]);
+export const documentFormat = pgEnum("document_format", ["pdf", "image"]);
+export const documentKind = pgEnum("document_kind", ["requirement", "signed_contract", "other"]);
+export const documentStatus = pgEnum("document_status", ["in_review", "verified", "rejected"]);
 
 // Persona: dueño, encargado, residente… Puede tener cuenta (user_id) o no.
 // Se crea sola al registrarse (trigger en la migración a mano). Los roles llegan en la Fase 4.
@@ -45,8 +61,19 @@ export const person = pgTable(
     phone: text(),
     // Cuándo aceptó los Términos y la Política de privacidad al registrarse.
     termsAcceptedAt: timestamp({ withTimezone: true }),
+    // Documento de identidad (opcional). Puede quedarse solo con el número, sin archivo subido.
+    identityDocumentType: identityDocumentType(),
+    identityDocumentNumber: text(),
   },
   (t) => [
+    check(
+      "person_identity_document_pair",
+      sql`(${t.identityDocumentType} is null) = (${t.identityDocumentNumber} is null)`,
+    ),
+    check(
+      "person_dni_format",
+      sql`${t.identityDocumentType} is distinct from 'dni' or ${t.identityDocumentNumber} ~ '^[0-9]{8}$'`,
+    ),
     pgPolicy("person_select_own", {
       for: "select",
       to: authenticatedRole,
@@ -57,6 +84,26 @@ export const person = pgTable(
       to: authenticatedRole,
       using: sql`${t.userId} = ${authUid}`,
       withCheck: sql`${t.userId} = ${authUid}`,
+    }),
+    // El arrendador ve a las personas que son residentes de sus negocios. Usa una función de la base
+    // (migración 0006) porque una subconsulta directa a resident volvería a pasar por esta misma tabla.
+    pgPolicy("person_select_my_residents", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`public.is_resident_of_my_business(${t.id})`,
+    }),
+    // Y edita sus datos solo mientras el residente no tenga cuenta; después los edita él mismo.
+    pgPolicy("person_update_my_residents_without_account", {
+      for: "update",
+      to: authenticatedRole,
+      using: sql`${t.userId} is null and public.is_resident_of_my_business(${t.id})`,
+      withCheck: sql`${t.userId} is null and public.is_resident_of_my_business(${t.id})`,
+    }),
+    // El arrendador crea personas sin cuenta (residentes por invitar).
+    pgPolicy("person_insert_without_account", {
+      for: "insert",
+      to: authenticatedRole,
+      withCheck: sql`${t.userId} is null`,
     }),
   ],
 );
@@ -217,6 +264,259 @@ export const unit = pgTable(
         where f.id = ${t.floorId} and p.business_id in ${myBusinessIds})`,
       withCheck: sql`exists (select 1 from public.floor f join public.property p on p.id = f.property_id
         where f.id = ${t.floorId} and p.business_id in ${myBusinessIds})`,
+    }),
+  ],
+);
+
+// --- Fase 4: residentes, contratos y documentos ---
+
+// Las fichas de residente de los negocios de la persona con sesión (vista del arrendador).
+const myBusinessResidentIds = sql`(select r.id from public.resident r where r.business_id in ${myBusinessIds})`;
+// Las fichas de la persona con sesión como residente (puede estar en negocios de dueños distintos).
+const myOwnResidentIds = sql`(select r.id from public.resident r where r.person_id in ${myPersonIds})`;
+
+// Ficha del residente en un negocio. Los datos personales (nombre, documento, teléfono) están en person y se
+// comparten; lo de aquí es propio de cada negocio y los demás negocios no lo ven.
+export const resident = pgTable(
+  "resident",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => business.id, { onDelete: "restrict" }),
+    personId: uuid()
+      .notNull()
+      .references(() => person.id, { onDelete: "restrict" }),
+    emergencyContactName: text(),
+    emergencyContactPhone: text(),
+    university: text(),
+    notes: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Una persona tiene una sola ficha por negocio.
+    uniqueIndex("resident_business_person_idx").on(t.businessId, t.personId),
+    index("resident_person_id_idx").on(t.personId),
+    pgPolicy("resident_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in ${myBusinessIds}`,
+      withCheck: sql`${t.businessId} in ${myBusinessIds}`,
+    }),
+    pgPolicy("resident_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.personId} in ${myPersonIds}`,
+    }),
+  ],
+);
+
+// Invitación para que el residente cree su cuenta. Se guarda solo el hash del enlace: si alguien lee la tabla,
+// no puede usarla. Aceptarla lo hace el servidor, no el RLS.
+export const residentInvitation = pgTable(
+  "resident_invitation",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    residentId: uuid()
+      .notNull()
+      .references(() => resident.id, { onDelete: "cascade" }),
+    tokenHash: text().notNull().unique(),
+    expiresAt: timestamp({ withTimezone: true }).notNull(),
+    acceptedAt: timestamp({ withTimezone: true }),
+    createdBy: uuid()
+      .notNull()
+      .references(() => person.id, { onDelete: "restrict" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("resident_invitation_resident_id_idx").on(t.residentId),
+    pgPolicy("resident_invitation_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.residentId} in ${myBusinessResidentIds}`,
+      withCheck: sql`${t.residentId} in ${myBusinessResidentIds}`,
+    }),
+  ],
+);
+
+// Plantilla de contrato del negocio. El texto admite datos que se rellenan solos: {nombre}, {unidad}, {renta}…
+export const contractTemplate = pgTable(
+  "contract_template",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => business.id, { onDelete: "restrict" }),
+    name: text().notNull(),
+    body: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("contract_template_business_id_idx").on(t.businessId),
+    pgPolicy("contract_template_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in ${myBusinessIds}`,
+      withCheck: sql`${t.businessId} in ${myBusinessIds}`,
+    }),
+  ],
+);
+
+// Contrato: el alquiler de una unidad, haya papel o no (ver la modalidad). Que no se solape con otro de la
+// misma unidad lo valida el servidor, igual que las posiciones de las unidades.
+export const contract = pgTable(
+  "contract",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    unitId: uuid()
+      .notNull()
+      .references(() => unit.id, { onDelete: "restrict" }),
+    residentId: uuid()
+      .notNull()
+      .references(() => resident.id, { onDelete: "restrict" }),
+    startDate: date().notNull(),
+    // Vacía: sin fecha de fin (mes a mes), vigente hasta que el arrendador lo termine.
+    endDate: date(),
+    monthlyRent: numeric({ precision: 10, scale: 2 }).notNull(),
+    // 31 = fin de mes, como el día de cobro del negocio.
+    paymentDay: smallint().notNull(),
+    paperwork: contractPaperwork().notNull(),
+    templateId: uuid().references(() => contractTemplate.id, { onDelete: "restrict" }),
+    status: contractStatus().notNull().default("draft"),
+    confirmedAt: timestamp({ withTimezone: true }),
+    cancelledAt: timestamp({ withTimezone: true }),
+    renewedFromId: uuid().references((): AnyPgColumn => contract.id, { onDelete: "set null" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("contract_unit_id_idx").on(t.unitId),
+    index("contract_resident_id_idx").on(t.residentId),
+    check("contract_dates_order", sql`${t.endDate} is null or ${t.endDate} >= ${t.startDate}`),
+    check("contract_rent_not_negative", sql`${t.monthlyRent} >= 0`),
+    check("contract_payment_day_range", sql`${t.paymentDay} between 1 and 31`),
+    // Solo los contratos desde plantilla tienen plantilla.
+    check(
+      "contract_template_matches_paperwork",
+      sql`(${t.paperwork} = 'template') = (${t.templateId} is not null)`,
+    ),
+    // Sin contrato escrito no hay nada que firmar.
+    check(
+      "contract_none_without_signature",
+      sql`${t.paperwork} <> 'none' or ${t.status} <> 'pending_signature'`,
+    ),
+    check("contract_confirmed_at", sql`${t.status} <> 'confirmed' or ${t.confirmedAt} is not null`),
+    check("contract_cancelled_at", sql`${t.status} <> 'cancelled' or ${t.cancelledAt} is not null`),
+    // La ficha y la unidad deben ser de los negocios del arrendador.
+    pgPolicy("contract_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.residentId} in ${myBusinessResidentIds}`,
+      withCheck: sql`${t.residentId} in ${myBusinessResidentIds} and exists (
+        select 1 from public.unit u join public.floor f on f.id = u.floor_id join public.property p on p.id = f.property_id
+        where u.id = ${t.unitId} and p.business_id in ${myBusinessIds})`,
+    }),
+    pgPolicy("contract_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.residentId} in ${myOwnResidentIds}`,
+    }),
+  ],
+);
+
+// Requisito de documento (DNI, constancia de estudios…). Sin propiedad: vale para todo el negocio.
+// Solo los obligatorios impiden confirmar el contrato mientras no estén verificados.
+export const documentRequirement = pgTable(
+  "document_requirement",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => business.id, { onDelete: "restrict" }),
+    propertyId: uuid().references(() => property.id, { onDelete: "cascade" }),
+    name: text().notNull(),
+    description: text(),
+    required: boolean().notNull().default(false),
+    acceptedFormats: documentFormat()
+      .array()
+      .notNull()
+      .default(sql`'{pdf,image}'`),
+    maxSizeMb: smallint().notNull().default(5),
+  },
+  (t) => [
+    index("document_requirement_business_id_idx").on(t.businessId),
+    check("document_requirement_max_size", sql`${t.maxSizeMb} between 1 and 20`),
+    pgPolicy("document_requirement_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in ${myBusinessIds}`,
+      withCheck: sql`${t.businessId} in ${myBusinessIds}`,
+    }),
+    // El residente ve los requisitos de los negocios donde tiene ficha.
+    pgPolicy("document_requirement_select_as_resident", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in (select r.business_id from public.resident r where r.person_id in ${myPersonIds})`,
+    }),
+  ],
+);
+
+// Documento subido (archivo privado en Supabase Storage). Lo puede subir el residente o el arrendador;
+// uploaded_by guarda quién fue.
+export const document = pgTable(
+  "document",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    residentId: uuid()
+      .notNull()
+      .references(() => resident.id, { onDelete: "cascade" }),
+    kind: documentKind().notNull(),
+    requirementId: uuid().references(() => documentRequirement.id, { onDelete: "set null" }),
+    contractId: uuid().references(() => contract.id, { onDelete: "cascade" }),
+    // Ruta del archivo dentro del bucket privado.
+    storagePath: text().notNull().unique(),
+    fileName: text().notNull(),
+    mimeType: text().notNull(),
+    sizeBytes: integer().notNull(),
+    status: documentStatus().notNull().default("in_review"),
+    uploadedBy: uuid()
+      .notNull()
+      .references(() => person.id, { onDelete: "restrict" }),
+    uploadedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    reviewedBy: uuid().references(() => person.id, { onDelete: "set null" }),
+    reviewedAt: timestamp({ withTimezone: true }),
+    rejectionReason: text(),
+  },
+  (t) => [
+    index("document_resident_id_idx").on(t.residentId),
+    index("document_contract_id_idx").on(t.contractId),
+    check("document_size_positive", sql`${t.sizeBytes} > 0`),
+    // Rechazar exige un motivo, que el residente ve.
+    check(
+      "document_rejection_reason",
+      sql`${t.status} <> 'rejected' or coalesce(trim(${t.rejectionReason}), '') <> ''`,
+    ),
+    check(
+      "document_signed_contract_has_contract",
+      sql`${t.kind} <> 'signed_contract' or ${t.contractId} is not null`,
+    ),
+    pgPolicy("document_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.residentId} in ${myBusinessResidentIds}`,
+      withCheck: sql`${t.residentId} in ${myBusinessResidentIds}`,
+    }),
+    pgPolicy("document_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.residentId} in ${myOwnResidentIds}`,
+    }),
+    // El residente sube los suyos, a su nombre y sin poder marcarlos como verificados.
+    pgPolicy("document_insert_own", {
+      for: "insert",
+      to: authenticatedRole,
+      withCheck: sql`${t.residentId} in ${myOwnResidentIds} and ${t.uploadedBy} in ${myPersonIds}
+        and ${t.status} = 'in_review' and ${t.reviewedBy} is null`,
     }),
   ],
 );
