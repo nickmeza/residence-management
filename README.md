@@ -101,6 +101,7 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 4.2 Residentes | `/residentes` (lista con filtros y buscador) y `/residentes/[id]` (perfil). Agregar y editar en un panel lateral; invitación por WhatsApp o copiando el mensaje |
 | 4.3 Contratos | `/contratos` (lista con filtros) y `/contratos/[id]`. Crear con modalidad (sin contrato, papel o plantilla) o como borrador; cambiar modalidad; cambiar condiciones (contrato nuevo enlazado); terminar y cancelar. El estado "Ocupado" de Edificio sale de los contratos |
 | 4.4 Plantillas y PDF | Configuración › Plantillas (`/negocio/[id]/plantillas`): editor con datos que se rellenan solos, vista previa y PDF de ejemplo. Los contratos desde plantilla se descargan en PDF (`/contratos/[id]/pdf`) para imprimir y firmar |
+| 4.5 Documentos (en curso) | Configuración › Documentos (`/negocio/[id]/documentos`): qué documentos pides, si son obligatorios, formatos, tamaño y propiedad. Subir y revisar archivos espera la migración de Supabase Storage |
 ### Pantallas de la app (después de iniciar sesión)
 
 | Dirección | Qué es |
@@ -116,6 +117,7 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | `/contratos/[id]` | Un contrato: condiciones, modalidad, historial y acciones (confirmar, cambiar modalidad o condiciones, terminar, cancelar) |
 | `/negocio/[id]/plantillas` | Configuración › Plantillas: crear, editar y borrar plantillas de contrato |
 | `/contratos/[id]/pdf` | PDF del contrato desde su plantilla, listo para imprimir |
+| `/negocio/[id]/documentos` | Configuración › Documentos: requisitos que pides a los residentes |
 
 ## Base de datos
 
@@ -205,3 +207,4 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-10 | El PDF lleva **líneas de firma** del arrendador y del residente, y el número de página | Se imprime para firmar a mano. |
 | 2026-11-10 | Una plantilla que usa algún contrato **no se borra** (sí se edita) | El contrato debe poder volver a generar su PDF. |
 | 2026-11-10 | Sin límite de plantillas por negocio | Limitar por plan de pago es una idea futura del dueño; la base ya admite varias. |
+| 2026-11-10 | Quitar un requisito **conserva** los archivos ya subidos (pasan a "otro documento") | No se pierden documentos de los residentes. |
