@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { db } from "@/db";
+import { acceptInvitationIn } from "@/server/residents/accept";
 import { hashInvitationToken } from "@/server/residents/invitation";
 import * as m from "@/server/residents/mutations";
 import { residentSchema, type ResidentInput } from "@/server/residents/schemas";
@@ -95,7 +96,8 @@ describe("residentes", () => {
       ).toBe(true);
       const [r] = await rows<{ full_name: string; notes: string }>(
         tx,
-        sql`select p.full_name, r.notes from public.resident r join public.person p on p.id = r.person_id`,
+        sql`select p.full_name, n.body as notes from public.resident r join public.person p on p.id = r.person_id
+          left join public.resident_note n on n.resident_id = r.id`,
       );
       expect(r).toEqual({ full_name: "Nombre corregido", notes: "Paga puntual" });
 
@@ -120,7 +122,8 @@ describe("residentes", () => {
       );
       const [r] = await rows<{ full_name: string; notes: string }>(
         tx,
-        sql`select p.full_name, r.notes from public.resident r join public.person p on p.id = r.person_id`,
+        sql`select p.full_name, n.body as notes from public.resident r join public.person p on p.id = r.person_id
+          left join public.resident_note n on n.resident_id = r.id`,
       );
       expect(r).toEqual({ full_name: "Residente de Prueba", notes: "Nota nueva" });
       expect(
@@ -151,6 +154,104 @@ describe("residentes", () => {
       expect(
         (await m.createInvitation(tx, { residentId: id, token: "b", expiresAt, userId: B })).status,
       ).toBe("not_found");
+    });
+  });
+});
+
+describe("aceptar la invitación (4.6, con dos cuentas)", () => {
+  const D = "00000000-0000-4000-8000-0000000000f4";
+  const expiresAt = () => new Date(Date.now() + 86_400_000);
+
+  // La cuenta nueva del residente: la base le crea su persona (trigger), como al entrar con el código.
+  const newAccount = async (tx: Tx, uid: string, email: string, name = "Residente de Prueba") => {
+    await tx.execute(sql`reset role`);
+    await tx.execute(sql`insert into auth.users (id, email, raw_user_meta_data, aud, role)
+      values (${uid}, ${email}, ${JSON.stringify({ full_name: name })}, 'authenticated', 'authenticated')`);
+  };
+
+  it("la cuenta queda enlazada a su ficha, ganan sus datos y el enlace ya no sirve", async () => {
+    await withBusinesses(async (tx, { businessA }) => {
+      const id = (await m.createResident(tx, businessA, form({ email: "viejo@correo.test" })))!;
+      await m.createInvitation(tx, { residentId: id, token: "enlace", expiresAt: expiresAt(), userId: A });
+      await newAccount(tx, C, "nuevo@correo.test");
+
+      await acceptInvitationIn(tx, "enlace", C, "nuevo@correo.test");
+      const [p] = await rows<Record<string, unknown>>(
+        tx,
+        sql`select p.user_id, p.email, p.identity_document_number, p.phone from public.resident r
+          join public.person p on p.id = r.person_id where r.id = ${id}`,
+      );
+      // El correo es el de su cuenta; el DNI y el teléfono que puso A se conservan porque él no los tenía.
+      expect(p).toEqual({
+        user_id: C,
+        email: "nuevo@correo.test",
+        identity_document_number: "12345678",
+        phone: "987 654 321",
+      });
+      // Solo queda una persona para esa cuenta (la que creó A se borró).
+      expect(
+        await rows(
+          tx,
+          sql`select count(*)::int n from public.person where full_name = 'Residente de Prueba'`,
+        ),
+      ).toEqual([{ n: 1 }]);
+      await expect(acceptInvitationIn(tx, "enlace", C, null)).rejects.toThrow(/ya se usó o venció/);
+    });
+  });
+
+  it("un enlace vencido no sirve y otra cuenta no puede usar uno ya aceptado", async () => {
+    await withBusinesses(async (tx, { businessA }) => {
+      const id = (await m.createResident(tx, businessA, form()))!;
+      await m.createInvitation(tx, {
+        residentId: id,
+        token: "viejo",
+        expiresAt: new Date(Date.now() - 1000),
+        userId: A,
+      });
+      await newAccount(tx, C, "c@correo.test");
+      await expect(acceptInvitationIn(tx, "viejo", C, null)).rejects.toThrow(/ya se usó o venció/);
+
+      await actAs(tx, A);
+      await m.createInvitation(tx, { residentId: id, token: "bueno", expiresAt: expiresAt(), userId: A });
+      // Como en la app: aceptar corre como administrador.
+      await tx.execute(sql`reset role`);
+      await acceptInvitationIn(tx, "bueno", C, null);
+      // A no puede invitar de nuevo a quien ya tiene cuenta; si lo hiciera a mano, D no podría usarla.
+      await tx.execute(sql`reset role`);
+      await tx.execute(sql`insert into public.resident_invitation (resident_id, token_hash, expires_at, created_by)
+        select ${id}, ${hashInvitationToken("robado")}, now() + interval '1 day', id from public.person where user_id = ${A}`);
+      await newAccount(tx, D, "d@correo.test", "Otra persona");
+      await expect(acceptInvitationIn(tx, "robado", D, null)).rejects.toThrow(/otra cuenta/);
+    });
+  });
+
+  it("el residente ve solo lo suyo: su residencia y su ficha, no las de otros ni el negocio de B", async () => {
+    await withBusinesses(async (tx, { businessA, businessB }) => {
+      const mine = (await m.createResident(tx, businessA, form({ notes: "Nota privada de A" })))!;
+      await m.createResident(
+        tx,
+        businessA,
+        form({ fullName: "Otra residente", identityDocumentNumber: "87654321" }),
+      );
+      await m.createInvitation(tx, { residentId: mine, token: "mio", expiresAt: expiresAt(), userId: A });
+      await newAccount(tx, C, "c@correo.test");
+      await acceptInvitationIn(tx, "mio", C, null);
+
+      await actAs(tx, C);
+      expect(await rows(tx, sql`select id from public.resident`)).toEqual([{ id: mine }]);
+      // Las notas son solo del arrendador.
+      expect(await rows(tx, sql`select body from public.resident_note`)).toEqual([]);
+      expect(await rows(tx, sql`select business_name from public.my_resident_places()`)).toEqual([
+        { business_name: "Residencia A" },
+      ]);
+      // No lee las tablas del arrendador: ni el negocio donde vive ni el de B.
+      expect(
+        await rows(tx, sql`select id from public.business where id in (${businessA}, ${businessB})`),
+      ).toEqual([]);
+      // B tampoco ve al residente de A.
+      await actAs(tx, B);
+      expect(await rows(tx, sql`select id from public.resident`)).toEqual([]);
+      expect(await rows(tx, sql`select * from public.my_resident_places()`)).toEqual([]);
     });
   });
 });

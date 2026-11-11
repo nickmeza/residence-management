@@ -391,6 +391,63 @@ describe("RLS de residentes, contratos y documentos", () => {
     });
   });
 
+  it("el residente solo ve los requisitos obligatorios y activos, y sus excepciones", async () => {
+    await inRollback(async (tx) => {
+      const { businessId, residentId } = await setUpResident(tx);
+      await actAs(tx, A);
+      const [dni] = await tx`insert into public.document_requirement (business_id, unit_type, name, required)
+        values (${businessId}, 'room', 'DNI', true) returning id`;
+      await tx`insert into public.document_requirement (business_id, unit_type, name, required, active) values
+        (${businessId}, 'room', 'Opcional', false, true), (${businessId}, 'room', 'Apagado', true, false)`;
+      await tx`insert into public.document_requirement_exemption (resident_id, requirement_id)
+        values (${residentId}, ${dni.id})`;
+      await linkAccount(tx);
+      await actAs(tx, C);
+      expect(await tx`select name from public.document_requirement`).toEqual([{ name: "DNI" }]);
+      expect(await tx`select requirement_id from public.document_requirement_exemption`).toHaveLength(1);
+      // Solo el arrendador crea o quita excepciones.
+      expect(await tx`delete from public.document_requirement_exemption returning id`).toHaveLength(0);
+      await actAs(tx, B);
+      expect(await tx`select id from public.document_requirement_exemption`).toHaveLength(0);
+    });
+  });
+
+  it("archivos privados: cada uno sube y ve solo en su carpeta (4.6)", async () => {
+    await inRollback(async (tx) => {
+      const { businessId, residentId } = await setUpResident(tx);
+      await linkAccount(tx);
+      const other = "00000000-0000-4000-8000-0000000000ee";
+      const put = (s: Tx, path: string) =>
+        s`insert into storage.objects (bucket_id, name) values ('documents', ${path})`;
+      const own = `${businessId}/${residentId}/${crypto.randomUUID()}.pdf`;
+
+      // El arrendador A sube en la carpeta de su residente; B no.
+      await actAs(tx, A);
+      expect(await fails(tx, (s) => put(s, own))).toBe(false);
+      await actAs(tx, B);
+      expect(await fails(tx, (s) => put(s, `${businessId}/${residentId}/${crypto.randomUUID()}.pdf`))).toBe(
+        true,
+      );
+      expect(await tx`select name from storage.objects where bucket_id = 'documents'`).toHaveLength(0);
+
+      // El residente C sube en su carpeta, no en la de otra ficha.
+      await actAs(tx, C);
+      expect(await fails(tx, (s) => put(s, `${businessId}/${residentId}/${crypto.randomUUID()}.pdf`))).toBe(
+        false,
+      );
+      expect(await fails(tx, (s) => put(s, `${businessId}/${other}/${crypto.randomUUID()}.pdf`))).toBe(true);
+      expect(await tx`select name from storage.objects where bucket_id = 'documents'`).toHaveLength(2);
+      // Borrar no se prueba aquí: Supabase no deja borrar en storage.objects con SQL (solo por su API).
+    });
+  });
+
+  it("la función de lugares del residente no la puede usar alguien sin sesión", async () => {
+    const [row] = await sql`select
+      has_function_privilege('anon', 'public.my_resident_places()', 'execute') as anon,
+      has_function_privilege('authenticated', 'public.my_resident_places()', 'execute') as auth`;
+    expect(row).toEqual({ anon: false, auth: true });
+  });
+
   it("la base rechaza contratos y documentos inválidos", async () => {
     await inRollback(async (tx) => {
       const { contractId, residentId } = await setUpResident(tx);

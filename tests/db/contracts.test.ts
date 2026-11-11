@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { db } from "@/db";
 import { deleteUnit } from "@/server/building/mutations";
 import * as m from "@/server/contracts/mutations";
+import * as docs from "@/server/documents/mutations";
 import { contractSchema, termsSchema, type ContractFormInput } from "@/server/contracts/schemas";
 import { insertSetup } from "@/server/onboarding/save";
 import { setupSchema } from "@/server/onboarding/schema";
@@ -185,8 +186,8 @@ describe("contratos", () => {
 
   it("un requisito obligatorio sin verificar impide acordar, pero no guardar como borrador", async () => {
     await withResident(async (tx, { residentId, businessId, unitId }) => {
-      await tx.execute(sql`insert into public.document_requirement (business_id, name, required)
-        values (${businessId}, 'DNI', true)`);
+      await tx.execute(sql`insert into public.document_requirement (business_id, unit_type, name, required)
+        values (${businessId}, 'room', 'DNI', true)`);
       const input = data({ residentId, unitId: await unitId("Cuarto 101") });
       expect(await errorOf(() => m.createContract(tx, input, false))).toMatch(/documentos obligatorios/);
       expect(await errorOf(() => m.createContract(tx, input, true))).toBeNull();
@@ -254,6 +255,95 @@ describe("contratos", () => {
       await m.createContract(tx, data({ residentId, unitId: room }), false);
       await expect(deleteUnit(tx, room)).rejects.toThrow(/contratos registrados/);
       await expect(deleteUnit(tx, await unitId("Departamento 102"))).resolves.toBeTruthy();
+    });
+  });
+});
+
+describe("documentos subidos y copia firmada", () => {
+  const file = (
+    businessId: string,
+    residentId: string,
+    over: Partial<docs.NewDocument> = {},
+  ): docs.NewDocument => ({
+    residentId,
+    kind: "other",
+    requirementId: null,
+    contractId: null,
+    storagePath: `${businessId}/${residentId}/${crypto.randomUUID()}.pdf`,
+    fileName: "dni.pdf",
+    mimeType: "application/pdf",
+    sizeBytes: 1000,
+    ...over,
+  });
+
+  it("lo que sube el arrendador queda verificado; se rechaza una ruta ajena o un formato que el requisito no pide", async () => {
+    await withResident(async (tx, { residentId, businessId }) => {
+      const { id } = await docs.registerDocument(tx, file(businessId, residentId), A);
+      expect(await rows(tx, sql`select status from public.document where id = ${id}`)).toEqual([
+        { status: "verified" },
+      ]);
+      const other = "00000000-0000-4000-8000-0000000000ff";
+      await expect(
+        docs.registerDocument(
+          tx,
+          file(businessId, residentId, { storagePath: `${businessId}/${other}/x.pdf` }),
+          A,
+        ),
+      ).rejects.toThrow(/No pudimos guardar/);
+      const [req] = await rows<{ id: string }>(
+        tx,
+        sql`insert into public.document_requirement (business_id, unit_type, name, required, accepted_formats)
+          values (${businessId}, 'room', 'DNI', true, '{image}') returning id`,
+      );
+      await expect(
+        docs.registerDocument(
+          tx,
+          file(businessId, residentId, { kind: "requirement", requirementId: req.id }),
+          A,
+        ),
+      ).rejects.toThrow(/foto/);
+    });
+  });
+
+  it("verificar y rechazar con motivo", async () => {
+    await withResident(async (tx, { residentId, businessId }) => {
+      const { id } = await docs.registerDocument(tx, file(businessId, residentId), A);
+      await docs.reviewDocument(tx, id, { status: "rejected", reason: "Está vencido" }, A);
+      expect(
+        await rows(tx, sql`select status, rejection_reason from public.document where id = ${id}`),
+      ).toEqual([{ status: "rejected", rejection_reason: "Está vencido" }]);
+      await docs.reviewDocument(tx, id, { status: "verified" }, A);
+      expect(
+        await rows(tx, sql`select status, rejection_reason from public.document where id = ${id}`),
+      ).toEqual([{ status: "verified", rejection_reason: null }]);
+    });
+  });
+
+  it("un contrato en papel se confirma con su copia firmada y los obligatorios (o su excepción)", async () => {
+    await withResident(async (tx, { residentId, businessId, unitId }) => {
+      const id = await m.createContract(
+        tx,
+        data({ residentId, unitId: await unitId("Cuarto 101"), paperwork: "paper" }),
+        false,
+      );
+      expect((await statusOf(tx, id)).status).toBe("pending_signature");
+      expect(await errorOf(() => m.confirmSigned(tx, id))).toMatch(/copia firmada/);
+
+      await docs.registerDocument(
+        tx,
+        file(businessId, residentId, { kind: "signed_contract", contractId: id }),
+        A,
+      );
+      const [req] = await rows<{ id: string }>(
+        tx,
+        sql`insert into public.document_requirement (business_id, unit_type, name, required)
+          values (${businessId}, 'room', 'DNI', true) returning id`,
+      );
+      expect(await errorOf(() => m.confirmSigned(tx, id))).toMatch(/documentos obligatorios/);
+
+      await docs.setAsked(tx, { residentId, requirementId: req.id, asked: false, userId: A });
+      expect(await errorOf(() => m.confirmSigned(tx, id))).toBeNull();
+      expect((await statusOf(tx, id)).status).toBe("confirmed");
     });
   });
 });
