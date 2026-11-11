@@ -69,8 +69,9 @@ export const residentSchema = z
 export type ResidentInput = z.input<typeof residentSchema>;
 export type ResidentData = z.output<typeof residentSchema>;
 
-// Lo que es de la persona (compartido entre negocios) y lo que es de la ficha de este negocio.
+// Lo que es de la persona (compartido entre negocios), lo que es de la ficha de este negocio y las notas, que son
+// solo del arrendador (tabla resident_note: el residente no las puede leer).
 export function splitResident(data: ResidentData) {
   const { university, emergencyContactName, emergencyContactPhone, notes, ...personal } = data;
-  return { personal, card: { university, emergencyContactName, emergencyContactPhone, notes } };
+  return { personal, card: { university, emergencyContactName, emergencyContactPhone }, notes };
 }

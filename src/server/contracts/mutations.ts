@@ -8,12 +8,14 @@ import {
   contractTemplate,
   document,
   documentRequirement,
+  documentRequirementExemption,
   floor,
   property,
   resident,
   unit,
 } from "@/db/schema";
 import { isRentable, type UnitInput } from "@/server/building/rules";
+import type { UnitType } from "@/server/documents/rules";
 
 import { addDays } from "./dates";
 import {
@@ -43,7 +45,7 @@ export class ContractError extends Error {
 // Las unidades del negocio dueño de `unitId` y sus contratos (para los solapes y para saber si se alquila).
 async function unitContext(tx: Tx, unitId: string) {
   const [target] = await tx
-    .select({ businessId: property.businessId, propertyId: property.id })
+    .select({ businessId: property.businessId, unitType: unit.type })
     .from(unit)
     .innerJoin(floor, eq(floor.id, unit.floorId))
     .innerJoin(property, eq(property.id, floor.propertyId))
@@ -139,32 +141,47 @@ async function checkTemplate(tx: Tx, templateId: string | null, businessId: stri
     throw new ContractError("Elige una plantilla de tu negocio.", "templateId");
 }
 
+// Requisitos, excepciones y documentos de una ficha, para la regla 10.
+async function documentsContext(tx: Tx, residentId: string, businessId: string) {
+  const [requirements, exemptions, documents] = await Promise.all([
+    tx
+      .select({
+        id: documentRequirement.id,
+        unitType: documentRequirement.unitType,
+        required: documentRequirement.required,
+        active: documentRequirement.active,
+      })
+      .from(documentRequirement)
+      .where(eq(documentRequirement.businessId, businessId)),
+    tx
+      .select({ id: documentRequirementExemption.requirementId })
+      .from(documentRequirementExemption)
+      .where(eq(documentRequirementExemption.residentId, residentId)),
+    tx
+      .select({
+        kind: document.kind,
+        requirementId: document.requirementId,
+        contractId: document.contractId,
+        status: document.status,
+      })
+      .from(document)
+      .where(eq(document.residentId, residentId)),
+  ]);
+  return { requirements, exemptIds: exemptions.map((e) => e.id), documents };
+}
+
 // Estado al terminar de llenar el contrato. Sin papel queda acordado, pero solo si los documentos obligatorios
 // están verificados (regla 10); con papel queda pendiente de la copia firmada.
 async function nextStatus(
   tx: Tx,
-  input: { paperwork: ContractPaperwork; residentId: string; businessId: string; propertyId: string },
+  input: { paperwork: ContractPaperwork; residentId: string; businessId: string; unitType: UnitType },
 ): Promise<{ status: ContractStatus; confirmedAt: Date | null }> {
   const status = statusAfterDraft(input.paperwork);
   if (status !== "confirmed") return { status, confirmedAt: null };
-  const [requirements, documents] = await Promise.all([
-    tx
-      .select({
-        id: documentRequirement.id,
-        propertyId: documentRequirement.propertyId,
-        required: documentRequirement.required,
-      })
-      .from(documentRequirement)
-      .where(eq(documentRequirement.businessId, input.businessId)),
-    tx
-      .select({ kind: document.kind, requirementId: document.requirementId, status: document.status })
-      .from(document)
-      .where(eq(document.residentId, input.residentId)),
-  ]);
+  const ctx = await documentsContext(tx, input.residentId, input.businessId);
   const problems = confirmProblems({
-    contract: { status: "draft", paperwork: input.paperwork, propertyId: input.propertyId },
-    requirements,
-    documents,
+    contract: { status: "draft", paperwork: input.paperwork, unitType: input.unitType },
+    ...ctx,
   });
   if (problems.some((p) => p.code === "required_documents_missing")) {
     throw new ContractError(
@@ -181,7 +198,7 @@ export async function createContract(tx: Tx, data: ContractData, asDraft: boolea
   await checkTemplate(tx, data.templateId, businessId);
   const state = asDraft
     ? { status: "draft" as const, confirmedAt: null }
-    : await nextStatus(tx, { ...data, businessId, propertyId: ctx.propertyId });
+    : await nextStatus(tx, { ...data, businessId, unitType: ctx.unitType });
   const [row] = await tx
     .insert(contract)
     .values({ ...data, ...state })
@@ -215,7 +232,7 @@ export async function submitDraft(tx: Tx, id: string) {
   const c = await findContract(tx, id);
   if (c.status !== "draft") throw new ContractError("Este contrato ya no es un borrador.");
   const ctx = await checkUnit(tx, c, c.businessId, [c.id]);
-  const state = await nextStatus(tx, { ...c, propertyId: ctx.propertyId });
+  const state = await nextStatus(tx, { ...c, unitType: ctx.unitType });
   await tx.update(contract).set(state).where(eq(contract.id, id));
 }
 
@@ -238,7 +255,7 @@ export async function changePaperwork(
     ...input,
     residentId: c.residentId,
     businessId: c.businessId,
-    propertyId: ctx.propertyId,
+    unitType: ctx.unitType,
   });
   await tx
     .update(contract)
@@ -270,7 +287,7 @@ export async function changeTerms(tx: Tx, id: string, terms: TermsData) {
     ...terms,
     residentId: c.residentId,
     businessId: c.businessId,
-    propertyId: ctx.propertyId,
+    unitType: ctx.unitType,
   });
   await tx
     .update(contract)
@@ -294,6 +311,31 @@ export async function endContract(tx: Tx, id: string, endDate: string) {
     throw new ContractError("Para alargarlo, usa Cambiar condiciones.", "endDate");
   }
   await tx.update(contract).set({ endDate }).where(eq(contract.id, id));
+}
+
+// Un contrato con papel pasa a firmado cuando está subida su copia firmada y los documentos que se le piden
+// están verificados (regla 10).
+export async function confirmSigned(tx: Tx, id: string) {
+  const c = await findContract(tx, id);
+  const { unitType } = await unitContext(tx, c.unitId);
+  const ctx = await documentsContext(tx, c.residentId, c.businessId);
+  const problems = confirmProblems({
+    contract: { status: c.status, paperwork: c.paperwork, unitType },
+    ...ctx,
+    // La copia firmada tiene que ser de este contrato, no de uno anterior.
+    documents: ctx.documents.filter((d) => d.kind !== "signed_contract" || d.contractId === id),
+  });
+  // Un borrador se confirma con submitDraft, que además revisa que la unidad siga libre.
+  if (c.status !== "pending_signature" || problems.some((p) => p.code === "wrong_status")) {
+    throw new ContractError("Solo se confirma un contrato pendiente de firma.");
+  }
+  if (problems.some((p) => p.code === "signed_copy_missing")) {
+    throw new ContractError("Sube primero la copia firmada del contrato.");
+  }
+  if (problems.length) {
+    throw new ContractError("Faltan documentos obligatorios verificados del residente.");
+  }
+  await tx.update(contract).set({ status: "confirmed", confirmedAt: new Date() }).where(eq(contract.id, id));
 }
 
 // Cancela un borrador o un contrato que no llegó a firmarse. Uno acordado o firmado se termina, no se cancela,

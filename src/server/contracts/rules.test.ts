@@ -119,12 +119,18 @@ describe("regla 4: sin contratos solapados en la misma unidad", () => {
 
 describe("regla 10: confirmar el contrato", () => {
   const base = {
-    contract: { status: "pending_signature" as const, paperwork: "paper" as const, propertyId: "p1" },
+    contract: {
+      status: "pending_signature" as const,
+      paperwork: "paper" as const,
+      unitType: "room" as const,
+    },
     requirements: [
-      { id: "dni", propertyId: null, required: true },
-      { id: "constancia", propertyId: null, required: false },
-      { id: "otra-propiedad", propertyId: "p2", required: true },
+      { id: "dni", unitType: "room" as const, required: true, active: true },
+      { id: "constancia", unitType: "room" as const, required: false, active: true },
+      { id: "aval", unitType: "room" as const, required: true, active: false },
+      { id: "dni-depa", unitType: "apartment" as const, required: true, active: true },
     ],
+    exemptIds: [] as string[],
   };
   const signed = { kind: "signed_contract" as const, requirementId: null, status: "in_review" as const };
   const dni = (status: "in_review" | "verified" | "rejected") => ({
@@ -133,7 +139,7 @@ describe("regla 10: confirmar el contrato", () => {
     status,
   });
 
-  it("se puede con la copia firmada y los obligatorios de su propiedad verificados", () => {
+  it("se puede con la copia firmada y los obligatorios de su lista (cuarto) verificados", () => {
     expect(confirmProblems({ ...base, documents: [signed, dni("verified")] })).toEqual([]);
   });
 
@@ -154,6 +160,17 @@ describe("regla 10: confirmar el contrato", () => {
         { code: "required_documents_missing", requirementIds: ["dni"] },
       ]);
     }
+  });
+
+  it("un obligatorio exento para esta persona no bloquea", () => {
+    expect(confirmProblems({ ...base, exemptIds: ["dni"], documents: [signed] })).toEqual([]);
+  });
+
+  it("el departamento usa su propia lista", () => {
+    const depa = { ...base, contract: { ...base.contract, unitType: "apartment" as const } };
+    expect(confirmProblems({ ...depa, documents: [signed, dni("verified")] })).toEqual([
+      { code: "required_documents_missing", requirementIds: ["dni-depa"] },
+    ]);
   });
 
   it("sin requisitos obligatorios no se pide ningún documento", () => {

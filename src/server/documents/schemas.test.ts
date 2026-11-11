@@ -5,9 +5,9 @@ import { issuesByPath } from "@/server/onboarding/schema";
 import { formatsHint, requirementSchema, type RequirementInput } from "./schemas";
 
 const valid: RequirementInput = {
+  unitType: "room",
   name: "DNI",
   description: "",
-  propertyId: "",
   required: true,
   acceptedFormats: ["pdf", "image"],
   maxSizeMb: "5",
@@ -19,9 +19,10 @@ const errors = (over: Partial<RequirementInput>) => {
 };
 
 describe("requisito de documento", () => {
-  it("sin propiedad vale para todo el negocio", () => {
+  it("va en la lista de cuarto o de departamento", () => {
+    expect(errors({ unitType: "floor" as never })).toHaveProperty("unitType");
     expect(requirementSchema.parse(valid)).toMatchObject({
-      propertyId: null,
+      unitType: "room",
       description: null,
       maxSizeMb: 5,
     });

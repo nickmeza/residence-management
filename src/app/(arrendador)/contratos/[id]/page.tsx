@@ -4,7 +4,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 
+import { ConfirmSignedButton } from "@/components/contracts/confirm-signed-button";
 import { ContractActions } from "@/components/contracts/contract-actions";
+import { UploadButton } from "@/components/documents/upload-button";
+import { UploadedList } from "@/components/documents/uploaded-list";
 import { ContractPhaseBadge } from "@/components/residents/badges";
 import { StatusBadge } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -94,12 +97,35 @@ async function Content({ params }: { params: PageProps<"/contratos/[id]">["param
                 Descargar PDF para imprimir
               </a>
             ) : null}
-            {c.status === "pending_signature" ? (
-              <p className="mt-3 rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">
-                Falta subir la copia firmada. Esto llega con los documentos, en la siguiente parte.
-              </p>
-            ) : null}
           </section>
+          {c.paperwork !== "none" ? (
+            <section className="rounded-xl border bg-card p-5 shadow-card sm:p-6">
+              <h2 className="mb-3 text-lg font-bold">Copia firmada</h2>
+              {c.signedCopies.length ? (
+                <UploadedList documents={c.signedCopies} canReview />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Todavía no se subió. Sube una foto o PDF del contrato firmado.
+                </p>
+              )}
+              {c.status === "pending_signature" ? (
+                <div className="mt-3 flex flex-wrap items-start gap-2.5">
+                  {!c.signedCopies.some((d) => d.status !== "rejected") ? (
+                    <UploadButton
+                      businessId={c.businessId}
+                      residentId={c.residentId}
+                      kind="signed_contract"
+                      contractId={c.id}
+                      label="Subir copia firmada"
+                      variant="default"
+                    />
+                  ) : (
+                    <ConfirmSignedButton contractId={c.id} />
+                  )}
+                </div>
+              ) : null}
+            </section>
+          ) : null}
           {c.renewedFrom || c.renewedTo ? (
             <section className="rounded-xl border bg-card p-5 shadow-card sm:p-6">
               <h2 className="mb-3 text-lg font-bold">Historial</h2>

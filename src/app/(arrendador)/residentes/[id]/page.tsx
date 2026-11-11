@@ -4,8 +4,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 
-import { ContractPhaseBadge, DocumentStatusBadge } from "@/components/residents/badges";
+import { UploadButton } from "@/components/documents/upload-button";
+import { UploadedList } from "@/components/documents/uploaded-list";
+import { ContractPhaseBadge } from "@/components/residents/badges";
 import { ProfileActions } from "@/components/residents/profile-actions";
+import { RequirementsChecklist } from "@/components/residents/requirements-checklist";
 import { StatusBadge } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { formatSoles } from "@/lib/format";
@@ -107,19 +110,29 @@ async function Content({ params }: { params: PageProps<"/residentes/[id]">["para
             <Row label="Contacto de emergencia" value={emergency} />
             {card.notes ? <Row label="Notas" value={card.notes} /> : null}
           </Card>
-          <Card title="Documentos">
+          <Card title="Documentos que se le piden">
+            <RequirementsChecklist
+              businessId={r.businessId}
+              residentId={r.id}
+              firstName={p.fullName.split(" ")[0]}
+              requirements={r.requirements}
+              hasContract={c !== null}
+            />
+          </Card>
+          <Card title="Archivos subidos">
             {r.documents.length ? (
-              <ul>
-                {r.documents.map((d) => (
-                  <li key={d.id} className="flex items-center gap-3 border-t py-2.5 text-sm first:border-t-0">
-                    <b className="flex-1">{d.name}</b>
-                    <DocumentStatusBadge status={d.status} />
-                  </li>
-                ))}
-              </ul>
+              <UploadedList documents={r.documents} canReview />
             ) : (
               <p className="text-sm text-muted-foreground">Todavía no tiene documentos subidos.</p>
             )}
+            <div className="mt-3">
+              <UploadButton
+                businessId={r.businessId}
+                residentId={r.id}
+                kind="other"
+                label="Subir otro documento"
+              />
+            </div>
           </Card>
         </div>
         <div className="flex min-w-0 flex-col gap-5">

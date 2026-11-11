@@ -41,30 +41,40 @@ describe("contrato que se muestra en la lista", () => {
 
 describe("resumen de documentos", () => {
   const requirements = [
-    { id: "dni", propertyId: null, required: true },
-    { id: "matricula", propertyId: null, required: false },
-    { id: "otra", propertyId: "p2", required: true },
+    { id: "dni", unitType: "room" as const, required: true, active: true },
+    { id: "matricula", unitType: "room" as const, required: false, active: true },
+    { id: "otra", unitType: "apartment" as const, required: true, active: true },
   ];
+  const exemptIds: string[] = [];
 
   it("cuenta los obligatorios que faltan y los que esperan revisión", () => {
-    expect(documentsSummary({ propertyId: "p1", requirements, documents: [] })).toEqual({
+    expect(documentsSummary({ unitType: "room", requirements, exemptIds, documents: [] })).toEqual({
       missing: 1,
       inReview: 0,
     });
     expect(
       documentsSummary({
-        propertyId: "p1",
+        unitType: "room",
         requirements,
+        exemptIds,
         documents: [{ requirementId: "dni", status: "in_review" }],
       }),
     ).toEqual({ missing: 0, inReview: 1 });
   });
 
+  it("lo que no se le pide a esta persona no falta", () => {
+    expect(documentsSummary({ unitType: "room", requirements, exemptIds: ["dni"], documents: [] })).toEqual({
+      missing: 0,
+      inReview: 0,
+    });
+  });
+
   it("un rechazado vuelve a faltar", () => {
     expect(
       documentsSummary({
-        propertyId: "p1",
+        unitType: "room",
         requirements,
+        exemptIds,
         documents: [{ requirementId: "dni", status: "rejected" }],
       }),
     ).toEqual({ missing: 1, inReview: 0 });

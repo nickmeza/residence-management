@@ -8,16 +8,20 @@ import {
   contract,
   document,
   documentRequirement,
+  documentRequirementExemption,
   floor,
   person,
   resident,
   residentInvitation,
+  residentNote,
   unit,
 } from "@/db/schema";
 import { getSessionClaims } from "@/server/auth/session";
 import { isUuid } from "@/server/business/queries";
 import { endsInLabel, limaToday } from "@/server/contracts/dates";
 import { contractPhase, type ContractPhase } from "@/server/contracts/rules";
+import type { UploadedDocument } from "@/server/contracts/queries";
+import type { UnitType } from "@/server/documents/rules";
 
 import { currentContract, currentPhase, documentsSummary, type ResidentRow } from "./list";
 
@@ -33,6 +37,7 @@ function contractsOf(tx: Tx, residentIds: string[]) {
       unitId: contract.unitId,
       unitName: unit.name,
       propertyId: floor.propertyId,
+      unitType: unit.type,
       startDate: contract.startDate,
       endDate: contract.endDate,
       monthlyRent: contract.monthlyRent,
@@ -44,6 +49,35 @@ function contractsOf(tx: Tx, residentIds: string[]) {
     .innerJoin(unit, eq(unit.id, contract.unitId))
     .innerJoin(floor, eq(floor.id, unit.floorId))
     .where(inArray(contract.residentId, residentIds));
+}
+
+// Requisitos de documentos de un negocio (las dos listas).
+function requirementsOf(tx: Tx, businessId: string) {
+  return tx
+    .select({
+      id: documentRequirement.id,
+      name: documentRequirement.name,
+      unitType: documentRequirement.unitType,
+      required: documentRequirement.required,
+      active: documentRequirement.active,
+      acceptedFormats: documentRequirement.acceptedFormats,
+      maxSizeMb: documentRequirement.maxSizeMb,
+    })
+    .from(documentRequirement)
+    .where(eq(documentRequirement.businessId, businessId))
+    .orderBy(asc(documentRequirement.name));
+}
+
+// Requisitos que el arrendador decidió no pedirle a cada ficha.
+function exemptionsOf(tx: Tx, residentIds: string[]) {
+  if (!residentIds.length) return Promise.resolve([]);
+  return tx
+    .select({
+      residentId: documentRequirementExemption.residentId,
+      requirementId: documentRequirementExemption.requirementId,
+    })
+    .from(documentRequirementExemption)
+    .where(inArray(documentRequirementExemption.residentId, residentIds));
 }
 
 export type ResidentListRow = ResidentRow & {
@@ -70,16 +104,10 @@ export async function listResidents(businessId: string): Promise<ResidentListRow
       .where(eq(resident.businessId, businessId))
       .orderBy(asc(person.fullName));
     const ids = people.map((p) => p.id);
-    const [contracts, requirements, documents] = await Promise.all([
+    const [contracts, requirements, exemptions, documents] = await Promise.all([
       contractsOf(tx, ids),
-      tx
-        .select({
-          id: documentRequirement.id,
-          propertyId: documentRequirement.propertyId,
-          required: documentRequirement.required,
-        })
-        .from(documentRequirement)
-        .where(eq(documentRequirement.businessId, businessId)),
+      requirementsOf(tx, businessId),
+      exemptionsOf(tx, ids),
       ids.length
         ? tx
             .select({
@@ -107,8 +135,9 @@ export async function listResidents(businessId: string): Promise<ResidentListRow
         endsIn: shown ? endsInLabel(shown.endDate, today) : null,
         searchText: `${p.fullName} ${shown?.unitName ?? ""}`,
         documents: documentsSummary({
-          propertyId: shown?.propertyId ?? null,
+          unitType: shown?.unitType ?? null,
           requirements,
+          exemptIds: exemptions.filter((e) => e.residentId === p.id).map((e) => e.requirementId),
           documents: documents.filter((d) => d.residentId === p.id),
         }),
       };
@@ -118,6 +147,7 @@ export async function listResidents(businessId: string): Promise<ResidentListRow
 
 export type ResidentDetail = {
   id: string;
+  businessId: string;
   businessName: string;
   hasAccount: boolean;
   person: {
@@ -143,7 +173,20 @@ export type ResidentDetail = {
     paperwork: "none" | "paper" | "template";
     phase: ContractPhase;
   } | null;
-  documents: { id: string; name: string; status: "in_review" | "verified" | "rejected" }[];
+  documents: UploadedDocument[];
+  // Lo que se le pide, según la lista de lo que alquila (las dos si todavía no tiene contrato). Solo activos.
+  // asked: obligatorio y sin excepción. status: el último archivo subido para ese requisito.
+  requirements: {
+    id: string;
+    name: string;
+    unitType: UnitType;
+    required: boolean;
+    asked: boolean;
+    acceptedFormats: ("pdf" | "image")[];
+    maxSizeMb: number;
+    // El último archivo subido para este requisito (null si no hay).
+    latest: UploadedDocument | null;
+  }[];
   // Invitación vigente sin aceptar (null si no hay).
   invitationExpiresAt: Date | null;
 };
@@ -156,20 +199,26 @@ export async function getResident(id: string): Promise<ResidentDetail | null> {
   return withRls(claims, async (tx) => {
     // El join con business deja fuera a un residente que mira su propia ficha: aquí solo entra el arrendador.
     const [row] = await tx
-      .select({ resident, person, businessName: business.tradeName })
+      .select({ resident, person, businessName: business.tradeName, notes: residentNote.body })
       .from(resident)
       .innerJoin(person, eq(person.id, resident.personId))
       .innerJoin(business, eq(business.id, resident.businessId))
+      .leftJoin(residentNote, eq(residentNote.residentId, resident.id))
       .where(eq(resident.id, id))
       .limit(1);
     if (!row) return null;
 
-    const [contracts, documents, [invitation]] = await Promise.all([
+    const [contracts, requirements, exemptions, documents, [invitation]] = await Promise.all([
       contractsOf(tx, [id]),
+      requirementsOf(tx, row.resident.businessId),
+      exemptionsOf(tx, [id]),
       tx
         .select({
           id: document.id,
+          requirementId: document.requirementId,
           fileName: document.fileName,
+          rejectionReason: document.rejectionReason,
+          uploadedAt: document.uploadedAt,
           requirementName: documentRequirement.name,
           kind: document.kind,
           status: document.status,
@@ -193,10 +242,20 @@ export async function getResident(id: string): Promise<ResidentDetail | null> {
     ]);
 
     const shown = currentContract(contracts, today);
+    const exemptIds = exemptions.map((e) => e.requirementId);
     const p = row.person;
     const r = row.resident;
+    const uploaded = documents.map((d) => ({
+      id: d.id,
+      requirementId: d.requirementId,
+      name: d.requirementName ?? (d.kind === "signed_contract" ? "Contrato firmado" : d.fileName),
+      status: d.status,
+      rejectionReason: d.rejectionReason,
+      uploadedAt: d.uploadedAt,
+    }));
     return {
       id: r.id,
+      businessId: r.businessId,
       businessName: row.businessName,
       hasAccount: p.userId !== null,
       person: {
@@ -210,7 +269,7 @@ export async function getResident(id: string): Promise<ResidentDetail | null> {
         university: r.university,
         emergencyContactName: r.emergencyContactName,
         emergencyContactPhone: r.emergencyContactPhone,
-        notes: r.notes,
+        notes: row.notes,
       },
       contract: shown
         ? {
@@ -224,11 +283,19 @@ export async function getResident(id: string): Promise<ResidentDetail | null> {
             phase: contractPhase(shown, today),
           }
         : null,
-      documents: documents.map((d) => ({
-        id: d.id,
-        name: d.requirementName ?? (d.kind === "signed_contract" ? "Contrato firmado" : d.fileName),
-        status: d.status,
-      })),
+      documents: uploaded,
+      requirements: requirements
+        .filter((q) => q.active && (!shown || q.unitType === shown.unitType))
+        .map((q) => ({
+          id: q.id,
+          name: q.name,
+          unitType: q.unitType,
+          required: q.required,
+          asked: q.required && !exemptIds.includes(q.id),
+          acceptedFormats: q.acceptedFormats,
+          maxSizeMb: q.maxSizeMb,
+          latest: uploaded.find((d) => d.requirementId === q.id) ?? null,
+        })),
       invitationExpiresAt: invitation?.expiresAt ?? null,
     };
   });

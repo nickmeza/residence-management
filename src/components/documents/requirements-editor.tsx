@@ -18,53 +18,64 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { deleteRequirementAction, saveRequirementAction } from "@/server/documents/actions";
+import {
+  deleteRequirementAction,
+  saveRequirementAction,
+  setRequirementActiveAction,
+} from "@/server/documents/actions";
 import type { RequirementRow } from "@/server/documents/queries";
 import {
   DOCUMENT_FORMATS,
   FORMAT_LABEL,
   formatsHint,
+  UNIT_TYPE_LABEL,
+  UNIT_TYPES,
   type RequirementInput,
 } from "@/server/documents/schemas";
 
-const selectClass = "h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm";
+type UnitType = (typeof UNIT_TYPES)[number];
 
 type Editing = { id: string | null; values: RequirementInput };
 
-const EMPTY: RequirementInput = {
+const TAB_HINT: Record<UnitType, string> = {
+  room: "Se piden a quien alquila un cuarto, ya sea suelto o dentro de un departamento “por cuartos”.",
+  apartment: "Se piden a quien alquila un departamento completo.",
+};
+
+const empty = (unitType: UnitType): RequirementInput => ({
+  unitType,
   name: "",
   description: "",
-  propertyId: "",
   required: false,
   acceptedFormats: ["pdf", "image"],
   maxSizeMb: "5",
-};
+});
 
 const toInput = (r: RequirementRow): RequirementInput => ({
+  unitType: r.unitType,
   name: r.name,
   description: r.description ?? "",
-  propertyId: r.propertyId ?? "",
   required: r.required,
   acceptedFormats: r.acceptedFormats,
   maxSizeMb: String(r.maxSizeMb),
 });
 
-// Configuración › Documentos: qué documentos pides, si son obligatorios y para qué propiedad.
+// Configuración › Documentos: una lista para cuarto y otra para departamento. Cada documento es obligatorio u
+// opcional (el residente no ve los opcionales) y se puede apagar sin borrarlo.
 export function RequirementsEditor({
   businessId,
-  requirements,
-  properties,
+  requirements: all,
 }: {
   businessId: string;
   requirements: RequirementRow[];
-  properties: { id: string; name: string }[];
 }) {
   const router = useRouter();
+  const [tab, setTab] = useState<UnitType>("room");
   const [editing, setEditing] = useState<Editing | null>(null);
   const [error, setError] = useState<{ message: string; fields: Record<string, string> }>();
   const [pending, startTransition] = useTransition();
-  const propertyName = (id: string | null) =>
-    id ? (properties.find((p) => p.id === id)?.name ?? "Una propiedad") : "Todo el negocio";
+  const requirements = all.filter((r) => r.unitType === tab);
+  const shownToResident = requirements.filter((r) => r.required && r.active);
 
   const open = (next: Editing) => {
     setError(undefined);
@@ -88,6 +99,14 @@ export function RequirementsEditor({
       router.refresh();
     });
 
+  const toggleActive = (r: RequirementRow) =>
+    startTransition(async () => {
+      setError(undefined);
+      const result = await setRequirementActiveAction(r.id, !r.active);
+      if (!result.ok) return setError({ message: result.message, fields: {} });
+      router.refresh();
+    });
+
   const set = (patch: Partial<RequirementInput>) =>
     editing && setEditing({ ...editing, values: { ...editing.values, ...patch } });
 
@@ -95,10 +114,40 @@ export function RequirementsEditor({
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
       <section className="rounded-xl border bg-card p-5 shadow-card sm:p-6">
         <h2 className="mb-3 text-lg font-bold">Documentos que pides</h2>
+        <div role="tablist" aria-label="Qué se alquila" className="mb-3 flex flex-wrap gap-1 border-b">
+          {UNIT_TYPES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={t === tab}
+              onClick={() => setTab(t)}
+              className={
+                "-mb-px flex min-h-11 items-center gap-2 border-b-[3px] px-4 text-sm transition-colors duration-200 " +
+                (t === tab
+                  ? "border-primary font-bold text-primary-text"
+                  : "border-transparent text-muted-foreground hover:text-foreground")
+              }
+            >
+              {UNIT_TYPE_LABEL[t]}
+              <StatusBadge tone={t === tab ? "primary" : "neutral"}>
+                {all.filter((r) => r.unitType === t).length}
+              </StatusBadge>
+            </button>
+          ))}
+        </div>
+        <p className="mb-3 text-sm text-muted-foreground">{TAB_HINT[tab]}</p>
+        {error && !editing ? <FormMessage message={error.message} /> : null}
         {requirements.length ? (
           <ul>
             {requirements.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-center gap-3 border-t py-3.5 first:border-t-0">
+              <li
+                key={r.id}
+                className={
+                  "flex flex-wrap items-center gap-3 border-t py-3.5 first:border-t-0 " +
+                  (r.active ? "" : "opacity-60")
+                }
+              >
                 <span className="min-w-48 flex-1">
                   <b className="block">{r.name}</b>
                   <span className="text-sm text-muted-foreground">
@@ -106,10 +155,20 @@ export function RequirementsEditor({
                     {formatsHint(r.acceptedFormats, r.maxSizeMb)}
                   </span>
                 </span>
-                <span className="text-sm text-muted-foreground">{propertyName(r.propertyId)}</span>
                 <StatusBadge tone={r.required ? "primary" : "neutral"}>
                   {r.required ? "Obligatorio" : "Opcional"}
                 </StatusBadge>
+                <label className="flex min-h-11 items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    className="size-5 accent-primary"
+                    checked={r.active}
+                    disabled={pending}
+                    onChange={() => toggleActive(r)}
+                  />
+                  {r.active ? "Activo" : "Inactivo"}
+                </label>
                 <Button
                   type="button"
                   variant="outline"
@@ -123,15 +182,16 @@ export function RequirementsEditor({
           </ul>
         ) : (
           <p className="text-sm text-muted-foreground">
-            No pides ningún documento. Está bien: puedes trabajar solo con el número de DNI. Si agregas uno y
-            lo marcas obligatorio, el contrato no se confirma hasta que esté verificado.
+            No pides ningún documento para {tab === "room" ? "cuartos" : "departamentos"}. Está bien: puedes
+            trabajar solo con el número de DNI. Si agregas uno y lo marcas obligatorio, el contrato no se
+            confirma hasta que esté verificado.
           </p>
         )}
         <Button
           type="button"
           variant="outline"
           className="mt-3 h-11 gap-2"
-          onClick={() => open({ id: null, values: EMPTY })}
+          onClick={() => open({ id: null, values: empty(tab) })}
         >
           <Plus className="size-4" aria-hidden="true" />
           Agregar documento
@@ -139,14 +199,16 @@ export function RequirementsEditor({
       </section>
 
       <aside className="rounded-xl border bg-card p-5 shadow-card sm:p-6 lg:sticky lg:top-24">
-        <h2 className="mb-3 text-lg font-bold">Así lo verá el residente</h2>
-        {requirements.length ? (
+        <h2 className="mb-1 text-lg font-bold">Así lo verá el residente</h2>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Quien alquila {tab === "room" ? "un cuarto" : "un departamento"}:
+        </p>
+        {shownToResident.length ? (
           <ul className="flex flex-col gap-2">
-            {requirements.map((r) => (
+            {shownToResident.map((r) => (
               <li key={r.id} className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="size-4 shrink-0 rounded-full border-2 border-input" aria-hidden="true" />
                 {r.name}
-                {r.required ? <StatusBadge tone="primary">Obligatorio</StatusBadge> : null}
               </li>
             ))}
           </ul>
@@ -154,8 +216,8 @@ export function RequirementsEditor({
           <p className="text-sm text-muted-foreground">No verá ningún documento por subir.</p>
         )}
         <p className="mt-4 text-sm text-muted-foreground">
-          Los obligatorios deben estar verificados para confirmar el contrato. Los opcionales nunca lo
-          bloquean.
+          Solo ve los obligatorios y activos, y deben estar verificados para confirmar su contrato. Los
+          opcionales no los ve: los subes tú. Si a alguien no le quieres pedir uno, quítalo desde su perfil.
         </p>
       </aside>
 
@@ -163,7 +225,10 @@ export function RequirementsEditor({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editing?.id ? "Editar documento" : "Agregar documento"}</DialogTitle>
-            <DialogDescription>Los cambios valen desde ya para todos los residentes.</DialogDescription>
+            <DialogDescription>
+              Para quien alquila {editing?.values.unitType === "apartment" ? "un departamento" : "un cuarto"}.
+              Los cambios valen desde ya.
+            </DialogDescription>
           </DialogHeader>
           {editing ? (
             <div className="flex flex-col gap-4">
@@ -188,24 +253,6 @@ export function RequirementsEditor({
                   onChange={(e) => set({ description: e.target.value })}
                 />
               </div>
-              {properties.length > 1 ? (
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="req-property">Para</Label>
-                  <select
-                    id="req-property"
-                    className={selectClass}
-                    value={editing.values.propertyId}
-                    onChange={(e) => set({ propertyId: e.target.value })}
-                  >
-                    <option value="">Todo el negocio</option>
-                    {properties.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        Solo {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
               <fieldset className="flex flex-col gap-2">
                 <legend className="mb-1 text-sm font-semibold">Formatos</legend>
                 <div className="flex flex-wrap gap-4">
@@ -255,7 +302,8 @@ export function RequirementsEditor({
                 <span>
                   <span className="font-semibold">Obligatorio</span>
                   <span className="block text-muted-foreground">
-                    Sin él verificado, el contrato no se confirma.
+                    El residente lo ve y, sin él verificado, el contrato no se confirma. Si es opcional, no lo
+                    ve: lo subes tú.
                   </span>
                 </span>
               </label>
@@ -271,7 +319,7 @@ export function RequirementsEditor({
                   </Button>
                 }
                 title={`¿Quitar "${editing.values.name}"?`}
-                description="Ya no se pedirá. Los archivos que ya subieron se conservan."
+                description="Ya no se pedirá. Los archivos que ya subieron se conservan. Si solo quieres dejar de pedirlo por un tiempo, apágalo."
                 confirmLabel="Quitar"
                 onConfirm={() => editing.id && remove(editing.id)}
               />

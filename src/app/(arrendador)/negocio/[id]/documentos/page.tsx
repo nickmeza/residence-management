@@ -21,11 +21,11 @@ async function Content({ params }: { params: PageProps<"/negocio/[id]/documentos
         </p>
         <h1 className="text-[34px] font-bold tracking-tight">Configuración</h1>
         <p className="text-muted-foreground">
-          Elige qué documentos pides a tus residentes y cuáles son obligatorios.
+          Elige qué documentos pides a quien alquila un cuarto y a quien alquila un departamento.
         </p>
       </div>
       <ConfigTabs businessId={id} current="Documentos" />
-      <RequirementsEditor businessId={id} requirements={data.requirements} properties={data.properties} />
+      <RequirementsEditor businessId={id} requirements={data.requirements} />
     </>
   );
 }

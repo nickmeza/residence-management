@@ -1,9 +1,20 @@
 import "server-only";
 
-import { asc, desc, eq, or } from "drizzle-orm";
+import { and, asc, desc, eq, ne, or } from "drizzle-orm";
 
+import { db } from "@/db";
 import { withRls } from "@/db/rls";
-import { business, contract, contractTemplate, floor, person, property, resident, unit } from "@/db/schema";
+import {
+  business,
+  contract,
+  contractTemplate,
+  document,
+  floor,
+  person,
+  property,
+  resident,
+  unit,
+} from "@/db/schema";
 import { getSessionClaims } from "@/server/auth/session";
 import { isRentable, type UnitInput } from "@/server/building/rules";
 import { isUuid } from "@/server/business/queries";
@@ -151,6 +162,16 @@ export type ContractDetail = {
   phase: ContractPhase;
   renewedFrom: { id: string; startDate: string } | null;
   renewedTo: { id: string; startDate: string } | null;
+  // Copias firmadas subidas para este contrato, la más reciente primero.
+  signedCopies: UploadedDocument[];
+};
+
+export type UploadedDocument = {
+  id: string;
+  name: string;
+  status: "in_review" | "verified" | "rejected";
+  rejectionReason: string | null;
+  uploadedAt: Date;
 };
 
 // Un contrato para su pantalla. null si no existe o no es de un negocio de quien inició sesión.
@@ -188,6 +209,17 @@ export async function getContract(id: string): Promise<ContractDetail | null> {
       .where(
         or(eq(contract.renewedFromId, k.id), k.renewedFromId ? eq(contract.id, k.renewedFromId) : undefined),
       );
+    const signedCopies = await tx
+      .select({
+        id: document.id,
+        name: document.fileName,
+        status: document.status,
+        rejectionReason: document.rejectionReason,
+        uploadedAt: document.uploadedAt,
+      })
+      .from(document)
+      .where(eq(document.contractId, k.id))
+      .orderBy(desc(document.uploadedAt));
     const from = linked.find((l) => l.id === k.renewedFromId);
     const to = linked.find((l) => l.renewedFromId === k.id);
     return {
@@ -210,6 +242,7 @@ export async function getContract(id: string): Promise<ContractDetail | null> {
       phase: contractPhase(k, today),
       renewedFrom: from ? { id: from.id, startDate: from.startDate } : null,
       renewedTo: to ? { id: to.id, startDate: to.startDate } : null,
+      signedCopies,
     };
   });
 }
@@ -225,55 +258,78 @@ export type ContractPdfData = {
 export async function getContractPdfData(id: string): Promise<ContractPdfData | null> {
   if (!isUuid(id)) return null;
   const claims = await getSessionClaims();
-  return withRls(claims, async (tx) => {
-    const [row] = await tx
-      .select({
-        contract,
-        person,
-        businessName: business.tradeName,
-        legalName: business.legalName,
-        ruc: business.ruc,
-        unitName: unit.name,
-        propertyName: property.name,
-        propertyAddress: property.address,
-        districtCity: property.districtCity,
-        templateName: contractTemplate.name,
-        templateBody: contractTemplate.body,
-      })
+  return withRls(claims, (tx) => loadContractPdfData(tx, id));
+}
+
+// El PDF de su propio contrato, para el residente. Él no puede leer las tablas del arrendador (negocio, propiedad,
+// plantilla), así que: primero se comprueba con su sesión (RLS) que el contrato es suyo y no es un borrador, y
+// recién entonces se leen los datos del PDF como administrador.
+export async function getMyContractPdfData(id: string): Promise<ContractPdfData | null> {
+  if (!isUuid(id)) return null;
+  const claims = await getSessionClaims();
+  const [own] = await withRls(claims, (tx) =>
+    tx
+      .select({ id: contract.id })
       .from(contract)
       .innerJoin(resident, eq(resident.id, contract.residentId))
-      .innerJoin(business, eq(business.id, resident.businessId))
       .innerJoin(person, eq(person.id, resident.personId))
-      .innerJoin(unit, eq(unit.id, contract.unitId))
-      .innerJoin(floor, eq(floor.id, unit.floorId))
-      .innerJoin(property, eq(property.id, floor.propertyId))
-      .innerJoin(contractTemplate, eq(contractTemplate.id, contract.templateId))
-      .where(eq(contract.id, id))
-      .limit(1);
-    if (!row) return null;
-    const k = row.contract;
-    const p = row.person;
-    return {
-      templateName: row.templateName,
-      templateBody: row.templateBody,
-      landlordName: row.legalName ?? row.businessName,
-      template: {
-        residentName: p.fullName,
-        identityDocument:
-          p.identityDocumentType && p.identityDocumentNumber
-            ? { type: p.identityDocumentType, number: p.identityDocumentNumber }
-            : null,
-        unitName: row.unitName,
-        propertyName: row.propertyName,
-        propertyAddress: `${row.propertyAddress}, ${row.districtCity}`,
-        monthlyRent: k.monthlyRent,
-        paymentDay: k.paymentDay,
-        startDate: k.startDate,
-        endDate: k.endDate,
-        businessName: row.businessName,
-        ruc: row.ruc,
-        today: limaToday(new Date()),
-      },
-    };
-  });
+      .where(and(eq(contract.id, id), eq(person.userId, claims.sub), ne(contract.status, "draft")))
+      .limit(1),
+  );
+  if (!own) return null;
+  return db.transaction((tx) => loadContractPdfData(tx, id));
+}
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function loadContractPdfData(tx: Tx, id: string): Promise<ContractPdfData | null> {
+  const [row] = await tx
+    .select({
+      contract,
+      person,
+      businessName: business.tradeName,
+      legalName: business.legalName,
+      ruc: business.ruc,
+      unitName: unit.name,
+      propertyName: property.name,
+      propertyAddress: property.address,
+      districtCity: property.districtCity,
+      templateName: contractTemplate.name,
+      templateBody: contractTemplate.body,
+    })
+    .from(contract)
+    .innerJoin(resident, eq(resident.id, contract.residentId))
+    .innerJoin(business, eq(business.id, resident.businessId))
+    .innerJoin(person, eq(person.id, resident.personId))
+    .innerJoin(unit, eq(unit.id, contract.unitId))
+    .innerJoin(floor, eq(floor.id, unit.floorId))
+    .innerJoin(property, eq(property.id, floor.propertyId))
+    .innerJoin(contractTemplate, eq(contractTemplate.id, contract.templateId))
+    .where(eq(contract.id, id))
+    .limit(1);
+  if (!row) return null;
+  const k = row.contract;
+  const p = row.person;
+  return {
+    templateName: row.templateName,
+    templateBody: row.templateBody,
+    landlordName: row.legalName ?? row.businessName,
+    template: {
+      residentName: p.fullName,
+      identityDocument:
+        p.identityDocumentType && p.identityDocumentNumber
+          ? { type: p.identityDocumentType, number: p.identityDocumentNumber }
+          : null,
+      unitName: row.unitName,
+      propertyName: row.propertyName,
+      propertyAddress: `${row.propertyAddress}, ${row.districtCity}`,
+      monthlyRent: k.monthlyRent,
+      paymentDay: k.paymentDay,
+      startDate: k.startDate,
+      endDate: k.endDate,
+      businessName: row.businessName,
+      ruc: row.ruc,
+      today: limaToday(new Date()),
+    },
+  };
 }

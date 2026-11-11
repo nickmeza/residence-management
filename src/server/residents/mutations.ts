@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 
 import type { withRls } from "@/db/rls";
-import { business, person, resident, residentInvitation } from "@/db/schema";
+import { business, person, resident, residentInvitation, residentNote } from "@/db/schema";
 
 import { hashInvitationToken } from "./invitation";
 import { splitResident, type ResidentData } from "./schemas";
@@ -40,7 +40,7 @@ export async function createResident(tx: Tx, businessId: string, data: ResidentD
     .where(eq(business.id, businessId))
     .limit(1);
   if (!own) return null;
-  const { personal, card } = splitResident(data);
+  const { personal, card, notes } = splitResident(data);
   // El id se crea aquí: el arrendador todavía no puede leer a esta persona hasta que exista su ficha,
   // así que no se le puede pedir a la base que la devuelva.
   const personId = randomUUID();
@@ -49,7 +49,20 @@ export async function createResident(tx: Tx, businessId: string, data: ResidentD
     .insert(resident)
     .values({ businessId, personId, ...card })
     .returning({ id: resident.id });
+  await saveNotes(tx, row.id, notes);
   return row.id;
+}
+
+// Guarda las notas del arrendador; vacías, las borra.
+async function saveNotes(tx: Tx, residentId: string, notes: string | null) {
+  if (!notes) {
+    await tx.delete(residentNote).where(eq(residentNote.residentId, residentId));
+    return;
+  }
+  await tx
+    .insert(residentNote)
+    .values({ residentId, body: notes })
+    .onConflictDoUpdate({ target: residentNote.residentId, set: { body: notes, updatedAt: new Date() } });
 }
 
 // Edita la ficha. Los datos personales solo se cambian si el residente todavía no tiene cuenta;
@@ -57,8 +70,9 @@ export async function createResident(tx: Tx, businessId: string, data: ResidentD
 export async function updateResident(tx: Tx, id: string, data: ResidentData) {
   const row = await findOwnResident(tx, id);
   if (!row) return false;
-  const { personal, card } = splitResident(data);
+  const { personal, card, notes } = splitResident(data);
   await tx.update(resident).set(card).where(eq(resident.id, id));
+  await saveNotes(tx, id, notes);
   if (row.userId === null) await tx.update(person).set(personal).where(eq(person.id, row.personId));
   return true;
 }

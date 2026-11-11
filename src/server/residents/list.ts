@@ -6,6 +6,7 @@ import {
   type ContractInput,
   type ContractPhase,
 } from "@/server/contracts/rules";
+import { askedRequirements, type RequirementRule, type UnitType } from "@/server/documents/rules";
 
 // El contrato que se muestra: el que ocupa la unidad hoy; si no hay, el próximo por empezar;
 // si tampoco, el más reciente. Los cancelados solo si no hay otro.
@@ -24,16 +25,17 @@ export function currentContract<T extends ContractInput>(contracts: T[], today: 
 
 export type DocumentsSummary = { missing: number; inReview: number };
 
-// Faltan: requisitos obligatorios (del negocio o de la propiedad del contrato) sin documento verificado
-// ni en revisión. En revisión: documentos que el arrendador todavía no revisó.
+// Faltan: requisitos que se le piden (ver askedRequirements) sin documento verificado ni en revisión.
+// En revisión: documentos que el arrendador todavía no revisó.
 export function documentsSummary(input: {
-  propertyId: string | null;
-  requirements: { id: string; propertyId: string | null; required: boolean }[];
+  unitType: UnitType | null;
+  requirements: RequirementRule[];
+  exemptIds: readonly string[];
   documents: { requirementId: string | null; status: "in_review" | "verified" | "rejected" }[];
 }): DocumentsSummary {
   const sent = new Set(input.documents.filter((d) => d.status !== "rejected").map((d) => d.requirementId));
-  const missing = input.requirements.filter(
-    (r) => r.required && (r.propertyId === null || r.propertyId === input.propertyId) && !sent.has(r.id),
+  const missing = askedRequirements(input.requirements, input.unitType, input.exemptIds).filter(
+    (r) => !sent.has(r.id),
   ).length;
   const inReview = input.documents.filter((d) => d.status === "in_review").length;
   return { missing, inReview };

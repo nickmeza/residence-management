@@ -1,4 +1,6 @@
 // Reglas de negocio de los contratos (docs/reglas-de-negocio.md). Funciones puras.
+import { askedRequirements, type RequirementRule, type UnitType } from "@/server/documents/rules";
+
 import { daysBetween, periodsOverlap, type IsoDate } from "./dates";
 
 export type ContractStatus = "draft" | "pending_signature" | "confirmed" | "cancelled";
@@ -87,18 +89,19 @@ export type ConfirmProblem =
   | { code: "signed_copy_missing" }
   | { code: "required_documents_missing"; requirementIds: string[] };
 
-// Regla 10: solo se confirma con los documentos obligatorios verificados. Con papel o plantilla, además,
-// tiene que estar subida la copia firmada (que no esté rechazada).
+// Regla 10: solo se confirma con los documentos que se le piden verificados (obligatorios, activos, de la lista
+// de lo que alquila y sin excepción). Con papel o plantilla, además, tiene que estar subida la copia firmada.
 export function confirmProblems(input: {
-  contract: { status: ContractStatus; paperwork: ContractPaperwork; propertyId: string };
-  requirements: { id: string; propertyId: string | null; required: boolean }[];
+  contract: { status: ContractStatus; paperwork: ContractPaperwork; unitType: UnitType };
+  requirements: RequirementRule[];
+  exemptIds: readonly string[];
   documents: {
     kind: "requirement" | "signed_contract" | "other";
     requirementId: string | null;
     status: "in_review" | "verified" | "rejected";
   }[];
 }): ConfirmProblem[] {
-  const { contract, requirements, documents } = input;
+  const { contract, requirements, exemptIds, documents } = input;
   const problems: ConfirmProblem[] = [];
   if (contract.status !== "draft" && contract.status !== "pending_signature")
     problems.push({ code: "wrong_status" });
@@ -110,10 +113,8 @@ export function confirmProblems(input: {
     problems.push({ code: "signed_copy_missing" });
   }
 
-  // Requisitos del negocio (sin propiedad) o de la propiedad de este contrato.
   const verified = new Set(documents.filter((d) => d.status === "verified").map((d) => d.requirementId));
-  const missing = requirements
-    .filter((r) => r.required && (r.propertyId === null || r.propertyId === contract.propertyId))
+  const missing = askedRequirements(requirements, contract.unitType, exemptIds)
     .filter((r) => !verified.has(r.id))
     .map((r) => r.id);
   if (missing.length > 0) problems.push({ code: "required_documents_missing", requirementIds: missing });

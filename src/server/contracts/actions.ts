@@ -56,6 +56,14 @@ export async function submitDraftAction(id: string): Promise<ContractResult> {
   });
 }
 
+export async function confirmSignedAction(id: string): Promise<ContractResult> {
+  if (!isUuid(id)) return { ok: false, message: NOT_FOUND };
+  return run(async (tx) => {
+    await m.confirmSigned(tx, id);
+    return id;
+  });
+}
+
 export async function changePaperworkAction(id: string, input: unknown): Promise<ContractResult> {
   if (!isUuid(id)) return { ok: false, message: NOT_FOUND };
   const parsed = paperworkSchema.safeParse(input);
