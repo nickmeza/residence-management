@@ -32,6 +32,11 @@ export default function SignInPage({ searchParams }: PageProps<"/iniciar-sesion"
           <Link href="/registro" className="text-link underline-offset-4 hover:underline">
             Crea una
           </Link>
+          <br />
+          ¿Eres residente?{" "}
+          <Link href="/entrar" className="text-link underline-offset-4 hover:underline">
+            Entra con tu correo
+          </Link>
         </>
       }
     >

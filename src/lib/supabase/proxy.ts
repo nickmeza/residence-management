@@ -4,8 +4,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseEnv } from "./env";
 
 // Rutas que piden sesión y rutas que no tienen sentido con sesión abierta.
-const PRIVATE_PREFIXES = ["/panel", "/configurar", "/negocio", "/negocios", "/edificio"];
-const GUEST_ONLY = ["/iniciar-sesion", "/registro"];
+const PRIVATE_PREFIXES = ["/panel", "/configurar", "/negocio", "/negocios", "/edificio", "/mi"];
+const GUEST_ONLY = ["/iniciar-sesion", "/registro", "/entrar"];
 
 // Corre antes de cada página: renueva el token de sesión si venció y guarda las cookies nuevas.
 // Las redirecciones de aquí son solo comodidad; la protección real está en src/server/auth/session.ts.
