@@ -290,7 +290,6 @@ export const resident = pgTable(
     emergencyContactName: text(),
     emergencyContactPhone: text(),
     university: text(),
-    notes: text(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -424,8 +423,30 @@ export const contract = pgTable(
   ],
 );
 
-// Requisito de documento (DNI, constancia de estudios…). Sin propiedad: vale para todo el negocio.
-// Solo los obligatorios impiden confirmar el contrato mientras no estén verificados.
+// Notas del arrendador sobre un residente ("paga puntual"). Van aparte de la ficha porque el residente puede leer
+// su ficha (RLS resident_select_own, también por la API de Supabase), y las notas son solo del arrendador.
+export const residentNote = pgTable(
+  "resident_note",
+  {
+    residentId: uuid()
+      .primaryKey()
+      .references(() => resident.id, { onDelete: "cascade" }),
+    body: text().notNull(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    pgPolicy("resident_note_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.residentId} in ${myBusinessResidentIds}`,
+      withCheck: sql`${t.residentId} in ${myBusinessResidentIds}`,
+    }),
+  ],
+);
+
+// Requisito de documento (DNI, constancia de estudios…). Hay una lista para quien alquila un cuarto y otra para
+// quien alquila un departamento completo (unit_type). Solo los obligatorios y activos impiden confirmar el
+// contrato mientras no estén verificados; los opcionales el residente no los ve (los sube el arrendador).
 export const documentRequirement = pgTable(
   "document_requirement",
   {
@@ -433,10 +454,12 @@ export const documentRequirement = pgTable(
     businessId: uuid()
       .notNull()
       .references(() => business.id, { onDelete: "restrict" }),
-    propertyId: uuid().references(() => property.id, { onDelete: "cascade" }),
+    unitType: unitType().notNull(),
     name: text().notNull(),
     description: text(),
     required: boolean().notNull().default(false),
+    // Apagado: deja de pedirse a todos, pero se conservan los archivos ya subidos.
+    active: boolean().notNull().default(true),
     acceptedFormats: documentFormat()
       .array()
       .notNull()
@@ -452,11 +475,48 @@ export const documentRequirement = pgTable(
       using: sql`${t.businessId} in ${myBusinessIds}`,
       withCheck: sql`${t.businessId} in ${myBusinessIds}`,
     }),
-    // El residente ve los requisitos de los negocios donde tiene ficha.
+    // El residente ve los obligatorios y activos de los negocios donde tiene ficha; los opcionales no.
     pgPolicy("document_requirement_select_as_resident", {
       for: "select",
       to: authenticatedRole,
-      using: sql`${t.businessId} in (select r.business_id from public.resident r where r.person_id in ${myPersonIds})`,
+      using: sql`${t.required} and ${t.active}
+        and ${t.businessId} in (select r.business_id from public.resident r where r.person_id in ${myPersonIds})`,
+    }),
+  ],
+);
+
+// "A esta persona no se lo pido" (un familiar, un conocido): el requisito no se le muestra ni frena su contrato.
+// Es por ficha de residente: al siguiente residente se le pide todo.
+export const documentRequirementExemption = pgTable(
+  "document_requirement_exemption",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    residentId: uuid()
+      .notNull()
+      .references(() => resident.id, { onDelete: "cascade" }),
+    requirementId: uuid()
+      .notNull()
+      .references(() => documentRequirement.id, { onDelete: "cascade" }),
+    createdBy: uuid().references(() => person.id, { onDelete: "set null" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("document_requirement_exemption_pair_idx").on(t.residentId, t.requirementId),
+    index("document_requirement_exemption_requirement_id_idx").on(t.requirementId),
+    // El requisito tiene que ser del mismo negocio que la ficha.
+    pgPolicy("document_requirement_exemption_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.residentId} in ${myBusinessResidentIds}`,
+      withCheck: sql`${t.residentId} in ${myBusinessResidentIds} and exists (
+        select 1 from public.document_requirement q join public.resident r on r.business_id = q.business_id
+        where q.id = ${t.requirementId} and r.id = ${t.residentId})`,
+    }),
+    // El residente ve las suyas: así su lista no muestra lo que no se le pide.
+    pgPolicy("document_requirement_exemption_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.residentId} in ${myOwnResidentIds}`,
     }),
   ],
 );

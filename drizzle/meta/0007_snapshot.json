@@ -1,0 +1,1836 @@
+{
+  "id": "ecbd9a0b-c96d-4716-b261-616afba3edeb",
+  "prevId": "6ad0b518-864c-4db2-86b7-1c2b1946c670",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.business": {
+      "name": "business",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "service": {
+          "name": "service",
+          "type": "business_service",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "business_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trade_name": {
+          "name": "trade_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "legal_name": {
+          "name": "legal_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ruc": {
+          "name": "ruc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_methods": {
+          "name": "payment_methods",
+          "type": "payment_method[]",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "billing_day": {
+          "name": "billing_day",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "business_owner_id_idx": {
+          "name": "business_owner_id_idx",
+          "columns": [
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "business_owner_id_person_id_fk": {
+          "name": "business_owner_id_person_id_fk",
+          "tableFrom": "business",
+          "columnsFrom": [
+            "owner_id"
+          ],
+          "tableTo": "person",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "business_owner_all": {
+          "name": "business_owner_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"business\".\"owner_id\" in (select id from public.person where user_id = (select auth.uid()))",
+          "withCheck": "\"business\".\"owner_id\" in (select id from public.person where user_id = (select auth.uid()))"
+        }
+      },
+      "checkConstraints": {
+        "business_ruc_format": {
+          "name": "business_ruc_format",
+          "value": "\"business\".\"ruc\" is null or \"business\".\"ruc\" ~ '^[0-9]{11}$'"
+        },
+        "business_billing_day_range": {
+          "name": "business_billing_day_range",
+          "value": "\"business\".\"billing_day\" is null or \"business\".\"billing_day\" between 1 and 31"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.contract": {
+      "name": "contract",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "unit_id": {
+          "name": "unit_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resident_id": {
+          "name": "resident_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monthly_rent": {
+          "name": "monthly_rent",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_day": {
+          "name": "payment_day",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "paperwork": {
+          "name": "paperwork",
+          "type": "contract_paperwork",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "template_id": {
+          "name": "template_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "contract_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "confirmed_at": {
+          "name": "confirmed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancelled_at": {
+          "name": "cancelled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "renewed_from_id": {
+          "name": "renewed_from_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "contract_unit_id_idx": {
+          "name": "contract_unit_id_idx",
+          "columns": [
+            {
+              "expression": "unit_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "contract_resident_id_idx": {
+          "name": "contract_resident_id_idx",
+          "columns": [
+            {
+              "expression": "resident_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "contract_unit_id_unit_id_fk": {
+          "name": "contract_unit_id_unit_id_fk",
+          "tableFrom": "contract",
+          "columnsFrom": [
+            "unit_id"
+          ],
+          "tableTo": "unit",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "contract_resident_id_resident_id_fk": {
+          "name": "contract_resident_id_resident_id_fk",
+          "tableFrom": "contract",
+          "columnsFrom": [
+            "resident_id"
+          ],
+          "tableTo": "resident",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "contract_template_id_contract_template_id_fk": {
+          "name": "contract_template_id_contract_template_id_fk",
+          "tableFrom": "contract",
+          "columnsFrom": [
+            "template_id"
+          ],
+          "tableTo": "contract_template",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "contract_renewed_from_id_contract_id_fk": {
+          "name": "contract_renewed_from_id_contract_id_fk",
+          "tableFrom": "contract",
+          "columnsFrom": [
+            "renewed_from_id"
+          ],
+          "tableTo": "contract",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "contract_landlord_all": {
+          "name": "contract_landlord_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"contract\".\"resident_id\" in (select r.id from public.resident r where r.business_id in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid()))))",
+          "withCheck": "\"contract\".\"resident_id\" in (select r.id from public.resident r where r.business_id in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid())))) and exists (\n        select 1 from public.unit u join public.floor f on f.id = u.floor_id join public.property p on p.id = f.property_id\n        where u.id = \"contract\".\"unit_id\" and p.business_id in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid()))))"
+        },
+        "contract_select_own": {
+          "name": "contract_select_own",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"contract\".\"resident_id\" in (select r.id from public.resident r where r.person_id in (select id from public.person where user_id = (select auth.uid())))"
+        }
+      },
+      "checkConstraints": {
+        "contract_dates_order": {
+          "name": "contract_dates_order",
+          "value": "\"contract\".\"end_date\" is null or \"contract\".\"end_date\" >= \"contract\".\"start_date\""
+        },
+        "contract_rent_not_negative": {
+          "name": "contract_rent_not_negative",
+          "value": "\"contract\".\"monthly_rent\" >= 0"
+        },
+        "contract_payment_day_range": {
+          "name": "contract_payment_day_range",
+          "value": "\"contract\".\"payment_day\" between 1 and 31"
+        },
+        "contract_template_matches_paperwork": {
+          "name": "contract_template_matches_paperwork",
+          "value": "(\"contract\".\"paperwork\" = 'template') = (\"contract\".\"template_id\" is not null)"
+        },
+        "contract_none_without_signature": {
+          "name": "contract_none_without_signature",
+          "value": "\"contract\".\"paperwork\" <> 'none' or \"contract\".\"status\" <> 'pending_signature'"
+        },
+        "contract_confirmed_at": {
+          "name": "contract_confirmed_at",
+          "value": "\"contract\".\"status\" <> 'confirmed' or \"contract\".\"confirmed_at\" is not null"
+        },
+        "contract_cancelled_at": {
+          "name": "contract_cancelled_at",
+          "value": "\"contract\".\"status\" <> 'cancelled' or \"contract\".\"cancelled_at\" is not null"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.contract_template": {
+      "name": "contract_template",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "contract_template_business_id_idx": {
+          "name": "contract_template_business_id_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "contract_template_business_id_business_id_fk": {
+          "name": "contract_template_business_id_business_id_fk",
+          "tableFrom": "contract_template",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "tableTo": "business",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "contract_template_landlord_all": {
+          "name": "contract_template_landlord_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"contract_template\".\"business_id\" in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid())))",
+          "withCheck": "\"contract_template\".\"business_id\" in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid())))"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.document": {
+      "name": "document",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "resident_id": {
+          "name": "resident_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "document_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requirement_id": {
+          "name": "requirement_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contract_id": {
+          "name": "contract_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "storage_path": {
+          "name": "storage_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_name": {
+          "name": "file_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "size_bytes": {
+          "name": "size_bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "document_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'in_review'"
+        },
+        "uploaded_by": {
+          "name": "uploaded_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "uploaded_at": {
+          "name": "uploaded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "reviewed_by": {
+          "name": "reviewed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rejection_reason": {
+          "name": "rejection_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "document_resident_id_idx": {
+          "name": "document_resident_id_idx",
+          "columns": [
+            {
+              "expression": "resident_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "document_contract_id_idx": {
+          "name": "document_contract_id_idx",
+          "columns": [
+            {
+              "expression": "contract_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "document_resident_id_resident_id_fk": {
+          "name": "document_resident_id_resident_id_fk",
+          "tableFrom": "document",
+          "columnsFrom": [
+            "resident_id"
+          ],
+          "tableTo": "resident",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "document_requirement_id_document_requirement_id_fk": {
+          "name": "document_requirement_id_document_requirement_id_fk",
+          "tableFrom": "document",
+          "columnsFrom": [
+            "requirement_id"
+          ],
+          "tableTo": "document_requirement",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "document_contract_id_contract_id_fk": {
+          "name": "document_contract_id_contract_id_fk",
+          "tableFrom": "document",
+          "columnsFrom": [
+            "contract_id"
+          ],
+          "tableTo": "contract",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "document_uploaded_by_person_id_fk": {
+          "name": "document_uploaded_by_person_id_fk",
+          "tableFrom": "document",
+          "columnsFrom": [
+            "uploaded_by"
+          ],
+          "tableTo": "person",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "document_reviewed_by_person_id_fk": {
+          "name": "document_reviewed_by_person_id_fk",
+          "tableFrom": "document",
+          "columnsFrom": [
+            "reviewed_by"
+          ],
+          "tableTo": "person",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "document_storagePath_unique": {
+          "name": "document_storagePath_unique",
+          "columns": [
+            "storage_path"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "document_landlord_all": {
+          "name": "document_landlord_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"document\".\"resident_id\" in (select r.id from public.resident r where r.business_id in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid()))))",
+          "withCheck": "\"document\".\"resident_id\" in (select r.id from public.resident r where r.business_id in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid()))))"
+        },
+        "document_select_own": {
+          "name": "document_select_own",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"document\".\"resident_id\" in (select r.id from public.resident r where r.person_id in (select id from public.person where user_id = (select auth.uid())))"
+        },
+        "document_insert_own": {
+          "name": "document_insert_own",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "authenticated"
+          ],
+          "withCheck": "\"document\".\"resident_id\" in (select r.id from public.resident r where r.person_id in (select id from public.person where user_id = (select auth.uid()))) and \"document\".\"uploaded_by\" in (select id from public.person where user_id = (select auth.uid()))\n        and \"document\".\"status\" = 'in_review' and \"document\".\"reviewed_by\" is null"
+        }
+      },
+      "checkConstraints": {
+        "document_size_positive": {
+          "name": "document_size_positive",
+          "value": "\"document\".\"size_bytes\" > 0"
+        },
+        "document_rejection_reason": {
+          "name": "document_rejection_reason",
+          "value": "\"document\".\"status\" <> 'rejected' or coalesce(trim(\"document\".\"rejection_reason\"), '') <> ''"
+        },
+        "document_signed_contract_has_contract": {
+          "name": "document_signed_contract_has_contract",
+          "value": "\"document\".\"kind\" <> 'signed_contract' or \"document\".\"contract_id\" is not null"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.document_requirement": {
+      "name": "document_requirement",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "required": {
+          "name": "required",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "accepted_formats": {
+          "name": "accepted_formats",
+          "type": "document_format[]",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{pdf,image}'"
+        },
+        "max_size_mb": {
+          "name": "max_size_mb",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 5
+        }
+      },
+      "indexes": {
+        "document_requirement_business_id_idx": {
+          "name": "document_requirement_business_id_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "document_requirement_business_id_business_id_fk": {
+          "name": "document_requirement_business_id_business_id_fk",
+          "tableFrom": "document_requirement",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "tableTo": "business",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "document_requirement_property_id_property_id_fk": {
+          "name": "document_requirement_property_id_property_id_fk",
+          "tableFrom": "document_requirement",
+          "columnsFrom": [
+            "property_id"
+          ],
+          "tableTo": "property",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "document_requirement_landlord_all": {
+          "name": "document_requirement_landlord_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"document_requirement\".\"business_id\" in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid())))",
+          "withCheck": "\"document_requirement\".\"business_id\" in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid())))"
+        },
+        "document_requirement_select_as_resident": {
+          "name": "document_requirement_select_as_resident",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"document_requirement\".\"business_id\" in (select r.business_id from public.resident r where r.person_id in (select id from public.person where user_id = (select auth.uid())))"
+        }
+      },
+      "checkConstraints": {
+        "document_requirement_max_size": {
+          "name": "document_requirement_max_size",
+          "value": "\"document_requirement\".\"max_size_mb\" between 1 and 20"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.floor": {
+      "name": "floor",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "level": {
+          "name": "level",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outline": {
+          "name": "outline",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "floor_property_id_idx": {
+          "name": "floor_property_id_idx",
+          "columns": [
+            {
+              "expression": "property_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "floor_property_id_property_id_fk": {
+          "name": "floor_property_id_property_id_fk",
+          "tableFrom": "floor",
+          "columnsFrom": [
+            "property_id"
+          ],
+          "tableTo": "property",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "floor_owner_all": {
+          "name": "floor_owner_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "exists (select 1 from public.property p where p.id = \"floor\".\"property_id\" and p.business_id in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid()))))",
+          "withCheck": "exists (select 1 from public.property p where p.id = \"floor\".\"property_id\" and p.business_id in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid()))))"
+        }
+      },
+      "checkConstraints": {
+        "floor_outline_min_corners": {
+          "name": "floor_outline_min_corners",
+          "value": "jsonb_typeof(\"floor\".\"outline\") = 'array' and jsonb_array_length(\"floor\".\"outline\") >= 4"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.person": {
+      "name": "person",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "terms_accepted_at": {
+          "name": "terms_accepted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "identity_document_type": {
+          "name": "identity_document_type",
+          "type": "identity_document_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "identity_document_number": {
+          "name": "identity_document_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "person_user_id_users_id_fk": {
+          "name": "person_user_id_users_id_fk",
+          "tableFrom": "person",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "person_userId_unique": {
+          "name": "person_userId_unique",
+          "columns": [
+            "user_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "person_select_own": {
+          "name": "person_select_own",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"person\".\"user_id\" = (select auth.uid())"
+        },
+        "person_update_own": {
+          "name": "person_update_own",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"person\".\"user_id\" = (select auth.uid())",
+          "withCheck": "\"person\".\"user_id\" = (select auth.uid())"
+        },
+        "person_select_my_residents": {
+          "name": "person_select_my_residents",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "authenticated"
+          ],
+          "using": "public.is_resident_of_my_business(\"person\".\"id\")"
+        },
+        "person_update_my_residents_without_account": {
+          "name": "person_update_my_residents_without_account",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"person\".\"user_id\" is null and public.is_resident_of_my_business(\"person\".\"id\")",
+          "withCheck": "\"person\".\"user_id\" is null and public.is_resident_of_my_business(\"person\".\"id\")"
+        },
+        "person_insert_without_account": {
+          "name": "person_insert_without_account",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "authenticated"
+          ],
+          "withCheck": "\"person\".\"user_id\" is null"
+        }
+      },
+      "checkConstraints": {
+        "person_identity_document_pair": {
+          "name": "person_identity_document_pair",
+          "value": "(\"person\".\"identity_document_type\" is null) = (\"person\".\"identity_document_number\" is null)"
+        },
+        "person_dni_format": {
+          "name": "person_dni_format",
+          "value": "\"person\".\"identity_document_type\" is distinct from 'dni' or \"person\".\"identity_document_number\" ~ '^[0-9]{8}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.property": {
+      "name": "property",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "district_city": {
+          "name": "district_city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "property_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_lives_here": {
+          "name": "owner_lives_here",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "manager_id": {
+          "name": "manager_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PEN'"
+        }
+      },
+      "indexes": {
+        "property_business_id_idx": {
+          "name": "property_business_id_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "property_business_id_business_id_fk": {
+          "name": "property_business_id_business_id_fk",
+          "tableFrom": "property",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "tableTo": "business",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "property_manager_id_person_id_fk": {
+          "name": "property_manager_id_person_id_fk",
+          "tableFrom": "property",
+          "columnsFrom": [
+            "manager_id"
+          ],
+          "tableTo": "person",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "property_owner_all": {
+          "name": "property_owner_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"property\".\"business_id\" in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid())))",
+          "withCheck": "\"property\".\"business_id\" in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid())))"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.resident": {
+      "name": "resident",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "person_id": {
+          "name": "person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "emergency_contact_name": {
+          "name": "emergency_contact_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "emergency_contact_phone": {
+          "name": "emergency_contact_phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "university": {
+          "name": "university",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "resident_business_person_idx": {
+          "name": "resident_business_person_idx",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "person_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "resident_person_id_idx": {
+          "name": "resident_person_id_idx",
+          "columns": [
+            {
+              "expression": "person_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "resident_business_id_business_id_fk": {
+          "name": "resident_business_id_business_id_fk",
+          "tableFrom": "resident",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "tableTo": "business",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "resident_person_id_person_id_fk": {
+          "name": "resident_person_id_person_id_fk",
+          "tableFrom": "resident",
+          "columnsFrom": [
+            "person_id"
+          ],
+          "tableTo": "person",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "resident_landlord_all": {
+          "name": "resident_landlord_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"resident\".\"business_id\" in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid())))",
+          "withCheck": "\"resident\".\"business_id\" in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid())))"
+        },
+        "resident_select_own": {
+          "name": "resident_select_own",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"resident\".\"person_id\" in (select id from public.person where user_id = (select auth.uid()))"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.resident_invitation": {
+      "name": "resident_invitation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "resident_id": {
+          "name": "resident_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accepted_at": {
+          "name": "accepted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "resident_invitation_resident_id_idx": {
+          "name": "resident_invitation_resident_id_idx",
+          "columns": [
+            {
+              "expression": "resident_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "resident_invitation_resident_id_resident_id_fk": {
+          "name": "resident_invitation_resident_id_resident_id_fk",
+          "tableFrom": "resident_invitation",
+          "columnsFrom": [
+            "resident_id"
+          ],
+          "tableTo": "resident",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "resident_invitation_created_by_person_id_fk": {
+          "name": "resident_invitation_created_by_person_id_fk",
+          "tableFrom": "resident_invitation",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "tableTo": "person",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "resident_invitation_tokenHash_unique": {
+          "name": "resident_invitation_tokenHash_unique",
+          "columns": [
+            "token_hash"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "resident_invitation_landlord_all": {
+          "name": "resident_invitation_landlord_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"resident_invitation\".\"resident_id\" in (select r.id from public.resident r where r.business_id in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid()))))",
+          "withCheck": "\"resident_invitation\".\"resident_id\" in (select r.id from public.resident r where r.business_id in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid()))))"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.unit": {
+      "name": "unit",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "floor_id": {
+          "name": "floor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_unit_id": {
+          "name": "parent_unit_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "unit_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occupies_whole_floor": {
+          "name": "occupies_whole_floor",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "rental_mode": {
+          "name": "rental_mode",
+          "type": "rental_mode",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monthly_price": {
+          "name": "monthly_price",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "area_m2": {
+          "name": "area_m2",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bathroom": {
+          "name": "bathroom",
+          "type": "bathroom_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "space_type": {
+          "name": "space_type",
+          "type": "space_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "furnished": {
+          "name": "furnished",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "pos_x": {
+          "name": "pos_x",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pos_z": {
+          "name": "pos_z",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "width": {
+          "name": "width",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "depth": {
+          "name": "depth",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "unit_floor_id_idx": {
+          "name": "unit_floor_id_idx",
+          "columns": [
+            {
+              "expression": "floor_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "unit_parent_unit_id_idx": {
+          "name": "unit_parent_unit_id_idx",
+          "columns": [
+            {
+              "expression": "parent_unit_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "unit_floor_id_floor_id_fk": {
+          "name": "unit_floor_id_floor_id_fk",
+          "tableFrom": "unit",
+          "columnsFrom": [
+            "floor_id"
+          ],
+          "tableTo": "floor",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "unit_parent_unit_id_unit_id_fk": {
+          "name": "unit_parent_unit_id_unit_id_fk",
+          "tableFrom": "unit",
+          "columnsFrom": [
+            "parent_unit_id"
+          ],
+          "tableTo": "unit",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "unit_owner_all": {
+          "name": "unit_owner_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "exists (select 1 from public.floor f join public.property p on p.id = f.property_id\n        where f.id = \"unit\".\"floor_id\" and p.business_id in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid()))))",
+          "withCheck": "exists (select 1 from public.floor f join public.property p on p.id = f.property_id\n        where f.id = \"unit\".\"floor_id\" and p.business_id in (select b.id from public.business b where b.owner_id in (select id from public.person where user_id = (select auth.uid()))))"
+        }
+      },
+      "checkConstraints": {
+        "unit_apartment_fields": {
+          "name": "unit_apartment_fields",
+          "value": "(\"unit\".\"type\" = 'apartment' and \"unit\".\"rental_mode\" is not null)\n        or (\"unit\".\"type\" = 'room' and \"unit\".\"rental_mode\" is null and \"unit\".\"occupies_whole_floor\" = false)"
+        },
+        "unit_by_room_without_price": {
+          "name": "unit_by_room_without_price",
+          "value": "\"unit\".\"rental_mode\" is distinct from 'by_room' or \"unit\".\"monthly_price\" is null"
+        },
+        "unit_parent_only_rooms": {
+          "name": "unit_parent_only_rooms",
+          "value": "\"unit\".\"parent_unit_id\" is null or \"unit\".\"type\" = 'room'"
+        },
+        "unit_positive_size": {
+          "name": "unit_positive_size",
+          "value": "\"unit\".\"width\" > 0 and \"unit\".\"depth\" > 0"
+        },
+        "unit_price_not_negative": {
+          "name": "unit_price_not_negative",
+          "value": "\"unit\".\"monthly_price\" is null or \"unit\".\"monthly_price\" >= 0"
+        },
+        "unit_area_positive": {
+          "name": "unit_area_positive",
+          "value": "\"unit\".\"area_m2\" is null or \"unit\".\"area_m2\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.bathroom_type": {
+      "name": "bathroom_type",
+      "schema": "public",
+      "values": [
+        "private",
+        "shared"
+      ]
+    },
+    "public.business_kind": {
+      "name": "business_kind",
+      "schema": "public",
+      "values": [
+        "natural",
+        "company"
+      ]
+    },
+    "public.business_service": {
+      "name": "business_service",
+      "schema": "public",
+      "values": [
+        "residence",
+        "meal_plan"
+      ]
+    },
+    "public.contract_paperwork": {
+      "name": "contract_paperwork",
+      "schema": "public",
+      "values": [
+        "none",
+        "paper",
+        "template"
+      ]
+    },
+    "public.contract_status": {
+      "name": "contract_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "pending_signature",
+        "confirmed",
+        "cancelled"
+      ]
+    },
+    "public.document_format": {
+      "name": "document_format",
+      "schema": "public",
+      "values": [
+        "pdf",
+        "image"
+      ]
+    },
+    "public.document_kind": {
+      "name": "document_kind",
+      "schema": "public",
+      "values": [
+        "requirement",
+        "signed_contract",
+        "other"
+      ]
+    },
+    "public.document_status": {
+      "name": "document_status",
+      "schema": "public",
+      "values": [
+        "in_review",
+        "verified",
+        "rejected"
+      ]
+    },
+    "public.identity_document_type": {
+      "name": "identity_document_type",
+      "schema": "public",
+      "values": [
+        "dni",
+        "foreign_id",
+        "passport"
+      ]
+    },
+    "public.payment_method": {
+      "name": "payment_method",
+      "schema": "public",
+      "values": [
+        "yape",
+        "plin",
+        "transfer",
+        "cash",
+        "card"
+      ]
+    },
+    "public.property_type": {
+      "name": "property_type",
+      "schema": "public",
+      "values": [
+        "room",
+        "floor",
+        "building"
+      ]
+    },
+    "public.rental_mode": {
+      "name": "rental_mode",
+      "schema": "public",
+      "values": [
+        "whole",
+        "by_room"
+      ]
+    },
+    "public.space_type": {
+      "name": "space_type",
+      "schema": "public",
+      "values": [
+        "bedroom",
+        "studio",
+        "office",
+        "storage",
+        "other"
+      ]
+    },
+    "public.unit_type": {
+      "name": "unit_type",
+      "schema": "public",
+      "values": [
+        "apartment",
+        "room"
+      ]
+    }
+  },
+  "schemas": {},
+  "views": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
