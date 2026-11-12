@@ -112,7 +112,7 @@ export async function listDeposits(businessId: string): Promise<DepositsView | n
       .where(eq(business.id, businessId))
       .limit(1);
     if (!b) return null;
-    // Crea las garantías que falten (contratos confirmados antes de la Fase 5).
+    // Crea los recibos de renta que falten (las garantías solo nacen al confirmar un contrato).
     await syncBusinessBilling(tx, businessId);
     const rows = await tx
       .select({

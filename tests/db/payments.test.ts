@@ -450,3 +450,21 @@ describe("consultas de Cobros y de Mis pagos", () => {
     });
   });
 });
+
+describe("contratos de antes de la Fase 5", () => {
+  it("al abrir Cobros reciben sus recibos de renta, pero no una garantía retroactiva", async () => {
+    await scenario(async (tx, { residentId, unitId, businessId }) => {
+      const { syncBusinessBilling } = await import("@/server/payments/billing");
+      const id = await contracts.createContract(tx, contractData({ residentId, unitId }), false);
+      // Así quedaría un contrato confirmado antes de la Fase 5: sin recibos ni garantía.
+      await tx.execute(sql`reset role`);
+      await tx.execute(sql`delete from public.deposit`);
+      await tx.execute(sql`delete from public.charge`);
+      await actAs(tx, A);
+      await syncBusinessBilling(tx, businessId);
+      expect((await chargesOf(tx, id)).map((c) => c.concept)).toEqual(["rent", "rent", "rent"]);
+      const [n] = await rows<{ n: number }>(tx, sql`select count(*)::int as n from public.deposit`);
+      expect(n.n).toBe(0);
+    });
+  });
+});

@@ -78,14 +78,14 @@ export async function contractDepositPolicy(tx: Tx, c: LoadedContract): Promise<
 }
 
 // Crea la garantía del contrato (y su cargo en el recibo del mes en que se cobra). Regla 9: si renueva otro
-// contrato, la garantía de ese pasa a este y no se pide otra.
+// contrato con garantía, esa pasa a este y no se pide otra. Si el anterior no tenía (se confirmó antes de la
+// Fase 5), este es el primero con garantía en el sistema y se calcula con la política de hoy.
 async function ensureDeposit(tx: Tx, c: LoadedContract): Promise<void> {
   const [existing] = await tx.select({ id: deposit.id }).from(deposit).where(eq(deposit.contractId, c.id));
   if (existing) return;
   if (c.renewedFromId) {
     const previous = await loadContract(tx, c.renewedFromId);
-    if (previous && previous.status === "confirmed") {
-      await ensureDeposit(tx, previous);
+    if (previous) {
       const moved = await tx
         .update(deposit)
         .set({ contractId: c.id })
@@ -146,13 +146,20 @@ async function syncRent(tx: Tx, c: LoadedContract, today: string) {
 
 // Al cambiar un contrato. Los recibos y la garantía nacen al confirmarlo (decisión del dueño). Si después vuelve a
 // "pendiente de firma" (cambió el papel), sus recibos siguen: el residente sigue viviendo ahí.
-export async function syncContractBilling(tx: Tx, contractIds: string[], now = new Date()) {
+// withDeposit = false al abrir Cobros: la garantía se calcula solo al confirmar, para no cobrarla de forma
+// retroactiva a contratos confirmados antes de la Fase 5 con la configuración de hoy.
+export async function syncContractBilling(
+  tx: Tx,
+  contractIds: string[],
+  now = new Date(),
+  withDeposit = true,
+) {
   const today = limaToday(now);
   for (const id of contractIds) {
     const c = await loadContract(tx, id);
     if (!c) continue;
     if (c.status === "confirmed") {
-      await ensureDeposit(tx, c);
+      if (withDeposit) await ensureDeposit(tx, c);
       await syncRent(tx, c, today);
       continue;
     }
@@ -165,8 +172,8 @@ export async function syncContractBilling(tx: Tx, contractIds: string[], now = n
   }
 }
 
-// Todos los contratos con recibos de un negocio (al abrir Cobros): extiende los mes a mes y crea lo que falte de
-// los contratos confirmados antes de la Fase 5.
+// Todos los contratos de un negocio (al abrir Cobros o Garantías): extiende los mes a mes y crea los recibos de
+// renta que falten (por ejemplo, de contratos confirmados antes de la Fase 5). La garantía no.
 export async function syncBusinessBilling(tx: Tx, businessId: string, now = new Date()) {
   const rows = await tx
     .select({ id: contract.id })
@@ -179,5 +186,6 @@ export async function syncBusinessBilling(tx: Tx, businessId: string, now = new 
     tx,
     rows.map((r) => r.id),
     now,
+    false,
   );
 }
