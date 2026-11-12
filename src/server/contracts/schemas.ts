@@ -54,10 +54,42 @@ const dropTemplate = <T extends Terms>(v: T): T => ({
   templateId: v.paperwork === "template" ? v.templateId : null,
 });
 
+// Garantía para esta persona (regla 5). Vacío = la de la unidad o la de Configuración › Garantía.
+// Se decide al crear el contrato; al cambiar condiciones no se toca, porque la garantía pasa al contrato nuevo.
+export const DEPOSIT_CHOICES = ["", "none", "one_month", "two_months", "fixed"] as const;
+
+const money = z
+  .string()
+  .trim()
+  .regex(/^d{1,8}(.d{1,2})?$/, "Escribe un monto, por ejemplo 650 o 650.50.");
+
+const depositShape = {
+  depositRule: z.enum(DEPOSIT_CHOICES).transform((v) => v || null),
+  depositFixedAmount: z.union([z.literal(""), money]).transform((v) => v || null),
+  // Cuándo se cobra (por ejemplo, "se la pido después"). Vacío = al inicio del contrato.
+  depositDueDate: z.union([z.literal(""), isoDate]).transform((v) => v || null),
+};
+
 export const contractSchema = z
-  .object({ residentId: z.uuid("Elige al residente."), ...termsShape })
-  .superRefine(checkTerms)
-  .transform(dropTemplate);
+  .object({ residentId: z.uuid("Elige al residente."), ...termsShape, ...depositShape })
+  .superRefine((v, ctx) => {
+    checkTerms(v, ctx);
+    if (v.depositRule === "fixed" && !v.depositFixedAmount) {
+      ctx.addIssue({ code: "custom", path: ["depositFixedAmount"], message: "Escribe el monto de la garantía." });
+    }
+    if (v.depositDueDate && v.depositDueDate < v.startDate) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["depositDueDate"],
+        message: "No puede ser antes del inicio del contrato.",
+      });
+    }
+  })
+  .transform((v) => ({
+    ...dropTemplate(v),
+    depositFixedAmount: v.depositRule === "fixed" ? v.depositFixedAmount : null,
+    depositDueDate: v.depositRule === "none" ? null : v.depositDueDate,
+  }));
 
 export const termsSchema = z.object(termsShape).superRefine(checkTerms).transform(dropTemplate);
 

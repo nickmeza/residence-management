@@ -14,10 +14,13 @@ import {
   property,
   resident,
   unit,
+  depositSettings,
+  depositUnitException,
 } from "@/db/schema";
 import { getSessionClaims } from "@/server/auth/session";
 import { isRentable, type UnitInput } from "@/server/building/rules";
 import { isUuid } from "@/server/business/queries";
+import { effectivePolicy, type DepositPolicy } from "@/server/deposits/rules";
 
 import { endsInLabel, limaToday } from "./dates";
 import { contractPhase, type ContractPaperwork, type ContractPhase, type ContractStatus } from "./rules";
@@ -76,7 +79,7 @@ export async function listContracts(businessId: string): Promise<ContractListRow
 export type ContractFormOptions = {
   residents: { id: string; fullName: string }[];
   // Solo lo que se alquila: cuarto suelto, departamento completo o cuarto de un departamento por cuartos.
-  units: { id: string; label: string; monthlyPrice: string | null }[];
+  units: { id: string; label: string; monthlyPrice: string | null; deposit: DepositPolicy }[];
   templates: { id: string; name: string }[];
   billingDay: number;
 };
@@ -125,6 +128,25 @@ export async function getContractFormOptions(businessId: string): Promise<Contra
         .where(eq(contractTemplate.businessId, businessId))
         .orderBy(asc(contractTemplate.name)),
     ]);
+    // Garantía que le toca a cada unidad sin decidir nada para la persona: su excepción o la de su tipo.
+    const [settings] = await tx
+      .select()
+      .from(depositSettings)
+      .where(eq(depositSettings.businessId, businessId))
+      .limit(1);
+    const exceptions = await tx.select().from(depositUnitException);
+    const depositOf = (u: { id: string; type: "room" | "apartment" }): DepositPolicy => {
+      const e = exceptions.find((x) => x.unitId === u.id);
+      return effectivePolicy({
+        business: settings
+          ? u.type === "room"
+            ? { rule: settings.roomRule, fixedAmount: settings.roomFixedAmount }
+            : { rule: settings.apartmentRule, fixedAmount: settings.apartmentFixedAmount }
+          : null,
+        unit: e ? { rule: e.rule, fixedAmount: e.fixedAmount } : null,
+        contract: null,
+      });
+    };
     const byId = new Map<string, UnitInput>(units.map((u) => [u.id, u]));
     const multipleProperties = new Set(units.map((u) => u.propertyName)).size > 1;
     return {
@@ -135,6 +157,7 @@ export async function getContractFormOptions(businessId: string): Promise<Contra
           id: u.id,
           label: multipleProperties ? `${u.propertyName} · ${u.name}` : u.name,
           monthlyPrice: u.monthlyPrice,
+          deposit: depositOf(u),
         })),
       templates,
       billingDay: b.billingDay ?? 5,

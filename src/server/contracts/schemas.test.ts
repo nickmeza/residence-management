@@ -14,6 +14,9 @@ const valid: ContractFormInput = {
   paymentDay: "5",
   paperwork: "none",
   templateId: "",
+  depositRule: "",
+  depositFixedAmount: "",
+  depositDueDate: "",
 };
 
 const errors = (over: Partial<ContractFormInput>) => {

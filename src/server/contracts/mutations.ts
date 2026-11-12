@@ -15,6 +15,7 @@ import {
   unit,
 } from "@/db/schema";
 import { isRentable, type UnitInput } from "@/server/building/rules";
+import { syncContractBilling } from "@/server/payments/billing";
 import type { UnitType } from "@/server/documents/rules";
 
 import { addDays } from "./dates";
@@ -203,6 +204,7 @@ export async function createContract(tx: Tx, data: ContractData, asDraft: boolea
     .insert(contract)
     .values({ ...data, ...state })
     .returning({ id: contract.id });
+  await syncContractBilling(tx, [row.id]);
   return row.id;
 }
 
@@ -234,6 +236,7 @@ export async function submitDraft(tx: Tx, id: string) {
   const ctx = await checkUnit(tx, c, c.businessId, [c.id]);
   const state = await nextStatus(tx, { ...c, unitType: ctx.unitType });
   await tx.update(contract).set(state).where(eq(contract.id, id));
+  await syncContractBilling(tx, [id]);
 }
 
 // Cambia solo el papel del mismo alquiler (por ejemplo, era mes a mes sin contrato y el residente pide una copia).
@@ -261,6 +264,7 @@ export async function changePaperwork(
     .update(contract)
     .set({ ...input, ...state })
     .where(eq(contract.id, id));
+  await syncContractBilling(tx, [id]);
 }
 
 // Cambian las condiciones (renta, unidad, fechas…): el contrato actual termina el día anterior y empieza uno
@@ -297,6 +301,8 @@ export async function changeTerms(tx: Tx, id: string, terms: TermsData) {
     .insert(contract)
     .values({ ...terms, residentId: c.residentId, renewedFromId: c.id, ...state })
     .returning({ id: contract.id });
+  // El actual termina antes (se corrigen sus recibos) y, si el nuevo ya está confirmado, recibe la garantía.
+  await syncContractBilling(tx, [id, row.id]);
   return row.id;
 }
 
@@ -311,6 +317,7 @@ export async function endContract(tx: Tx, id: string, endDate: string) {
     throw new ContractError("Para alargarlo, usa Cambiar condiciones.", "endDate");
   }
   await tx.update(contract).set({ endDate }).where(eq(contract.id, id));
+  await syncContractBilling(tx, [id]);
 }
 
 // Un contrato con papel pasa a firmado cuando está subida su copia firmada y los documentos que se le piden
@@ -336,6 +343,7 @@ export async function confirmSigned(tx: Tx, id: string) {
     throw new ContractError("Faltan documentos obligatorios verificados del residente.");
   }
   await tx.update(contract).set({ status: "confirmed", confirmedAt: new Date() }).where(eq(contract.id, id));
+  await syncContractBilling(tx, [id]);
 }
 
 // Cancela un borrador o un contrato que no llegó a firmarse. Uno acordado o firmado se termina, no se cancela,
