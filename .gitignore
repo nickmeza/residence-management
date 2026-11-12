@@ -42,3 +42,6 @@ next-env.d.ts
 
 # python (scripts de skills)
 __pycache__/
+
+# agente
+ESTADO.md

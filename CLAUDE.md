@@ -4,6 +4,12 @@ Este archivo son las reglas del proyecto. Léelo completo antes de tocar código
 
 Instrucciones oficiales de Next.js para esta versión: @AGENTS.md
 
+**Dónde nos quedamos:** @ESTADO.md
+
+Al empezar una sesión, retoma desde `ESTADO.md` sin que te lo pida: di en dos líneas dónde quedamos y qué sigue.
+Al terminar cada tarea (y antes de que yo cierre), **actualiza `ESTADO.md`**: hecho, pendiente, bloqueos, siguiente paso
+y tu **último mensaje** copiado tal cual en la sección final (reemplaza el anterior).
+
 ## 1. Qué es este proyecto
 
 Un sistema para que un arrendador gestione su residencia: cuartos, departamentos, residentes, contratos, cobros, garantías,
@@ -225,7 +231,7 @@ Marca cada fase cuando funcione y esté probada.
 - [x] **Fase 1:** datos y cuentas (Propiedad, Piso, Unidad; registro e inicio de sesión; RLS)
 - [x] **Fase 2:** registro y edificio en modo simple
 - [x] **Fase 3:** edificio en 3D (mostrar, clic, doble clic directo, arrastre, guardar)
-- [ ] **Fase 4:** residentes, contratos y documentos
+- [x] **Fase 4:** residentes, contratos y documentos
 - [ ] **Fase 5:** cobros y garantía
 - [ ] **Fase 6:** pensión (menú, confirmación diaria, cocina)
 - [ ] **Fase 7:** operación diaria (mantenimiento, avisos, postulantes, check-in/out, reportes, configuración)
@@ -233,7 +239,7 @@ Marca cada fase cuando funcione y esté probada.
 - [ ] **Fase 9:** estados, móvil y pulido
 - [ ] **Fase 10 (opcional):** preparar Foráneos (ubicación, visibilidad por unidad, lugar de interés)
 
-**Fase actual:** 4
+**Fase actual:** 5
 
 ## 15. Lo que NO debes hacer
 

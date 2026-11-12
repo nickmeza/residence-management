@@ -50,7 +50,7 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 1 · Datos y cuentas | ✅ Terminada |
 | 2 · Registro y edificio en modo simple | ✅ Terminada |
 | 3 · Edificio en 3D | ✅ Terminada |
-| 4 · Residentes, contratos y documentos | Siguiente |
+| 4 · Residentes, contratos y documentos | En curso |
 
 ### Fase 0, paso a paso
 
@@ -92,6 +92,17 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 4. Arrastre | Arrastrar pisos (reordenar) y unidades (en la planta), guardado en segundo plano: el cambio se ve al instante y se envía en cola |
 | 5. Registro en 3D | Vista previa 3D en "Arma tu edificio", calculada con las mismas reglas que el servidor |
 
+
+### Fase 4, paso a paso
+
+| Paso | Qué se hizo |
+| ---- | ----------- |
+| 4.1 Datos y reglas | Tablas `resident`, `resident_invitation`, `contract`, `contract_template`, `document_requirement` y `document` con RLS. Reglas puras en `src/server/contracts/` (fase del contrato, solapes, confirmar, plantillas) y `src/server/residents/invitation.ts` |
+| 4.2 Residentes | `/residentes` (lista con filtros y buscador) y `/residentes/[id]` (perfil). Agregar y editar en un panel lateral; invitación por WhatsApp o copiando el mensaje |
+| 4.3 Contratos | `/contratos` (lista con filtros) y `/contratos/[id]`. Crear con modalidad (sin contrato, papel o plantilla) o como borrador; cambiar modalidad; cambiar condiciones (contrato nuevo enlazado); terminar y cancelar. El estado "Ocupado" de Edificio sale de los contratos |
+| 4.4 Plantillas y PDF | Configuración › Plantillas (`/negocio/[id]/plantillas`): editor con datos que se rellenan solos, vista previa y PDF de ejemplo. Los contratos desde plantilla se descargan en PDF (`/contratos/[id]/pdf`) para imprimir y firmar |
+| 4.5 Documentos | Configuración › Documentos: listas de Cuarto y Departamento, obligatorio u opcional, Activo. En el perfil: "Pedírselo", subir, Ver (enlace de 5 min en `/documentos/[id]`), Verificar y Rechazar con motivo. En el contrato: copia firmada y "Confirmar contrato firmado". Archivos en el espacio privado `documents` (migración 0007) |
+| 4.6 Residente y seguridad | Invitación `/invitacion/[token]` → código al correo → cuenta enlazada a su ficha. Entrada sin contraseña en `/entrar`. Lado del residente en `/mi` (inicio, documentos, contrato y su PDF). Pruebas con dos arrendadores y un residente en `tests/db` |
 ### Pantallas de la app (después de iniciar sesión)
 
 | Dirección | Qué es |
@@ -101,6 +112,13 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | `/negocio/[id]` | Configuración › Negocio: datos y métodos de pago |
 | `/edificio/[id]` | Edificio en 3D o en modo simple. En 3D: clic, doble clic para entrar, arrastrar pisos y unidades, forma de la losa. En simple: acordeones. En los dos, tocar una unidad abre su panel de edición |
 | `/configurar` | Configuración inicial para cuentas que todavía no tienen negocio |
+| `/residentes` | Residentes del negocio elegido: filtros (por vencer, documentos pendientes), buscador y "Agregar residente" |
+| `/residentes/[id]` | Perfil del residente: datos personales, documentos y contrato; editar datos e invitar |
+| `/contratos` | Contratos del negocio elegido: vigentes, por vencer, por cerrar y terminados; "Crear contrato" |
+| `/contratos/[id]` | Un contrato: condiciones, modalidad, historial y acciones (confirmar, cambiar modalidad o condiciones, terminar, cancelar) |
+| `/negocio/[id]/plantillas` | Configuración › Plantillas: crear, editar y borrar plantillas de contrato |
+| `/contratos/[id]/pdf` | PDF del contrato desde su plantilla, listo para imprimir |
+| `/negocio/[id]/documentos` | Configuración › Documentos: requisitos que pides a los residentes |
 
 ## Base de datos
 
@@ -168,3 +186,37 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-04 | Al mover un departamento, **sus cuartos se mueven con él** | Los cuartos están dentro del departamento. |
 | 2026-11-04 | **Guardado en segundo plano** en el 3D: cambio optimista (`useOptimistic`) y cola de guardado | El dueño vio que al mover rápido dos unidades, la primera volvía atrás. La cola evita que dos cambios se validen sin conocerse. |
 | 2026-11-04 | En el registro, el 3D es **vista previa** (sin arrastre) | Así lo muestra el prototipo. Nada está guardado todavía; luego se ajusta en la pantalla Edificio. |
+| 2026-11-10 | El contrato tiene **modalidad**: sin contrato escrito, contrato en papel o desde plantilla | En Perú muchas veces no hay contrato, solo el pago, o hay un papel sin notario. Lo definió el dueño. |
+| 2026-11-10 | Estados guardados del contrato: borrador, pendiente de firma, confirmado y cancelado. Vigente, por vencer y terminado se calculan | "Confirmado" se muestra como "Firmado" si hay papel y "Acordado" si no. Sin papel no hay "pendiente de firma". |
+| 2026-11-10 | No hay firma dentro de la app: el contrato firmado se **sube escaneado** (foto o PDF) | Lo pidió el dueño. La firma electrónica queda para más adelante. |
+| 2026-11-10 | La fecha de fin del contrato es **opcional** | Casi siempre hay fin, pero un alquiler mes a mes puede no tenerlo. |
+| 2026-11-10 | Datos personales en **Persona** (compartidos); contacto de emergencia, universidad y notas en una **ficha por negocio** | Un residente puede estar en negocios de dueños distintos, y lo de cada negocio es suyo. |
+| 2026-11-10 | El arrendador edita los datos personales **solo mientras el residente no tenga cuenta** | Después los edita el residente: otros negocios también los ven. |
+| 2026-11-10 | Residente por **invitación**: enlace para WhatsApp o para copiar; se guarda solo su hash | Si alguien lee la tabla, no puede usar el enlace. |
+| 2026-11-10 | Documentos **opcionales**; solo los que el arrendador marca obligatorios impiden confirmar el contrato | Puede bastar con el número de DNI. Se guarda quién subió cada archivo. |
+| 2026-11-10 | Función `is_resident_of_my_business` en la base (security definer) | Las políticas de Persona y de las fichas se consultaban entre sí y la base entraba en un bucle. |
+| 2026-11-10 | `@react-pdf/renderer` para los PDF de las plantillas | Arma el PDF en el servidor con márgenes y saltos de línea; lo aprobó el dueño. |
+| 2026-11-10 | En Residentes **no se muestran** pagos, deuda, garantía ni servicios todavía | Llegan con las Fases 5 y 6. Mejor no mostrar datos falsos. Lo aprobó el dueño. |
+| 2026-11-10 | Agregar y editar residente en un **panel lateral**; al agregar, se ofrece invitar | El prototipo no tiene ese formulario; se sigue la decisión del panel de unidades. |
+| 2026-11-10 | Cada "Invitar" crea un enlace nuevo y **anula los anteriores** sin usar | Si un mensaje se pierde o se manda a otra persona, el enlace viejo deja de servir. |
+| 2026-11-10 | Un **borrador** no ocupa la unidad y puede cruzarse con otros contratos; se revisa al confirmarlo | Sirve para preparar un contrato antes de que se libere la unidad. |
+| 2026-11-10 | Cambiar el **papel** edita el mismo contrato; cambiar las **condiciones** crea uno nuevo enlazado y el actual termina el día anterior | Lo pidió el dueño: cambiar de contrato debe ser una opción real, y así queda qué había antes. |
+| 2026-11-10 | Un contrato acordado o firmado **se termina** (fecha de fin), no se cancela | Cancelar borraría que el residente vivió ahí. Cancelar queda para borradores y pendientes de firma. |
+| 2026-11-10 | Una unidad con contratos **no se puede quitar** del edificio | Se perdería con quién vivió ahí. |
+| 2026-11-10 | La sección "Solicitudes de renovación" del prototipo queda para la Fase 7 | Es la historia de renovaciones (CT-06/07), asignada a la Fase 7. |
+| 2026-11-10 | Una plantilla con un dato mal escrito (`{nombr}`) **no se guarda** | Saldría tal cual en el papel impreso. |
+| 2026-11-10 | El PDF lleva **líneas de firma** del arrendador y del residente, y el número de página | Se imprime para firmar a mano. |
+| 2026-11-10 | Una plantilla que usa algún contrato **no se borra** (sí se edita) | El contrato debe poder volver a generar su PDF. |
+| 2026-11-10 | Sin límite de plantillas por negocio | Limitar por plan de pago es una idea futura del dueño; la base ya admite varias. |
+| 2026-11-10 | Quitar un requisito **conserva** los archivos ya subidos (pasan a "otro documento") | No se pierden documentos de los residentes. |
+| 2026-11-11 | Requisitos en **dos listas: Cuarto y Departamento**; se quita "Para: propiedad" | Lo pidió el dueño. Un cuarto dentro de un departamento "por cuartos" usa la lista de cuarto. |
+| 2026-11-11 | Los requisitos **opcionales no los ve el residente** (también en la base, por RLS); los sube el arrendador | Lo pidió el dueño: no tiene sentido mostrar algo que el residente no sabe qué es. |
+| 2026-11-11 | Interruptor **Activo** en cada requisito | Dejar de pedir un documento sin borrarlo ni perder lo subido. |
+| 2026-11-11 | Excepción **por persona** ("Pedírselo"): no lo ve y no frena su contrato | Para un familiar o conocido. Al siguiente residente se le pide todo. Lo decidió el dueño. |
+| 2026-11-11 | Motivos de rechazo: **texto libre con sugerencias** fijas en el código | Una tabla y una consulta para 4 sugerencias no vale la pena. |
+| 2026-11-11 | Los archivos van **directo del navegador a Storage**; el servidor lee su tipo y tamaño reales y recién ahí los registra | Las acciones de servidor tienen un límite de 1 MB, y no se confía en lo que dice el navegador. |
+| 2026-11-11 | Lo que sube el **arrendador queda verificado**; lo del residente, en revisión | El arrendador es quien revisa: no tiene sentido revisarse a sí mismo. |
+| 2026-11-11 | Un contrato con papel pasa a firmado con **"Confirmar contrato firmado"** | Revisa la regla 10 y que la copia firmada sea de ese contrato. |
+| 2026-11-11 | El residente entra **sin contraseña, con un código de 6 números al correo** | Lo eligió el dueño. Entrar solo con el enlace no es seguro para DNI y contratos (el enlace se reenvía). |
+| 2026-11-11 | Al aceptar la invitación, **ganan los datos del residente**; lo que le falte se completa con lo del arrendador | Lo decidió el dueño. |
+| 2026-11-11 | El residente **no lee las tablas del arrendador**; sus nombres de residencia y unidad salen de `my_resident_places()` | Varias pantallas del arrendador asumen "si veo el negocio, es mío" (por ejemplo, el selector de negocio). |

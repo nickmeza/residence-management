@@ -1,9 +1,9 @@
 import "server-only";
 
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, or, type SQL } from "drizzle-orm";
 
 import type { db } from "@/db";
-import { floor, unit } from "@/db/schema";
+import { contract, floor, unit } from "@/db/schema";
 
 import {
   outlineForNewFloor,
@@ -121,7 +121,18 @@ export async function moveFloor(tx: Tx, floorId: string, direction: "up" | "down
   return { propertyId: f.propertyId };
 }
 
+// Una unidad con contratos (aunque ya hayan terminado) no se borra: se perdería con quién vivió ahí.
+async function assertNoContracts(tx: Tx, where: SQL | undefined) {
+  const [used] = await tx
+    .select({ id: contract.id })
+    .from(contract)
+    .innerJoin(unit, eq(unit.id, contract.unitId))
+    .where(where)
+    .limit(1);
+  if (used) throw new BuildingError("Tiene contratos registrados, así que no se puede quitar.");
+}
 export async function deleteFloor(tx: Tx, floorId: string) {
+  await assertNoContracts(tx, eq(unit.floorId, floorId));
   const [f] = await tx.delete(floor).where(eq(floor.id, floorId)).returning({ propertyId: floor.propertyId });
   if (!f) throw new BuildingError(NOT_FOUND);
   const rest = await tx.select().from(floor).where(eq(floor.propertyId, f.propertyId));
@@ -283,6 +294,7 @@ export async function updateUnit(tx: Tx, unitId: string, data: UnitEdit) {
 }
 
 export async function deleteUnit(tx: Tx, unitId: string) {
+  await assertNoContracts(tx, or(eq(unit.id, unitId), eq(unit.parentUnitId, unitId)));
   // Al borrar un departamento, sus cuartos se borran con él (regla de la base: "on delete cascade").
   const [removed] = await tx.delete(unit).where(eq(unit.id, unitId)).returning({ floorId: unit.floorId });
   if (!removed) throw new BuildingError(NOT_FOUND);

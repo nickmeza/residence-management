@@ -3,13 +3,12 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { BusinessEditForm } from "@/components/business/business-edit-form";
+import { ConfigTabs } from "@/components/business/config-tabs";
 import { getBusinessForEdit } from "@/server/business/queries";
 
 export const metadata: Metadata = { title: "Configuración · Gestión de residencias" };
 
 const SERVICE_LABEL = { residence: "Residencia", meal_plan: "Pensión" } as const;
-// Pestañas de Configuración del prototipo. Solo "Negocio" existe por ahora.
-const TABS = ["Negocio", "Usuarios y roles", "Plantillas", "Garantía", "Documentos"];
 
 async function Content({ params }: { params: PageProps<"/negocio/[id]">["params"] }) {
   const { id } = await params;
@@ -27,27 +26,7 @@ async function Content({ params }: { params: PageProps<"/negocio/[id]">["params"
           Datos de tu {SERVICE_LABEL[b.service].toLowerCase()}, usuarios y plantillas.
         </p>
       </div>
-      <nav aria-label="Secciones de configuración" className="flex flex-wrap gap-2 border-b pb-3">
-        {TABS.map((tab, i) =>
-          i === 0 ? (
-            <span
-              key={tab}
-              aria-current="page"
-              className="rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground"
-            >
-              {tab}
-            </span>
-          ) : (
-            <span
-              key={tab}
-              aria-disabled="true"
-              className="rounded-lg border bg-card px-3.5 py-2 text-sm font-semibold text-muted-foreground opacity-60"
-            >
-              {tab} <span className="text-xs font-normal">(pronto)</span>
-            </span>
-          ),
-        )}
-      </nav>
+      <ConfigTabs businessId={b.id} current="Negocio" />
       <BusinessEditForm
         id={b.id}
         service={b.service}

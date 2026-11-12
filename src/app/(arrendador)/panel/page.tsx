@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { BusinessCard } from "@/components/business/business-card";
@@ -7,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { greetingFor, greetingName } from "@/lib/greeting";
 import { getShellData } from "@/server/business/current";
 import { getMyOverview } from "@/server/business/overview";
+import { isResidentOnlyAccount } from "@/server/residents/self";
 
 export const metadata: Metadata = { title: "Panel · Gestión de residencias" };
 
@@ -34,6 +36,8 @@ async function Greeting() {
 async function CurrentBusiness() {
   const [{ current }, { businesses }] = await Promise.all([getShellData(), getMyOverview()]);
   const shown = businesses.find((b) => b.id === current?.id);
+  // Quien solo es residente (entró con su código) tiene su propio inicio.
+  if (!businesses.length && (await isResidentOnlyAccount())) redirect("/mi");
   if (!shown) {
     return (
       <section className="flex flex-col items-start gap-3 rounded-xl border bg-card p-6 shadow-card">

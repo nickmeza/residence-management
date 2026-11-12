@@ -36,7 +36,7 @@ export function SignOutButton() {
         <AlertDialogHeader>
           <AlertDialogTitle>¿Cerrar sesión?</AlertDialogTitle>
           <AlertDialogDescription>
-            Tendrás que volver a escribir tu correo y contraseña para entrar.
+            Para volver a entrar tendrás que iniciar sesión de nuevo.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <form action={signOut}>

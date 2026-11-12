@@ -109,10 +109,13 @@ Dos unidades pueden compartir una pared, pero no encimarse.
 | servicio_extra.unidad_cobro | por_dia \| por_mes \| por_vez |  |
 | servicio_extra.activo | booleano |  |
 
-## Persona (en la base, sin dni ni rol todavía)
+## Persona (en la base, sin rol todavía)
 
 Una Persona puede tener cuenta para entrar al sistema (`cuenta_id`) o no tenerla, por ejemplo un residente que aún
 no se registró. Al crear una cuenta, la base crea su Persona sola.
+
+Sus datos personales se comparten entre los negocios donde está inscrita. El arrendador los puede llenar y editar
+**solo mientras la persona no tenga cuenta**; después los edita ella misma.
 
 | Campo | Tipo | Regla o descripción |
 |---|---|---|
@@ -120,22 +123,59 @@ no se registró. Al crear una cuenta, la base crea su Persona sola.
 | cuenta_id | → cuenta de Supabase Auth (opcional) | Única: una cuenta, una Persona. Si se borra la cuenta, la Persona queda sin cuenta. |
 | nombre, email, telefono | texto |  |
 | terminos_aceptados_en | fecha-hora (opcional) | Cuándo aceptó los Términos y la Política de privacidad al registrarse. |
-| dni | texto | Se verifica con el documento subido. |
+| tipo_documento, numero_documento | dni \| carne_extranjeria \| pasaporte, texto (opcionales) | Van juntos. Un DNI tiene 8 dígitos. Puede quedarse solo con el número, sin archivo subido. |
 | rol | arrendador \| encargado \| residente \| externo \| contabilidad \| mantenimiento \| cocina | Una persona puede tener varios roles. |
 
-## Contrato
+## Ficha de residente (en la base)
+
+Una por persona en cada negocio. Lo de aquí es propio del negocio: los demás negocios no lo ven.
 
 | Campo | Tipo | Regla o descripción |
 |---|---|---|
 | id | uuid |  |
-| unidad_id | → Unidad |  |
-| residente_id | → Persona |  |
-| fecha_inicio, fecha_fin | fecha |  |
-| renta_mensual | decimal |  |
-| dia_pago | entero | Ej.: 5. |
-| estado | borrador \| pendiente_firma \| vigente \| por_vencer \| terminado |  |
-| firmado_en | fecha-hora (opcional) | Solo se firma con documentos obligatorios verificados. |
+| negocio_id, persona_id | → Negocio, → Persona | Una sola ficha por persona y negocio. |
+| contacto_emergencia_nombre, contacto_emergencia_telefono | texto (opcional) |  |
+| universidad, notas | texto (opcional) |  |
+| creada_en | fecha-hora |  |
+
+## Invitación de residente (en la base)
+
+| Campo | Tipo | Regla o descripción |
+|---|---|---|
+| id | uuid |  |
+| ficha_id | → Ficha de residente |  |
+| token_hash | texto | Solo el hash del enlace; el enlace mismo no se guarda. |
+| vence_en, aceptada_en | fecha-hora |  |
+| creada_por | → Persona |  |
+
+## Contrato (en la base)
+
+El contrato es el **alquiler** de una unidad, haya papel o no. La **modalidad** dice si hay papel:
+sin contrato escrito (solo el acuerdo de pago), contrato en papel propio (se sube firmado) o desde una plantilla
+(la app genera el PDF, se imprime, se firma y se sube).
+
+| Campo | Tipo | Regla o descripción |
+|---|---|---|
+| id | uuid |  |
+| unidad_id | → Unidad | Debe ser del mismo arrendador. Sin solapes con otro contrato de la unidad (lo valida el servidor). |
+| ficha_id | → Ficha de residente |  |
+| fecha_inicio, fecha_fin | fecha | La fecha de fin es opcional (mes a mes) y no puede ser anterior al inicio. |
+| renta_mensual | decimal | No negativa. |
+| dia_pago | entero 1–31 | Ej.: 5. 31 = fin de mes. |
+| modalidad | sin_contrato \| papel \| plantilla |  |
+| plantilla_id | → Plantilla de contrato | Solo en la modalidad plantilla, y siempre en ella. |
+| estado | borrador \| pendiente_firma \| confirmado \| cancelado | Sin contrato escrito no pasa por pendiente_firma. "Confirmado" se muestra como Firmado (con papel) o Acordado (sin papel). Vigente, por vencer y terminado **no se guardan**: se calculan de las fechas. |
+| confirmado_en, cancelado_en | fecha-hora | Obligatorios en esos estados. Solo se confirma con los documentos obligatorios verificados. |
 | renovado_de_id | → Contrato (opcional) | Enlaza el contrato nuevo con el anterior. |
+
+## Plantilla de contrato (en la base)
+
+| Campo | Tipo | Regla o descripción |
+|---|---|---|
+| id | uuid |  |
+| negocio_id | → Negocio |  |
+| nombre, texto | texto | El texto admite datos que se rellenan solos: {nombre}, {unidad}, {renta}… |
+| creada_en, actualizada_en | fecha-hora |  |
 
 ## Política de garantía
 
@@ -204,18 +244,24 @@ no se registró. Al crear una cuenta, la base crea su Persona sola.
 | renovacion.fecha_limite | fecha |  |
 | renovacion.estado | solicitada \| aprobada \| rechazada |  |
 
-## Documentos
+## Documentos (en la base)
+
+Subir documentos es opcional. Solo los requisitos que el arrendador marca como obligatorios impiden confirmar el
+contrato. Los puede subir el residente o el arrendador, y se guarda quién lo hizo.
 
 | Campo | Tipo | Regla o descripción |
 |---|---|---|
 | requisito.id | uuid |  |
-| requisito.propiedad_id / unidad_id | → Propiedad o Unidad | El arrendador elige por edificio o por unidad. |
-| requisito.nombre, descripcion, obligatorio | texto, texto, booleano |  |
-| requisito.formatos, tam_max_mb | lista, entero | Ej.: PDF o foto, 5 MB. |
+| requisito.negocio_id, propiedad_id | → Negocio, → Propiedad (opcional) | Sin propiedad: vale para todo el negocio. |
+| requisito.nombre, descripcion, obligatorio | texto, texto, booleano | Obligatorio: no, salvo que el arrendador lo marque. |
+| requisito.formatos, tam_max_mb | lista de pdf \| imagen, entero 1–20 | Ej.: PDF o foto, 5 MB. |
 | documento.id | uuid |  |
-| documento.requisito_id, contrato_id | → Requisito, → Contrato |  |
-| documento.archivo | archivo |  |
-| documento.estado | pendiente \| en_revision \| verificado \| rechazado |  |
+| documento.ficha_id | → Ficha de residente |  |
+| documento.tipo | requisito \| contrato_firmado \| otro | Un contrato firmado siempre apunta a su contrato. |
+| documento.requisito_id, contrato_id | → Requisito, → Contrato (opcionales) |  |
+| documento.ruta, nombre_archivo, tipo_archivo, tamano | texto, entero | Archivo privado en Supabase Storage. |
+| documento.estado | en_revision \| verificado \| rechazado | El residente no puede verificar los suyos. Rechazar exige un motivo. |
+| documento.subido_por, subido_en | → Persona, fecha-hora |  |
 | documento.revisado_por, revisado_en, motivo_rechazo | → Persona, fecha-hora, texto |  |
 
 ## Pensión
