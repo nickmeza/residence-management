@@ -105,7 +105,9 @@ async function ensureDeposit(tx: Tx, c: LoadedContract): Promise<void> {
     .insert(charge)
     .values({ contractId: c.id, concept: "deposit", period: periodOf(due), amount, dueDate: due })
     .returning({ id: charge.id });
-  await tx.insert(deposit).values({ contractId: c.id, amount, rule: policy.rule, status: "held", chargeId: row.id });
+  await tx
+    .insert(deposit)
+    .values({ contractId: c.id, amount, rule: policy.rule, status: "held", chargeId: row.id });
 }
 
 // Deja los cargos de renta igual a lo que dice el contrato (meses, días del mes incompleto, día de pago).
@@ -170,7 +172,9 @@ export async function syncBusinessBilling(tx: Tx, businessId: string, now = new 
     .select({ id: contract.id })
     .from(contract)
     .innerJoin(resident, eq(resident.id, contract.residentId))
-    .where(and(eq(resident.businessId, businessId), inArray(contract.status, ["confirmed", "pending_signature"])));
+    .where(
+      and(eq(resident.businessId, businessId), inArray(contract.status, ["confirmed", "pending_signature"])),
+    );
   await syncContractBilling(
     tx,
     rows.map((r) => r.id),

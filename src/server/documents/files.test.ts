@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_LIMITS, fileProblem, isPathOf, storagePath } from "./files";
+import { DEFAULT_LIMITS, fileProblem, folderPath, isFolderPathOf, isPathOf, storagePath } from "./files";
 
 const MB = 1024 * 1024;
 
@@ -28,5 +28,20 @@ describe("archivos de documentos", () => {
     expect(isPathOf(path, "neg", "ficha")).toBe(true);
     expect(isPathOf(path, "neg", "otra")).toBe(false);
     expect(isPathOf(`neg/ficha/../otra/${id}.jpg`, "neg", "ficha")).toBe(false);
+  });
+});
+
+describe("archivos de cobros y garantía", () => {
+  const biz = "11111111-1111-4111-8111-111111111111";
+  const res = "22222222-2222-4222-8222-222222222222";
+  const file = "33333333-3333-4333-8333-333333333333";
+
+  it("van en una carpeta aparte dentro de la ficha", () => {
+    const path = folderPath(biz, res, "comprobantes", file, "image/png");
+    expect(path).toBe(`${biz}/${res}/comprobantes/${file}.png`);
+    expect(isFolderPathOf(path, biz, res, "comprobantes")).toBe(true);
+    expect(isFolderPathOf(path, biz, res, "ingreso")).toBe(false);
+    expect(isFolderPathOf(`${biz}/${res}/${file}.png`, biz, res, "comprobantes")).toBe(false);
+    expect(isFolderPathOf(`${biz}/otra/comprobantes/${file}.png`, biz, res, "comprobantes")).toBe(false);
   });
 });

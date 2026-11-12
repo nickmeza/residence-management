@@ -75,7 +75,11 @@ export const contractSchema = z
   .superRefine((v, ctx) => {
     checkTerms(v, ctx);
     if (v.depositRule === "fixed" && !v.depositFixedAmount) {
-      ctx.addIssue({ code: "custom", path: ["depositFixedAmount"], message: "Escribe el monto de la garantía." });
+      ctx.addIssue({
+        code: "custom",
+        path: ["depositFixedAmount"],
+        message: "Escribe el monto de la garantía.",
+      });
     }
     if (v.depositDueDate && v.depositDueDate < v.startDate) {
       ctx.addIssue({

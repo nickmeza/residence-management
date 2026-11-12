@@ -57,8 +57,7 @@ function ContractForm({
   // "1 mes de renta · S/ 650" con la renta escrita (si todavía no es un monto válido, sin el monto).
   const defaultDeposit = (() => {
     if (!unitDeposit) return "Elige la unidad para ver cuánto le toca.";
-    const label =
-      unitDeposit.rule === "fixed" ? "Monto fijo" : DEPOSIT_RULE_LABEL[unitDeposit.rule];
+    const label = unitDeposit.rule === "fixed" ? "Monto fijo" : DEPOSIT_RULE_LABEL[unitDeposit.rule];
     if (unitDeposit.rule === "none") return label;
     try {
       return `${label} · ${formatSoles(depositAmount(unitDeposit, rent || "0"))}`;
@@ -207,12 +206,17 @@ function ContractForm({
                 ))}
               </select>
               <p className="text-sm text-muted-foreground">
-                La de siempre sale de la unidad o de Configuración › Garantía. Cámbiala solo si con esta persona
-                es distinto, por ejemplo un familiar.
+                La de siempre sale de la unidad o de Configuración › Garantía. Cámbiala solo si con esta
+                persona es distinto, por ejemplo un familiar.
               </p>
             </div>
             {depositRule === "fixed" ? (
-              <TextField name="depositFixedAmount" label="Monto de la garantía" prefix="S/" inputMode="decimal" />
+              <TextField
+                name="depositFixedAmount"
+                label="Monto de la garantía"
+                prefix="S/"
+                inputMode="decimal"
+              />
             ) : null}
             {depositRule !== "none" ? (
               <TextField

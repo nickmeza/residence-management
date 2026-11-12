@@ -57,7 +57,10 @@ export function rentCharges(input: {
   const first = periodOf(input.startDate);
   const last = input.endDate
     ? periodOf(input.endDate)
-    : nextPeriod(periodOf(input.today > input.startDate ? input.today : input.startDate), OPEN_ENDED_MONTHS - 1);
+    : nextPeriod(
+        periodOf(input.today > input.startDate ? input.today : input.startDate),
+        OPEN_ENDED_MONTHS - 1,
+      );
   const charges: RentCharge[] = [];
   for (let period = first; period <= last; period = nextPeriod(period)) {
     const monthStart = `${period}-01`;
@@ -66,12 +69,16 @@ export function rentCharges(input: {
     const to = input.endDate && input.endDate < monthEnd ? input.endDate : monthEnd;
     const days = daysBetween(from, to) + 1;
     const partial = days < daysInPeriod(period);
-    const amount =
-      partial && input.prorate ? Math.round((rent * days) / daysInPeriod(period)) : rent;
+    const amount = partial && input.prorate ? Math.round((rent * days) / daysInPeriod(period)) : rent;
     let due = dueDate(period, input.paymentDay);
     if (due < from) due = from;
     if (due > to) due = to;
-    charges.push({ period, amount: fromCents(amount), dueDate: due, days: partial && input.prorate ? days : null });
+    charges.push({
+      period,
+      amount: fromCents(amount),
+      dueDate: due,
+      days: partial && input.prorate ? days : null,
+    });
   }
   return charges;
 }
@@ -151,7 +158,12 @@ export function receiptSummary(input: {
 }
 
 // "Vencido · faltan S/ 200" o "Pago parcial · faltan S/ 200" (siempre con texto, no solo color).
-export function receiptLabel(status: ReceiptStatus, balance: string, paid: string, format: (a: string) => string | null) {
+export function receiptLabel(
+  status: ReceiptStatus,
+  balance: string,
+  paid: string,
+  format: (a: string) => string | null,
+) {
   if ((status === "overdue" || status === "partial") && toCents(paid) > 0) {
     return `${RECEIPT_STATUS_LABEL[status]} · faltan ${format(balance)}`;
   }
@@ -179,4 +191,3 @@ export const CONCEPT_LABEL: Record<ChargeConcept, string> = {
   deposit: "Garantía",
   damages: "Daños que pasan la garantía",
 };
-

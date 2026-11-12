@@ -86,15 +86,23 @@ function example(rule: DepositRule, fixed: string, rent: string | null) {
 
 // Configuración › Garantía: cuánto se pide por tipo de unidad, excepciones por unidad, qué cubre y cómo se devuelve.
 // Igual que con los documentos: esto es lo de siempre; a una persona puntual se le cambia en su contrato.
-export function DepositSettingsEditor({ businessId, view }: { businessId: string; view: DepositSettingsView }) {
+export function DepositSettingsEditor({
+  businessId,
+  view,
+}: {
+  businessId: string;
+  view: DepositSettingsView;
+}) {
   const router = useRouter();
   const [values, setValues] = useState<Values>(view.values);
   const [error, setError] = useState<{ message: string; fields: Record<string, string> }>();
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [exception, setException] = useState<{ unitId: string; rule: DepositRule; fixedAmount: string } | null>(
-    null,
-  );
+  const [exception, setException] = useState<{
+    unitId: string;
+    rule: DepositRule;
+    fixedAmount: string;
+  } | null>(null);
   const [exceptionError, setExceptionError] = useState<string>();
 
   const set = (patch: Partial<Values>) => {
@@ -154,7 +162,9 @@ export function DepositSettingsEditor({ businessId, view }: { businessId: string
               value={values[amountKey]}
               onChange={(e) => set({ [amountKey]: e.target.value })}
             />
-            {error?.fields[amountKey] ? <p className="text-sm text-danger">{error.fields[amountKey]}</p> : null}
+            {error?.fields[amountKey] ? (
+              <p className="text-sm text-danger">{error.fields[amountKey]}</p>
+            ) : null}
           </div>
         ) : null}
         <p className="text-sm text-muted-foreground">
@@ -173,8 +183,8 @@ export function DepositSettingsEditor({ businessId, view }: { businessId: string
       <div className="flex min-w-0 flex-col gap-6">
         {!view.saved ? (
           <p className="rounded-lg bg-warn-soft px-3 py-2.5 text-sm text-warn">
-            Todavía no pides garantía a nadie. Elige cuánto y guarda: valdrá para los contratos que confirmes desde
-            ahora.
+            Todavía no pides garantía a nadie. Elige cuánto y guarda: valdrá para los contratos que confirmes
+            desde ahora.
           </p>
         ) : null}
 
@@ -197,10 +207,15 @@ export function DepositSettingsEditor({ businessId, view }: { businessId: string
           {view.exceptions.length ? (
             <ul>
               {view.exceptions.map((e) => (
-                <li key={e.unitId} className="flex flex-wrap items-center gap-3 border-t py-3 first:border-t-0">
+                <li
+                  key={e.unitId}
+                  className="flex flex-wrap items-center gap-3 border-t py-3 first:border-t-0"
+                >
                   <b className="min-w-40 flex-1">{unitLabel(e.unitId)}</b>
                   <StatusBadge tone={e.rule === "none" ? "neutral" : "primary"}>
-                    {e.rule === "fixed" ? `Monto fijo ${formatSoles(e.fixedAmount)}` : DEPOSIT_RULE_LABEL[e.rule]}
+                    {e.rule === "fixed"
+                      ? `Monto fijo ${formatSoles(e.fixedAmount)}`
+                      : DEPOSIT_RULE_LABEL[e.rule]}
                   </StatusBadge>
                   <Button
                     type="button"
@@ -250,7 +265,11 @@ export function DepositSettingsEditor({ businessId, view }: { businessId: string
                     className="size-5 accent-primary"
                     checked={values.covers.includes(a)}
                     onChange={(e) =>
-                      set({ covers: e.target.checked ? [...values.covers, a] : values.covers.filter((x) => x !== a) })
+                      set({
+                        covers: e.target.checked
+                          ? [...values.covers, a]
+                          : values.covers.filter((x) => x !== a),
+                      })
                     }
                   />
                   {AREA_LABEL[a]}
@@ -262,7 +281,9 @@ export function DepositSettingsEditor({ businessId, view }: { businessId: string
             <span className="text-sm font-semibold">Plazo de devolución</span>
             <Chips
               options={["3", "7", "15"] as const}
-              value={(["3", "7", "15"].includes(values.refundDays) ? values.refundDays : "7") as "3" | "7" | "15"}
+              value={
+                (["3", "7", "15"].includes(values.refundDays) ? values.refundDays : "7") as "3" | "7" | "15"
+              }
               label={(d) => `${d} días hábiles`}
               onChange={(d) => set({ refundDays: d })}
             />
@@ -317,9 +338,7 @@ export function DepositSettingsEditor({ businessId, view }: { businessId: string
 
         <section className={card}>
           <h2 className="mb-1 text-lg font-bold">Cobro del mes incompleto</h2>
-          <p className="mb-3 text-sm text-muted-foreground">
-            Cuando alguien entra o sale a mitad de mes.
-          </p>
+          <p className="mb-3 text-sm text-muted-foreground">Cuando alguien entra o sale a mitad de mes.</p>
           <Chips
             options={["prorate", "full"] as const}
             value={values.prorateRent ? "prorate" : "full"}
@@ -358,7 +377,12 @@ export function DepositSettingsEditor({ businessId, view }: { businessId: string
             {previewRule === "none"
               ? "Sin garantía"
               : previewRent || previewRule === "fixed"
-                ? formatSoles(depositAmount({ rule: previewRule, fixedAmount: previewFixed || "0" }, previewRent ?? "0"))
+                ? formatSoles(
+                    depositAmount(
+                      { rule: previewRule, fixedAmount: previewFixed || "0" },
+                      previewRent ?? "0",
+                    ),
+                  )
                 : DEPOSIT_RULE_LABEL[previewRule]}
           </p>
           {previewRule !== "none" ? (
@@ -384,7 +408,9 @@ export function DepositSettingsEditor({ businessId, view }: { businessId: string
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Excepción de garantía</DialogTitle>
-            <DialogDescription>Vale para los contratos de esta unidad que confirmes desde ahora.</DialogDescription>
+            <DialogDescription>
+              Vale para los contratos de esta unidad que confirmes desde ahora.
+            </DialogDescription>
           </DialogHeader>
           {exception ? (
             <div className="flex flex-col gap-4">

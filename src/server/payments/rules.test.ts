@@ -107,7 +107,12 @@ describe("estado del recibo", () => {
 
   it("acepta pagos parciales: se aplican en orden de vencimiento", () => {
     const partial = receiptSummary({ charges, confirmedPayments: [{ amount: "700" }], today: "2026-04-03" });
-    expect(partial).toMatchObject({ status: "partial", paid: "700.00", balance: "500.00", nextDue: "2026-04-05" });
+    expect(partial).toMatchObject({
+      status: "partial",
+      paid: "700.00",
+      balance: "500.00",
+      nextDue: "2026-04-05",
+    });
     const after = receiptSummary({ charges, confirmedPayments: [{ amount: "700" }], today: "2026-04-06" });
     expect(after.status).toBe("overdue");
   });

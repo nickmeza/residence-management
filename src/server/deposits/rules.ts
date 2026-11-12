@@ -40,7 +40,8 @@ export function depositAmount(policy: DepositPolicy, monthlyRent: string): strin
 
 // "1 mes de renta", "Monto fijo de S/ 300"… para mostrar de dónde sale el monto.
 export function policyLabel(policy: DepositPolicy, formatMoney: (amount: string) => string | null) {
-  if (policy.rule === "fixed" && policy.fixedAmount) return `Monto fijo de ${formatMoney(policy.fixedAmount)}`;
+  if (policy.rule === "fixed" && policy.fixedAmount)
+    return `Monto fijo de ${formatMoney(policy.fixedAmount)}`;
   return DEPOSIT_RULE_LABEL[policy.rule];
 }
 

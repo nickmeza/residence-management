@@ -34,7 +34,8 @@ const RULES = ["none", "one_month", "two_months", "fixed"] as const;
 const optionalMoney = z.union([z.literal(""), money]).transform((v) => v || null);
 
 function checkFixed(rule: string, amount: string | null, path: string, ctx: z.RefinementCtx) {
-  if (rule === "fixed" && !amount) ctx.addIssue({ code: "custom", path: [path], message: "Escribe el monto." });
+  if (rule === "fixed" && !amount)
+    ctx.addIssue({ code: "custom", path: [path], message: "Escribe el monto." });
 }
 
 // Configuración › Garantía.
@@ -65,7 +66,11 @@ export type DepositSettingsData = z.output<typeof depositSettingsSchema>;
 
 // Excepción por unidad (GA-02).
 export const unitExceptionSchema = z
-  .object({ unitId: z.uuid("Elige la unidad."), rule: z.enum(RULES), fixedAmount: z.union([z.literal(""), money]) })
+  .object({
+    unitId: z.uuid("Elige la unidad."),
+    rule: z.enum(RULES),
+    fixedAmount: z.union([z.literal(""), money]),
+  })
   .superRefine((v, ctx) => checkFixed(v.rule, v.fixedAmount || null, "fixedAmount", ctx))
   .transform((v) => ({ ...v, fixedAmount: v.rule === "fixed" ? v.fixedAmount : null }));
 
@@ -113,7 +118,11 @@ export type EntryReportInput = z.input<typeof entryReportSchema>;
 // Descuento de la liquidación (arrendador).
 export const discountSchema = z.object({
   area: z.enum(INSPECTION_AREAS, "Elige el rubro."),
-  note: z.string().trim().min(3, "Explica el descuento: el residente lo verá.").max(300, "Es demasiado largo."),
+  note: z
+    .string()
+    .trim()
+    .min(3, "Explica el descuento: el residente lo verá.")
+    .max(300, "Es demasiado largo."),
   amount: positiveMoney,
   photoPath: z.union([z.literal(""), filePath]).transform((v) => v || null),
   worseThanEntry: z.boolean(),
@@ -146,5 +155,9 @@ export const settlementResponseSchema = z.object({
 });
 
 export const disputeSchema = z.object({
-  reason: z.string().trim().min(5, "Cuéntale al arrendador por qué no estás de acuerdo.").max(300, "Es demasiado largo."),
+  reason: z
+    .string()
+    .trim()
+    .min(5, "Cuéntale al arrendador por qué no estás de acuerdo.")
+    .max(300, "Es demasiado largo."),
 });

@@ -76,3 +76,30 @@ export function isPathOf(path: string, businessId: string, residentId: string) {
     /^[0-9a-f-]{36}\.(pdf|jpg|png|webp|heic)$/.test(parts[2])
   );
 }
+
+// Archivos de cobros y garantía (Fase 5): <negocio>/<ficha>/<carpeta>/<id al azar>.<ext>. Las reglas de Storage
+// siguen leyendo las dos primeras carpetas, así que valen igual para quién puede verlos o subirlos.
+export const FILE_FOLDERS = ["comprobantes", "ingreso", "liquidacion", "devoluciones"] as const;
+export type FileFolder = (typeof FILE_FOLDERS)[number];
+
+export function folderPath(
+  businessId: string,
+  residentId: string,
+  folder: FileFolder,
+  fileId: string,
+  mimeType: string,
+) {
+  return `${businessId}/${residentId}/${folder}/${fileId}.${MIME_EXTENSION[mimeType] ?? "bin"}`;
+}
+
+// ¿La ruta es de esta ficha, de esa carpeta y con la forma que crea folderPath?
+export function isFolderPathOf(path: string, businessId: string, residentId: string, folder: FileFolder) {
+  const parts = path.split("/");
+  return (
+    parts.length === 4 &&
+    parts[0] === businessId &&
+    parts[1] === residentId &&
+    parts[2] === folder &&
+    /^[0-9a-f-]{36}\.(pdf|jpg|png|webp|heic)$/.test(parts[3])
+  );
+}

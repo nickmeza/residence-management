@@ -13,7 +13,8 @@ import * as m from "./settings";
 // Acciones de Configuración › Garantía. Los cambios valen para los contratos que se confirmen desde ahora: la
 // garantía de un contrato se calcula una sola vez, al confirmarlo.
 
-export type SettingsResult = { ok: true } | { ok: false; message: string; fieldErrors?: Record<string, string> };
+export type SettingsResult =
+  { ok: true } | { ok: false; message: string; fieldErrors?: Record<string, string> };
 
 async function run(businessId: string, change: Parameters<typeof withRls<void>>[1]): Promise<SettingsResult> {
   const claims = await getSessionClaims();
