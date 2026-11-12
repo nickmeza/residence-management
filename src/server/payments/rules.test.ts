@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { fromCents, toCents } from "./money";
 import {
   chargeChanges,
+  coveredChargeIds,
   daysLate,
   dueDate,
   groupByBusiness,
@@ -143,5 +144,16 @@ describe("recibo único", () => {
       ["residencia", 2],
       ["pension", 1],
     ]);
+  });
+});
+
+describe("cargos cubiertos", () => {
+  it("un pago parcial cubre primero lo que vence antes", () => {
+    const charges = [
+      { id: "renta", amount: "600", dueDate: "2026-04-05" },
+      { id: "garantia", amount: "600", dueDate: "2026-04-01" },
+    ];
+    expect([...coveredChargeIds(charges, [{ amount: "700" }])]).toEqual(["garantia"]);
+    expect(coveredChargeIds(charges, []).size).toBe(0);
   });
 });

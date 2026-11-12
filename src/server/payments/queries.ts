@@ -10,7 +10,7 @@ import { limaToday } from "@/server/contracts/dates";
 
 import { syncBusinessBilling } from "./billing";
 import { toCents } from "./money";
-import { periodOf, proofMismatch, receiptSummary, type ChargeConcept } from "./rules";
+import { coveredChargeIds, periodOf, proofMismatch, receiptSummary, type ChargeConcept } from "./rules";
 
 // Lo que ve el arrendador en Cobros (PG-01, PG-04, PG-09) y en el detalle de un recibo (PG-02).
 // Un recibo = todo lo que un residente le debe a este negocio en un mes. No es una tabla: sale de los cargos.
@@ -122,7 +122,7 @@ export function buildReceipts(
 }
 
 // Cargos y pagos de los residentes de un negocio (opcional: solo de un residente).
-async function loadBusiness(tx: Tx, businessId: string, residentId?: string) {
+export async function loadBusiness(tx: Tx, businessId: string, residentId?: string) {
   const where = residentId
     ? and(eq(resident.businessId, businessId), eq(resident.id, residentId))
     : eq(resident.businessId, businessId);
@@ -302,4 +302,22 @@ export async function getReceipt(residentId: string, period: string): Promise<Re
       periods: all.map((r) => r.period).sort(),
     };
   });
+}
+
+// Ids de los cargos ya cubiertos por pagos confirmados, recibo por recibo (por ejemplo, para saber si la garantía
+// ya se pagó aunque ese recibo todavía tenga saldo).
+export function coveredCharges(data: Awaited<ReturnType<typeof loadBusiness>>) {
+  const covered = new Set<string>();
+  const keys = new Set(data.charges.map((c) => `${c.residentId}|${c.period}`));
+  for (const key of keys) {
+    const [residentId, period] = key.split("|");
+    const ids = coveredChargeIds(
+      data.charges.filter((c) => c.residentId === residentId && c.period === period),
+      data.payments.filter(
+        (p) => p.residentId === residentId && p.period === period && p.status === "confirmed",
+      ),
+    );
+    for (const id of ids) covered.add(id);
+  }
+  return covered;
 }

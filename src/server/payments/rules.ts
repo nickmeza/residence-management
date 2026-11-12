@@ -191,3 +191,20 @@ export const CONCEPT_LABEL: Record<ChargeConcept, string> = {
   deposit: "Garantía",
   damages: "Daños que pasan la garantía",
 };
+
+// ¿Qué cargos de un recibo ya quedaron cubiertos? Los pagos confirmados se aplican en orden de vencimiento,
+// igual que en receiptSummary. Sirve para saber si la garantía ya se pagó aunque el recibo siga con saldo.
+export function coveredChargeIds(
+  charges: { id: string; amount: string; dueDate: IsoDate }[],
+  confirmedPayments: { amount: string }[],
+): Set<string> {
+  let left = sumCents(confirmedPayments.map((p) => toCents(p.amount)));
+  const covered = new Set<string>();
+  for (const c of [...charges].sort((a, b) => a.dueDate.localeCompare(b.dueDate))) {
+    const amount = toCents(c.amount);
+    if (left < amount) break;
+    left -= amount;
+    covered.add(c.id);
+  }
+  return covered;
+}
