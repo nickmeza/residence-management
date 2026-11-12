@@ -50,7 +50,8 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 1 · Datos y cuentas | ✅ Terminada |
 | 2 · Registro y edificio en modo simple | ✅ Terminada |
 | 3 · Edificio en 3D | ✅ Terminada |
-| 4 · Residentes, contratos y documentos | En curso |
+| 4 · Residentes, contratos y documentos | ✅ Terminada |
+| 5 · Cobros y garantía | En curso (en revisión del dueño) |
 
 ### Fase 0, paso a paso
 
@@ -103,6 +104,18 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 4.4 Plantillas y PDF | Configuración › Plantillas (`/negocio/[id]/plantillas`): editor con datos que se rellenan solos, vista previa y PDF de ejemplo. Los contratos desde plantilla se descargan en PDF (`/contratos/[id]/pdf`) para imprimir y firmar |
 | 4.5 Documentos | Configuración › Documentos: listas de Cuarto y Departamento, obligatorio u opcional, Activo. En el perfil: "Pedírselo", subir, Ver (enlace de 5 min en `/documentos/[id]`), Verificar y Rechazar con motivo. En el contrato: copia firmada y "Confirmar contrato firmado". Archivos en el espacio privado `documents` (migración 0007) |
 | 4.6 Residente y seguridad | Invitación `/invitacion/[token]` → código al correo → cuenta enlazada a su ficha. Entrada sin contraseña en `/entrar`. Lado del residente en `/mi` (inicio, documentos, contrato y su PDF). Pruebas con dos arrendadores y un residente en `tests/db` |
+### Fase 5, paso a paso
+
+| Paso | Qué se hizo |
+| ---- | ----------- |
+| 5.1 Datos y reglas | Migración 0010: `deposit_settings`, `deposit_unit_exception`, `charge`, `payment`, `deposit`, `entry_report`, `settlement`, `settlement_discount`, `deposit_refund` y la bitácora `money_log`, con RLS. Reglas puras en `src/server/payments/rules.ts` y `src/server/deposits/rules.ts` |
+| 5.2 Configuración › Garantía | `/negocio/[id]/garantia`: cuánto se pide por tipo de unidad, excepciones por unidad, qué cubre, plazo y métodos de devolución, días para reportar lo de ingreso y cobro del mes incompleto |
+| 5.3 Garantía en el contrato | Al crear el contrato se puede cambiar la garantía para esa persona y cuándo se cobra. Al confirmarlo se crean la garantía y un recibo por mes (`src/server/payments/billing.ts`); al terminar o cambiar condiciones se corrigen solos; al renovar, la garantía pasa al contrato nuevo |
+| 5.4 Cobros | `/cobros` (mes a mes: cobrado, pendiente, vencido, comprobantes por revisar, morosidad, registrar pago) y `/cobros/[residente]/[mes]` (detalle del recibo, pagos, confirmar, rechazar o anular) |
+| 5.5 Residente | `/mi/pagos` (recibo del mes, cómo pagar, subir comprobante, próximos e historial) y `/mi/garantia` (estado, qué cubre, reportar lo que ya estaba mal, responder la liquidación) |
+| 5.6 Liquidación | `/garantias` (retenido, por liquidar, devuelto) y `/garantias/[id]` (descuentos con nota y foto, enviar, responder disputas, registrar devolución, cobrar o perdonar la diferencia, cerrar) |
+| 5.7 Pruebas | `tests/db/payments.test.ts`: recibos, renovación, RLS con dos arrendadores y un residente, liquidación y plazo del reporte de ingreso |
+
 ### Pantallas de la app (después de iniciar sesión)
 
 | Dirección | Qué es |
@@ -119,6 +132,12 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | `/negocio/[id]/plantillas` | Configuración › Plantillas: crear, editar y borrar plantillas de contrato |
 | `/contratos/[id]/pdf` | PDF del contrato desde su plantilla, listo para imprimir |
 | `/negocio/[id]/documentos` | Configuración › Documentos: requisitos que pides a los residentes |
+| `/negocio/[id]/garantia` | Configuración › Garantía: política, excepciones, devolución y cobro del mes incompleto |
+| `/cobros` | Cobros y morosidad del mes (`?mes=AAAA-MM` para otro mes) |
+| `/cobros/[residente]/[mes]` | Un recibo: cargos, pagos y registrar un pago |
+| `/garantias` y `/garantias/[id]` | Garantías del negocio y liquidar una |
+| `/archivos/[tipo]/[id]` | Abre un comprobante o una foto con un enlace que vence en 5 minutos |
+| `/mi/pagos` y `/mi/garantia` | Lado del residente: sus pagos y su garantía |
 
 ## Base de datos
 
@@ -220,3 +239,21 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-11 | El residente entra **sin contraseña, con un código de 6 números al correo** | Lo eligió el dueño. Entrar solo con el enlace no es seguro para DNI y contratos (el enlace se reenvía). |
 | 2026-11-11 | Al aceptar la invitación, **ganan los datos del residente**; lo que le falte se completa con lo del arrendador | Lo decidió el dueño. |
 | 2026-11-11 | El residente **no lee las tablas del arrendador**; sus nombres de residencia y unidad salen de `my_resident_places()` | Varias pantallas del arrendador asumen "si veo el negocio, es mío" (por ejemplo, el selector de negocio). |
+| 2026-11-12 | Garantía en **tres niveles**: configuración del negocio por tipo de unidad → excepción por unidad → lo decidido para esta persona en su contrato | Lo pidió el dueño, igual que los documentos (por ejemplo, a un familiar no se le pide o se le cobra después). |
+| 2026-11-12 | Sin configuración guardada **no se pide garantía** | Mejor no cobrar algo que el arrendador no eligió. |
+| 2026-11-12 | La garantía se calcula **una vez, al confirmar** el contrato; cambiar la configuración vale para los siguientes | El monto acordado no debe cambiar solo. |
+| 2026-11-12 | Los recibos se crean **todos al confirmar** (uno por mes); los mes a mes, 12 meses hacia adelante y se extienden solos al abrir Cobros | Decisión del dueño (pregunta 5). Sin tareas programadas hasta la Fase 8. |
+| 2026-11-12 | El recibo **no es una tabla**: es lo que un residente le debe a un negocio en un mes. Pagado, pendiente y vencido se calculan | Igual que vigente/terminado en los contratos: no hay estados que se desincronicen. |
+| 2026-11-12 | Mes incompleto **proporcional a los días** por defecto; el arrendador puede elegir mes completo | Decisión del dueño (pregunta 4). |
+| 2026-11-12 | **Pagos parciales**: se aplican en orden de vencimiento ("Pago parcial · faltan S/ X"); lo pagado de más queda como saldo a favor del mes | Decisión del dueño (pregunta 7). |
+| 2026-11-12 | **Sin mora**: solo "Vencido" y días de atraso | Decisión del dueño (pregunta 8). |
+| 2026-11-12 | Todo comprobante del residente queda **en revisión**; si el monto no coincide, se avisa al revisarlo | Sin pago en línea no hay cómo confirmarlo solo. |
+| 2026-11-12 | Un pago confirmado por error se **anula** con motivo (queda rechazado), no se borra | Queda en la bitácora. |
+| 2026-11-12 | Descuento **disputado aparte**: no se resta ni se paga; se devuelve ya lo que nadie discute | Decisión del dueño (pregunta 2). |
+| 2026-11-12 | Regla 8: en un rubro reportado al ingresar solo se descuenta si **está peor**, con foto | Decisión del dueño (pregunta 3). |
+| 2026-11-12 | Lo de ingreso lo **reporta el residente** cuando lo nota (con foto), sin revisar todo el cuarto, durante los primeros días (7 por defecto, configurable) | Decisión del dueño (pregunta 10). El plazo evita reportar al salir; lo revisa también la base. |
+| 2026-11-12 | Descuentos que pasan la garantía: el arrendador elige **cobrar la diferencia** (cargo en el recibo del mes) o **perdonarla** | Decisión del dueño (pregunta 9); la probará y confirmará. |
+| 2026-11-12 | Comprobantes y fotos en el espacio privado `documents`, en carpetas aparte (`comprobantes`, `ingreso`, `liquidacion`, `devoluciones`) | Decisión del dueño (pregunta 12). Usa las mismas reglas de Storage de la Fase 4. |
+| 2026-11-12 | Las respuestas del residente (aceptar, disputar, dónde recibe) pasan por **funciones de la base**, no por permiso de escritura | Así no puede tocar montos ni estados ni siquiera por la API. |
+| 2026-11-12 | **Bitácora** `money_log` llenada por triggers en las tablas de dinero; solo la lee el administrador | CLAUDE.md, sección 10. Anota también lo que entre por la API. Pantalla para verla: más adelante. |
+| 2026-11-12 | Gastos y resumen financiero (PG-05, PG-06) quedan para la Fase 7 | Decisión del dueño (pregunta 11). |
