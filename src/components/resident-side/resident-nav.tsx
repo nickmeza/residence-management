@@ -1,13 +1,15 @@
 "use client";
 
-import { FileText, Home, ScrollText } from "lucide-react";
+import { FileText, Home, ScrollText, ShieldCheck, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LINKS = [
   { href: "/mi", label: "Inicio", icon: Home },
   { href: "/mi/documentos", label: "Documentos", icon: FileText },
+  { href: "/mi/pagos", label: "Pagos", icon: Wallet },
   { href: "/mi/contrato", label: "Contrato", icon: ScrollText },
+  { href: "/mi/garantia", label: "Garantía", icon: ShieldCheck },
 ] as const;
 
 // Navegación del residente: abajo en el celular (al alcance del pulgar), arriba en pantallas grandes.
@@ -27,7 +29,7 @@ export function ResidentNav() {
                 href={href}
                 aria-current={current ? "page" : undefined}
                 className={
-                  "flex min-h-14 flex-col items-center justify-center gap-0.5 px-4 text-xs font-semibold transition-colors duration-200 sm:min-h-11 sm:flex-row sm:gap-2 sm:rounded-lg sm:text-sm " +
+                  "flex min-h-14 flex-col items-center justify-center gap-0.5 px-2 text-xs font-semibold transition-colors duration-200 sm:min-h-11 sm:flex-row sm:gap-2 sm:rounded-lg sm:text-sm " +
                   (current
                     ? "text-primary-text sm:bg-primary-soft"
                     : "text-muted-foreground hover:text-foreground")

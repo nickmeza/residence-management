@@ -346,13 +346,25 @@ export async function getDepositDetail(depositId: string): Promise<DepositDetail
             closedAt: s.closedAt,
             excessCharged: s.excessChargeId !== null,
             excessWaived: s.excessWaived,
-            discounts: discounts.map(({ photoPath, settlementId: _, ...x }) => ({
-              ...x,
-              hasPhoto: photoPath !== null,
+            // Sin la ruta del archivo ni el id de la liquidación: la pantalla solo necesita saber si hay foto.
+            discounts: discounts.map((x) => ({
+              id: x.id,
+              area: x.area,
+              note: x.note,
+              amount: x.amount,
+              originalAmount: x.originalAmount,
+              hasPhoto: x.photoPath !== null,
+              worseThanEntry: x.worseThanEntry,
+              status: x.status,
+              disputeReason: x.disputeReason,
             })),
-            refunds: refunds.map(({ proofPath, settlementId: _, ...x }) => ({
-              ...x,
-              hasProof: proofPath !== null,
+            refunds: refunds.map((x) => ({
+              id: x.id,
+              amount: x.amount,
+              method: x.method,
+              paidOn: x.paidOn,
+              operationCode: x.operationCode,
+              hasProof: x.proofPath !== null,
             })),
             summary,
           }
