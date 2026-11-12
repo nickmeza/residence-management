@@ -61,7 +61,7 @@ export const DEPOSIT_CHOICES = ["", "none", "one_month", "two_months", "fixed"] 
 const money = z
   .string()
   .trim()
-  .regex(/^d{1,8}(.d{1,2})?$/, "Escribe un monto, por ejemplo 650 o 650.50.");
+  .regex(/^\d{1,8}(\.\d{1,2})?$/, "Escribe un monto, por ejemplo 650 o 650.50.");
 
 const depositShape = {
   depositRule: z.enum(DEPOSIT_CHOICES).transform((v) => v || null),

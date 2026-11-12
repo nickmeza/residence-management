@@ -117,6 +117,9 @@ const data = (over: Partial<ContractFormInput> & { residentId: string; unitId: s
     paymentDay: "5",
     paperwork: "none",
     templateId: "",
+    depositRule: "",
+    depositFixedAmount: "",
+    depositDueDate: "",
     ...over,
   });
 

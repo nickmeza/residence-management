@@ -48,3 +48,26 @@ describe("formulario de contrato", () => {
     expect(contractSchema.parse({ ...valid, paperwork: "paper", templateId: UUID }).templateId).toBeNull();
   });
 });
+
+describe("garantía para esta persona", () => {
+  it("vacío = la de siempre; monto fijo pide el monto; no se cobra antes del inicio", () => {
+    expect(contractSchema.parse(valid)).toMatchObject({ depositRule: null, depositFixedAmount: null });
+    expect(errors({ depositRule: "fixed" })).toHaveProperty("depositFixedAmount");
+    expect(contractSchema.parse({ ...valid, depositRule: "fixed", depositFixedAmount: "300" })).toMatchObject(
+      {
+        depositRule: "fixed",
+        depositFixedAmount: "300",
+      },
+    );
+    expect(errors({ depositDueDate: "2026-02-01" })).toHaveProperty("depositDueDate");
+    // Sin garantía no hay fecha de cobro; el monto fijo solo vale con "monto fijo".
+    expect(
+      contractSchema.parse({
+        ...valid,
+        depositRule: "none",
+        depositDueDate: "2026-04-01",
+        depositFixedAmount: "1",
+      }),
+    ).toMatchObject({ depositDueDate: null, depositFixedAmount: null });
+  });
+});
