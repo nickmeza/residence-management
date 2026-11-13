@@ -17,37 +17,68 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-export type NavLinks = { edificio: string | null; configuracion: string | null };
+export type NavLinks = {
+  service: "residence" | "meal_plan" | null;
+  edificio: string | null;
+  pension: string | null;
+  configuracion: string | null;
+};
 
-type Item = { label: string; Icon: LucideIcon; href: string | null; match?: string; note?: string };
+type Item = {
+  label: string;
+  Icon: LucideIcon;
+  href: string | null;
+  match?: string;
+  except?: string;
+  note?: string;
+};
+
+// Una pensión es un negocio simple (decisión del dueño): solo lo suyo, sin edificio, contratos ni garantías.
+// "Clientes" lleva a la lista de comensales; "Pensión" queda activo en el resto de sus pestañas.
+const pensionItems = (links: NavLinks): Item[] => [
+  { label: "Panel", Icon: LayoutDashboard, href: "/panel" },
+  { label: "Pensión", Icon: Soup, href: links.pension, match: "/pension", except: "/pension/comensales" },
+  { label: "Clientes", Icon: Users, href: "/pension/comensales" },
+  { label: "Configuración", Icon: Settings, href: links.configuracion, match: "/negocio/" },
+];
 
 // Menú lateral (decisión del dueño: a la izquierda, con un ícono por opción).
 // Las secciones de fases futuras aparecen como "Pronto", sin enlace.
 export function SidebarNav({ links, onNavigate }: { links: NavLinks; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const items: Item[] = [
-    { label: "Panel", Icon: LayoutDashboard, href: "/panel" },
-    {
-      label: "Edificio",
-      Icon: Building2,
-      href: links.edificio,
-      match: "/edificio",
-      note: links.edificio ? undefined : "Solo Residencia",
-    },
-    { label: "Residentes", Icon: Users, href: "/residentes" },
-    { label: "Contratos", Icon: FileText, href: "/contratos" },
-    { label: "Cobros", Icon: Wallet, href: "/cobros" },
-    { label: "Garantías", Icon: ShieldCheck, href: "/garantias" },
-    { label: "Pensión", Icon: Soup, href: null, note: "Pronto" },
-    { label: "Mantenimiento", Icon: Wrench, href: null, note: "Pronto" },
-    { label: "Configuración", Icon: Settings, href: links.configuracion, match: "/negocio/" },
-  ];
+  const items: Item[] =
+    links.service === "meal_plan"
+      ? pensionItems(links)
+      : [
+          { label: "Panel", Icon: LayoutDashboard, href: "/panel" },
+          {
+            label: "Edificio",
+            Icon: Building2,
+            href: links.edificio,
+            match: "/edificio",
+            note: links.edificio ? undefined : "Solo Residencia",
+          },
+          { label: "Residentes", Icon: Users, href: "/residentes" },
+          { label: "Contratos", Icon: FileText, href: "/contratos" },
+          { label: "Cobros", Icon: Wallet, href: "/cobros" },
+          { label: "Garantías", Icon: ShieldCheck, href: "/garantias" },
+          {
+            label: "Pensión",
+            Icon: Soup,
+            href: links.pension,
+            match: "/pension",
+            note: links.pension ? undefined : "Solo Pensión",
+          },
+          { label: "Mantenimiento", Icon: Wrench, href: null, note: "Pronto" },
+          { label: "Configuración", Icon: Settings, href: links.configuracion, match: "/negocio/" },
+        ];
 
   return (
     <nav aria-label="Menú principal">
       <ul className="flex flex-col gap-1">
-        {items.map(({ label, Icon, href, match, note }) => {
-          const active = href !== null && pathname.startsWith(match ?? href);
+        {items.map(({ label, Icon, href, match, except, note }) => {
+          const active =
+            href !== null && pathname.startsWith(match ?? href) && !(except && pathname.startsWith(except));
           const content = (
             <>
               <Icon className="size-5 shrink-0" aria-hidden="true" />

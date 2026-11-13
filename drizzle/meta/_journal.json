@@ -85,6 +85,41 @@
       "when": 1794528311756,
       "tag": "0011_portada_del_edificio",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794533953366,
+      "tag": "0012_pension",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794550964038,
+      "tag": "0013_pension_quitar_confirmar",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794550999691,
+      "tag": "0014_pension_cancelar_y_pagos",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794585955183,
+      "tag": "0015_pension_dias_de_atencion",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794593259772,
+      "tag": "0016_pension_comprobantes",
+      "breakpoints": true
     }
   ]
 }

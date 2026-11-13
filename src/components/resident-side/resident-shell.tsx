@@ -5,6 +5,7 @@ import { Suspense, type ReactNode } from "react";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { initials } from "@/lib/greeting";
+import { hasMyPension } from "@/server/pension/queries";
 import { getMyShell, type MyShell } from "@/server/residents/self";
 
 import { ContactButtons } from "./contact-buttons";
@@ -59,12 +60,12 @@ function UserCard({ fullName }: { fullName: string }) {
 
 // Lee la sesión: va dentro de <Suspense>.
 async function Sidebar() {
-  const { fullName, contacts } = await getMyShell();
+  const [{ fullName, contacts }, pension] = await Promise.all([getMyShell(), hasMyPension()]);
   const firstName = fullName.trim().split(/\s+/)[0] ?? "";
   return (
     <>
       <div className="flex flex-1 flex-col gap-6 overflow-y-auto">
-        <ResidentSidebarNav />
+        <ResidentSidebarNav pension={pension} />
         {contacts.map((c) => (
           <ContactCard key={c.businessId} contact={c} firstName={firstName} />
         ))}
@@ -72,6 +73,11 @@ async function Sidebar() {
       <UserCard fullName={fullName} />
     </>
   );
+}
+
+// Navegación de tablet y celular; lee la sesión (por "Pensión"), así que va dentro de <Suspense>.
+async function MobileNav() {
+  return <ResidentNav pension={await hasMyPension()} />;
 }
 
 // Estructura de las pantallas del residente. En escritorio: menú a la izquierda (decisión del dueño).
@@ -97,7 +103,9 @@ export function ResidentShell({ children }: { children: ReactNode }) {
             </div>
           </header>
           <div className="mx-auto w-full max-w-2xl px-4 sm:pt-3">
-            <ResidentNav />
+            <Suspense fallback={<ResidentNav />}>
+              <MobileNav />
+            </Suspense>
           </div>
         </div>
         <ResidentMain>{children}</ResidentMain>

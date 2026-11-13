@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { withRls } from "@/db/rls";
-import { depositRefund, entryReport, payment, settlementDiscount } from "@/db/schema";
+import { depositRefund, entryReport, payment, pensionPayment, settlementDiscount } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionClaims } from "@/server/auth/session";
 import { isUuid } from "@/server/business/queries";
@@ -16,6 +16,8 @@ const SOURCES = {
   ingreso: { table: entryReport, column: entryReport.photoPath, id: entryReport.id },
   descuento: { table: settlementDiscount, column: settlementDiscount.photoPath, id: settlementDiscount.id },
   devolucion: { table: depositRefund, column: depositRefund.proofPath, id: depositRefund.id },
+  // Comprobante de un pago de pensión (lo ve la cocina de esa pensión o el propio comensal).
+  "comprobante-pension": { table: pensionPayment, column: pensionPayment.proofPath, id: pensionPayment.id },
 } as const;
 
 export async function GET(_request: NextRequest, { params }: RouteContext<"/archivos/[tipo]/[id]">) {
