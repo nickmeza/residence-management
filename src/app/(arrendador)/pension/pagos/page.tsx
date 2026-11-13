@@ -12,7 +12,9 @@ async function Content() {
   if (!pension) return <NotAPension />;
   const [list, payments] = await Promise.all([listDiners(pension.id), listPensionPayments(pension.id)]);
   if (!list) return <p className="text-muted-foreground">No encontramos tu pensión. Recarga la página.</p>;
-  return <PaymentsBoard today={list.today} diners={list.diners} payments={payments} />;
+  return (
+    <PaymentsBoard today={list.today} diners={list.diners} pending={payments.pending} payments={payments.recent} />
+  );
 }
 
 export default function PensionPaymentsPage() {

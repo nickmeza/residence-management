@@ -73,10 +73,10 @@ export function KitchenBoard({ view, meal }: { view: KitchenView; meal: MealType
             <div className="flex flex-wrap items-center gap-2 px-5 py-4">
               <h2 className="text-lg font-bold">{MEAL_LABEL[current.type]}</h2>
               {current.menu ? (
-                <span className="text-sm text-muted-foreground">
-                  · {current.menu.dish}
-                  {current.menu.hasVegetarian ? " (hay opción vegetariana)" : ""}
-                </span>
+                <p className="w-full text-sm whitespace-pre-line text-muted-foreground">
+                  {current.menu.dish}
+                  {current.menu.hasVegetarian ? "\n(hay opción vegetariana)" : ""}
+                </p>
               ) : null}
             </div>
             {current.diners.length ? (
@@ -154,7 +154,7 @@ export function KitchenBoard({ view, meal }: { view: KitchenView; meal: MealType
               </div>
             ) : (
               <p className="border-t px-5 py-8 text-center text-muted-foreground">
-                Nadie tiene esta comida ese día. Agrega comensales en la pestaña Comensales.
+                Nadie tiene esta comida ese día. Agrega comensales en Clientes.
               </p>
             )}
           </section>
@@ -213,7 +213,9 @@ export function KitchenBoard({ view, meal }: { view: KitchenView; meal: MealType
         </div>
       ) : (
         <p className="rounded-xl border bg-card p-6 text-muted-foreground shadow-card">
-          Todavía no configuraste tus comidas. Hazlo en la pestaña Configuración.
+          {view.serviceDay
+            ? "Todavía no configuraste tus comidas. Hazlo en Configuración."
+            : "Este día no cocinas: no hay comidas ni se cobra. Puedes cambiar tus días en Configuración."}
         </p>
       )}
       {pending ? (

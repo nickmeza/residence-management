@@ -8,7 +8,7 @@ import { currentPension, NotAPension, PensionHeader } from "@/components/pension
 import { buttonVariants } from "@/components/ui/button";
 import { limaToday, formatLongDate } from "@/server/contracts/dates";
 import { getKitchenDay } from "@/server/pension/queries";
-import { addDays, MEAL_TYPES, type MealType } from "@/server/pension/rules";
+import { MEAL_TYPES, nearestServiceDay, type MealType } from "@/server/pension/rules";
 
 export const metadata: Metadata = { title: "Pensión · Hoy · Gestión de residencias" };
 
@@ -34,7 +34,7 @@ async function Content({ searchParams }: Pick<Props, "searchParams">) {
     <>
       <div className="flex flex-wrap items-center gap-2">
         <Link
-          href={`?fecha=${addDays(date, -1)}`}
+          href={`?fecha=${nearestServiceDay(date, -1, view.serviceDays)}`}
           aria-label="Día anterior"
           className={buttonVariants({ variant: "outline", size: "icon", className: "size-11" })}
         >
@@ -45,7 +45,7 @@ async function Content({ searchParams }: Pick<Props, "searchParams">) {
           {formatLongDate(date)}
         </h2>
         <Link
-          href={`?fecha=${addDays(date, 1)}`}
+          href={`?fecha=${nearestServiceDay(date, 1, view.serviceDays)}`}
           aria-label="Día siguiente"
           className={buttonVariants({ variant: "outline", size: "icon", className: "size-11" })}
         >

@@ -121,7 +121,7 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | Paso | Qué se hizo |
 | ---- | ----------- |
 | 6.1 Datos y reglas | Migraciones 0012–0014: comidas, ajustes, planes, afiliaciones, pausas, menú, asistencia y pagos de la pensión, con RLS; funciones `cancel_my_meal` y `pause_my_pension` para el comensal. Reglas puras en `src/server/pension/rules.ts` |
-| 6.2 Configuración | `/pension/configuracion`: comidas con horario y precio suelto, hora de cancelación del día anterior, formas de entrega, dietas y planes |
+| 6.2 Configuración | `/negocio/[id]/comidas` (Configuración › Comidas y planes; una pensión no tiene plantillas, garantía ni documentos): comidas con horario y precio suelto, hora de cancelación del día anterior, formas de entrega, dietas y planes |
 | 6.3 Comensales | `/pension/comensales` (buscador, Filtrar, Agregar comensal con nombre y celular o correo) y `/pension/comensales/[id]` (datos e Invitar, plan, pausas, pagos) |
 | 6.4 Hoy (cocina) | `/pension/hoy`: porciones por comida, quién canceló o pausó, dieta, "Comió", y cancelar o volver a pedir |
 | 6.5 Pagos | `/pension/pagos`: pagado hasta, saldo, próximo pago sugerido y Registrar pago |
@@ -279,4 +279,11 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-13 | La cocina puede cancelar aunque haya cerrado, pero esa comida **se cobra** | Mismo criterio que el comensal: solo lo cancelado a tiempo queda como saldo a favor. Pendiente de confirmar por el dueño. |
 | 2026-11-13 | **Una afiliación a la vez** por comensal; cambiar de plan = editar la afiliación | Evita cocinar y cobrar dos veces. |
 | 2026-11-13 | Un pago de pensión registrado por error **se quita** (queda en la bitácora) | La tabla `pension_payment` no tiene estado; la bitácora conserva el registro. Pendiente de confirmar por el dueño. |
+| 2026-11-13 | **Días de atención** de la pensión (migración 0015): los días que no cocina no se cobran ni se cancelan | Muchas pensiones solo atienden de lunes a viernes. Son de toda la pensión, no por plan, para que sea simple. |
 | 2026-11-13 | Sin QR ni recordatorios en la pensión | Llegan con los avisos automáticos (Fase 8). |
+| 2026-11-13 | **Menú: arrastrar y soltar** una comida a la misma comida de otro día, o un día completo; si el destino tiene platos, se intercambian. Lo que ya pasó se copia y se pega | Decisión del dueño. Reglas puras en `menu-moves.ts`, usadas por la pantalla y el servidor. |
+| 2026-11-13 | Arrastre con **eventos de puntero** del navegador (mouse: mover 5 px; dedo: mantener 0,4 s), sin paquete nuevo; "Mover a otro día" en la edición como alternativa con teclado | Recomendación aceptada por el dueño: no hace falta `@dnd-kit` para este caso. |
+| 2026-11-13 | Mover, pegar y vaciar quedan en **borrador** hasta "Guardar borrador" o "Publicar" (una sola transacción); el servidor **rechaza cambios en días pasados** | Recomendación aceptada por el dueño: un intercambio nunca queda a medias. |
+| 2026-11-13 | Pagos de pensión: **"Marcar pagado"** en un toque (sin comprobante) y, si la pensión lo activa (apagado por defecto), **comprobante del comensal** en revisión → aprobar o rechazar con motivo (migración 0016) | Decisión del dueño: la pensión chica coordina por WhatsApp; la grande quiere comprobantes. Solo cuentan los pagos confirmados. |
+| 2026-11-13 | **Pagos por partes** en la pensión: "pagado hasta" avanza solo hasta donde alcanza el dinero | Decisión del dueño. Lo sugerido completa el tramo a medias. |
+| 2026-11-13 | Los días que la pensión **no cocina no se muestran** | Decisión del dueño: no aportan nada y ensucian la vista. |

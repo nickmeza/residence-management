@@ -53,6 +53,31 @@ type DateRange = { fromDate: IsoDate; toDate: IsoDate };
 export const isPaused = (date: IsoDate, pauses: DateRange[]) =>
   pauses.some((p) => p.fromDate <= date && date <= p.toDate);
 
+// Días de atención (decisión del dueño, 2026-11-13): 1 = lunes … 7 = domingo. Los días que la pensión no cocina
+// no se cocinan, no se cancelan y no se cobran.
+export const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7];
+export const WEEKDAY_LABEL: Record<number, string> = {
+  1: "Lun",
+  2: "Mar",
+  3: "Mié",
+  4: "Jue",
+  5: "Vie",
+  6: "Sáb",
+  7: "Dom",
+};
+export const isoWeekday = (date: IsoDate) => ((new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7) + 1;
+export const isServiceDay = (date: IsoDate, serviceDays: number[]) => serviceDays.includes(isoWeekday(date));
+
+// El día de servicio más cercano antes (step = -1) o después (step = 1) de `date`; los días sin servicio no se
+// muestran (decisión del dueño, 2026-11-13). Sin días de servicio, el día de al lado.
+export function nearestServiceDay(date: IsoDate, step: 1 | -1, serviceDays: number[]): IsoDate {
+  for (let i = 1; i <= 7; i++) {
+    const d = addDays(date, i * step);
+    if (isServiceDay(d, serviceDays)) return d;
+  }
+  return addDays(date, step);
+}
+
 export const coversDay = (sub: { startDate: IsoDate; endDate: IsoDate | null }, date: IsoDate) =>
   sub.startDate <= date && (sub.endDate === null || date <= sub.endDate);
 
@@ -102,7 +127,7 @@ export const BILLING_CYCLE_LABEL: Record<BillingCycle, string> = {
 };
 
 // Lo que cuesta un tramo de días de una afiliación (cobro por adelantado, decisión del dueño):
-// - días pausados: no se cobran;
+// - días sin atención (la pensión no cocina) y días pausados: no se cobran;
 // - una comida cancelada a tiempo no se cobra: vale el precio del día dividido entre las comidas del plan;
 // - una cancelación fuera de plazo (la hizo la cocina después de la hora límite) sí se cobra.
 export function rangeCost(input: {
@@ -113,8 +138,10 @@ export function rangeCost(input: {
   subscription: { startDate: IsoDate; endDate: IsoDate | null };
   pauses: DateRange[];
   cancelledOnTime: IsoDate[]; // una fecha por cada comida cancelada a tiempo
+  serviceDays?: number[]; // sin dato = cocina todos los días
 }) {
   const s = input.subscription;
+  const serviceDays = input.serviceDays ?? ALL_DAYS;
   const from = input.from > s.startDate ? input.from : s.startDate;
   const to = s.endDate !== null && s.endDate < input.to ? s.endDate : input.to;
   const perDay = toCents(input.dailyPrice);
@@ -123,7 +150,7 @@ export function rangeCost(input: {
   let cents = 0;
   for (let i = 0; from <= to && i <= daysBetween(from, to); i++) {
     const day = addDays(from, i);
-    if (isPaused(day, input.pauses)) continue;
+    if (!isServiceDay(day, serviceDays) || isPaused(day, input.pauses)) continue;
     days++;
     const cancelled = input.cancelledOnTime.filter((d) => d === day).length;
     cents += Math.max(0, perDay - perMeal * cancelled);
@@ -153,32 +180,56 @@ export function pensionAccount(input: {
   subscription: { startDate: IsoDate; endDate: IsoDate | null };
   pauses: DateRange[];
   cancelledOnTime: IsoDate[];
+  serviceDays?: number[];
   payments: { amount: string; coversTo: IsoDate }[];
 }) {
+  const start = input.subscription.startDate;
+  const costTo = (to: IsoDate) => toCents(rangeCost({ ...input, from: start, to }).amount);
   const paid = input.payments.reduce((t, p) => t + toCents(p.amount), 0);
-  const paidUntil = input.payments.reduce<IsoDate | null>(
+  // Hasta dónde dicen cubrir los pagos (el último día que cubre alguno).
+  const declaredUntil = input.payments.reduce<IsoDate | null>(
     (max, p) => (max === null || p.coversTo > max ? p.coversTo : max),
     null,
   );
-  const through = paidUntil !== null && paidUntil > input.today ? paidUntil : input.today;
-  const cost = toCents(rangeCost({ ...input, from: input.subscription.startDate, to: through }).amount);
-  const balance = paid - cost;
-  // El próximo pago empieza el día después de lo pagado (o al inicio) y llega por lo menos hasta hoy más un tramo.
-  const from = paidUntil === null ? input.subscription.startDate : addDays(paidUntil, 1);
+  // Pagos por partes (decisión del dueño, 2026-11-13): "pagado hasta" solo llega hasta el último día que el dinero
+  // alcanza a cubrir, día por día desde el inicio, sin pasar de lo declarado.
+  let paidUntil: IsoDate | null = null;
+  if (declaredUntil !== null) {
+    let acc = 0;
+    for (let d = start; d <= declaredUntil; d = addDays(d, 1)) {
+      acc += toCents(rangeCost({ ...input, from: d, to: d }).amount);
+      if (acc > paid) break;
+      paidUntil = d;
+    }
+  }
+  // Un tramo pagado a medias: lo que falta para completarlo.
+  const partial =
+    declaredUntil !== null && paidUntil !== declaredUntil
+      ? {
+          from: paidUntil === null ? start : addDays(paidUntil, 1),
+          to: declaredUntil,
+          missing: fromCents(Math.max(0, costTo(declaredUntil) - paid)),
+        }
+      : null;
+  const through = declaredUntil !== null && declaredUntil > input.today ? declaredUntil : input.today;
+  const balance = paid - costTo(through);
+  // El próximo pago: completar el tramo a medias o, si no hay, el día después de lo pagado (o el inicio) hasta por
+  // lo menos hoy más un tramo.
+  const from = paidUntil === null ? start : addDays(paidUntil, 1);
   const to = nextCoverage(from > input.today ? from : input.today, input.cycle).to;
   const nextCost = toCents(rangeCost({ ...input, from, to }).amount);
   // Saldo a favor de lo ya pagado (cancelaciones a tiempo dentro de lo pagado, o pagó de más): se descuenta.
-  const credit =
-    paidUntil === null
-      ? 0
-      : paid - toCents(rangeCost({ ...input, from: input.subscription.startDate, to: paidUntil }).amount);
+  const credit = paidUntil === null ? 0 : paid - costTo(paidUntil);
   return {
     paidUntil,
     // Positivo = saldo a favor (cancelaciones a tiempo, pagó de más); negativo = debe a hoy.
     balance: fromCents(balance),
     upToDate: paidUntil !== null && paidUntil >= input.today && balance >= 0,
-    // Sugerido para el próximo pago: el siguiente tramo menos el saldo a favor.
-    next: { from, to, amount: fromCents(Math.max(0, nextCost - credit)) },
+    partial,
+    // Sugerido para el próximo pago: lo que falta del tramo a medias, o el siguiente tramo menos el saldo a favor.
+    next: partial
+      ? { from: partial.from, to: partial.to, amount: partial.missing }
+      : { from, to, amount: fromCents(Math.max(0, nextCost - credit)) },
   };
 }
 

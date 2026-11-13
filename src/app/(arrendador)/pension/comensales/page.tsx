@@ -5,7 +5,7 @@ import { DinerList } from "@/components/pension/diner-list";
 import { currentPension, NotAPension, PensionHeader } from "@/components/pension/pension-page";
 import { getPensionAdmin, listDiners } from "@/server/pension/queries";
 
-export const metadata: Metadata = { title: "Pensión · Comensales · Gestión de residencias" };
+export const metadata: Metadata = { title: "Pensión · Clientes · Gestión de residencias" };
 
 async function Content() {
   const pension = await currentPension();

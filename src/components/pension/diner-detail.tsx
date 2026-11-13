@@ -473,8 +473,24 @@ function PaymentsCard({ diner }: { diner: DinerDetail }) {
                 <span className="block text-muted-foreground">
                   Cubre del {formatShortDate(p.coversFrom)} al {formatShortDate(p.coversTo)}
                   {p.note ? ` · ${p.note}` : ""}
+                  {p.status === "rejected" && p.rejectionReason ? ` · Motivo: ${p.rejectionReason}` : ""}
                 </span>
               </span>
+              {p.hasProof ? (
+                <a
+                  href={`/archivos/comprobante-pension/${p.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-11 items-center font-semibold text-link underline-offset-4 hover:underline"
+                >
+                  Comprobante
+                </a>
+              ) : null}
+              {p.status === "in_review" ? (
+                <StatusBadge tone="warn">En revisión</StatusBadge>
+              ) : p.status === "rejected" ? (
+                <StatusBadge tone="danger">Rechazado</StatusBadge>
+              ) : null}
               <ConfirmButton
                 trigger={
                   <Button type="button" variant="ghost" className="h-11" disabled={pending}>

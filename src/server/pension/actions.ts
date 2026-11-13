@@ -7,6 +7,7 @@ import { withRls } from "@/db/rls";
 import { getSessionClaims } from "@/server/auth/session";
 import { isUuid } from "@/server/business/queries";
 import { issuesByPath } from "@/server/onboarding/schema";
+import { fileExists } from "@/server/payments/storage";
 
 import * as m from "./mutations";
 import {
@@ -16,6 +17,8 @@ import {
   newDinerSchema,
   pauseSchema,
   pensionPaymentSchema,
+  pensionProofSchema,
+  pensionReviewSchema,
   pensionSettingsSchema,
   planSchema,
   subscriptionEditSchema,
@@ -36,6 +39,7 @@ async function run(change: Parameters<typeof withRls<void>>[1]): Promise<Pension
     await withRls(claims, change);
     revalidatePath("/pension", "layout");
     revalidatePath("/mi", "layout");
+    revalidatePath("/negocio", "layout");
     return { ok: true };
   } catch (e) {
     if (e instanceof m.PensionError) return { ok: false, message: e.message };
@@ -160,11 +164,30 @@ export async function deletePensionPaymentAction(paymentId: string): Promise<Pen
   return run((tx) => m.deletePensionPayment(tx, paymentId));
 }
 
+// El comensal avisa su pago con comprobante (queda en revisión).
+export async function submitPensionProofAction(input: unknown): Promise<PensionResult> {
+  const parsed = pensionProofSchema.safeParse(input);
+  if (!parsed.success) return invalid(parsed.error);
+  if (!(await fileExists(parsed.data.proofPath))) {
+    return { ok: false, message: "No encontramos el comprobante subido. Vuelve a subirlo." };
+  }
+  return run((tx) => m.submitPensionProof(tx, parsed.data));
+}
+
+// La cocina aprueba o rechaza un comprobante.
+export async function reviewPensionPaymentAction(paymentId: string, input: unknown): Promise<PensionResult> {
+  if (!isUuid(paymentId)) return { ok: false, message: NOT_FOUND };
+  const parsed = pensionReviewSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Revisa el motivo." };
+  return run((tx) => m.reviewPensionPayment(tx, paymentId, parsed.data));
+}
+
 // Lo que responde la base cuando el comensal cancela o pausa (funciones cancel_my_meal y pause_my_pension).
 const DINER_MESSAGE: Record<string, string> = {
   not_found: "No encontramos tu pensión. Recarga la página.",
   no_plan: "Tu plan no incluye esa comida ese día.",
   paused: "Ese día tienes la pensión en pausa.",
+  no_service: "Ese día la pensión no cocina.",
   closed: "Ya pasó la hora para cancelar. Si necesitas cambiarlo, avísale a la cocina.",
   invalid: "Revisa las fechas: desde hoy y dentro de tu plan.",
   served: "Ya comiste algún día de esas fechas: no se puede pausar.",

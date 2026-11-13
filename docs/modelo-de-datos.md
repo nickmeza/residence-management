@@ -279,12 +279,16 @@ contrato. Los puede subir el residente o el arrendador, y se guarda quién lo hi
 | plan_pension.comidas | lista de comidas | Entre 1 y 3. |
 | plan_pension.precio_dia, activo | decimal, booleano | Desactivado: no se ofrece a nuevos; con afiliados no se borra. |
 | config_pension.modalidades (`meal_settings`) | comedor \| para_llevar \| delivery |  |
+| config_pension.dias_atencion (`service_days`) | lista de 1 (lunes) a 7 (domingo) | Días que cocina; por defecto todos. Los demás no se cocinan, no se cancelan ni se cobran. |
 | config_pension.capacidad_turno, hora_limite_cancelacion | entero, hora | Hora del **día anterior** hasta la que el comensal cancela. |
 | config_pension.acepta_externos, dietas | booleano, lista |  |
+| config_pension.acepta_comprobantes (`accepts_payment_proofs`) | booleano | Apagado por defecto. Si está prendido, el comensal avisa su pago con comprobante (0016). |
 | afiliacion.ficha_id, plan_id, desde, hasta (`pension_subscription`) | → Ficha del comensal, → Plan, fecha, fecha | Una a la vez por comensal. El comensal es una ficha (`resident`) del negocio de Pensión. |
 | afiliacion.frecuencia_cobro, nota_dieta | diario \| semanal \| mensual, texto | Se paga por adelantado. La dieta la ve la cocina. |
 | pago_pension.afiliacion_id, monto, metodo, pagado_el (`pension_payment`) | → Afiliación, decimal, método, fecha | Va a la bitácora `money_log`. |
-| pago_pension.cubre_desde, cubre_hasta, nota, registrado_por | fecha, fecha, texto, → Persona | Dentro de la afiliación. |
+| pago_pension.cubre_desde, cubre_hasta, nota, registrado_por | fecha, fecha, texto, → Persona | Dentro de la afiliación. registrado_por = la cocina o el comensal. |
+| pago_pension.estado, comprobante, codigo_operacion (0016) | en_revision \| confirmado \| rechazado, ruta, texto | Lo de la cocina queda confirmado; lo del comensal, en revisión. Solo cuenta lo confirmado. |
+| pago_pension.revisado_por, revisado_el, motivo_rechazo (0016) | → Persona, fecha y hora, texto | Rechazar pide motivo (lo ve el comensal). |
 
 ## Cobros (en la base: `charge`, `payment`)
 

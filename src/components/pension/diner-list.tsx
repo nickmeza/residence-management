@@ -159,7 +159,7 @@ export function DinerList({
         <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground shadow-card">
           Para agregar comensales primero crea un plan en{" "}
           <Link
-            href="/pension/configuracion"
+            href={`/negocio/${businessId}/comidas`}
             className="font-semibold text-link underline-offset-4 hover:underline"
           >
             Configuración

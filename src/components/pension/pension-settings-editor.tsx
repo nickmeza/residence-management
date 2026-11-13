@@ -9,7 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { savePensionSettingsAction } from "@/server/pension/actions";
-import { MEAL_LABEL, SERVICE_MODE_LABEL, type MealType, type ServiceMode } from "@/server/pension/rules";
+import {
+  ALL_DAYS,
+  MEAL_LABEL,
+  SERVICE_MODE_LABEL,
+  WEEKDAY_LABEL,
+  type MealType,
+  type ServiceMode,
+} from "@/server/pension/rules";
 import { SERVICE_MODE_VALUES } from "@/server/pension/schemas";
 
 const card = "rounded-xl border bg-card p-5 shadow-card sm:p-6";
@@ -23,15 +30,18 @@ type MealValues = {
 };
 
 export type PensionSettingsValues = {
+  serviceDays: number[];
   cancelDeadline: string;
   serviceModes: ServiceMode[];
   seatsPerTurn: string;
   acceptsExternal: boolean;
+  acceptsPaymentProofs: boolean;
   diets: string;
   meals: MealValues[];
 };
 
-// Configuración de la pensión, pensada para lo simple (una señora que cocina para 5 estudiantes): qué comidas da, a
+// Configuración de la pensión, pensada para lo simple (una señora que cocina para 5 estudiantes): qué días cocina,
+// qué comidas da, a
 // qué hora y a cuánto suelta; hasta cuándo se puede cancelar (por defecto se cocina para todos) y cómo entrega.
 export function PensionSettingsEditor({
   businessId,
@@ -79,6 +89,39 @@ export function PensionSettingsEditor({
           Todavía no configuraste tu pensión. Revisa los horarios y precios de ejemplo y guarda.
         </p>
       ) : null}
+
+      <section className={card}>
+        <h2 className="mb-1 text-lg font-bold">Días que cocinas</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Los días que no marques no se cocinan ni se cobran, y no aparecen en el menú.
+        </p>
+        <fieldset>
+          <legend className="sr-only">Días que cocinas</legend>
+          <div className="flex flex-wrap gap-2">
+            {ALL_DAYS.map((day) => (
+              <label
+                key={day}
+                className="flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-semibold has-checked:border-primary has-checked:bg-primary-soft has-checked:text-primary-text"
+              >
+                <input
+                  type="checkbox"
+                  className="size-5 accent-primary"
+                  checked={values.serviceDays.includes(day)}
+                  onChange={(e) =>
+                    set({
+                      serviceDays: e.target.checked
+                        ? [...values.serviceDays, day].sort()
+                        : values.serviceDays.filter((d) => d !== day),
+                    })
+                  }
+                />
+                {WEEKDAY_LABEL[day]}
+              </label>
+            ))}
+          </div>
+          {fieldError("serviceDays")}
+        </fieldset>
+      </section>
 
       <section className={card}>
         <h2 className="mb-1 text-lg font-bold">Comidas que sirves</h2>
@@ -165,6 +208,23 @@ export function PensionSettingsEditor({
           Ejemplo: el almuerzo del viernes se puede cancelar hasta el jueves a las{" "}
           {values.cancelDeadline || "—"}.
         </p>
+      </section>
+
+      <section className={card}>
+        <h2 className="mb-1 text-lg font-bold">Pagos</h2>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Tú marcas los pagos en Pensión › Pagos. Si quieres, tus comensales también pueden avisarte que pagaron,
+          con la foto del comprobante; tú lo apruebas o lo rechazas.
+        </p>
+        <label className="flex min-h-11 cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            className="size-5 accent-primary"
+            checked={values.acceptsPaymentProofs}
+            onChange={(e) => set({ acceptsPaymentProofs: e.target.checked })}
+          />
+          <span className="font-semibold">Mis comensales pueden mandar su comprobante</span>
+        </label>
       </section>
 
       <section className={card}>

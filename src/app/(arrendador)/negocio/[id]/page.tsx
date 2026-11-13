@@ -24,10 +24,12 @@ async function Content({ params }: { params: PageProps<"/negocio/[id]">["params"
         </p>
         <h1 className="text-[34px] font-bold tracking-tight">Configuración</h1>
         <p className="text-muted-foreground">
-          Datos de tu {SERVICE_LABEL[b.service].toLowerCase()}, usuarios y plantillas.
+          {b.service === "meal_plan"
+            ? "Datos de tu pensión."
+            : `Datos de tu ${SERVICE_LABEL[b.service].toLowerCase()}, usuarios y plantillas.`}
         </p>
       </div>
-      <ConfigTabs businessId={b.id} current="Negocio" />
+      <ConfigTabs businessId={b.id} current="Negocio" service={b.service} />
       <BusinessEditForm
         id={b.id}
         service={b.service}

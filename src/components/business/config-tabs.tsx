@@ -1,24 +1,36 @@
 import Link from "next/link";
 
 // Pestañas de Configuración del prototipo. Las que todavía no existen aparecen como "pronto", sin enlace.
-const TABS = [
-  { label: "Negocio", path: "" },
-  { label: "Usuarios y roles", path: null },
-  { label: "Plantillas", path: "/plantillas" },
-  { label: "Garantía", path: "/garantia" },
-  { label: "Documentos", path: "/documentos" },
-] as const;
+// Una pensión es simple (decisión del dueño): sus comidas y planes, y los datos del negocio; nada de plantillas,
+// garantía ni documentos, que son de la residencia.
+const TABS = {
+  residence: [
+    { label: "Negocio", path: "" },
+    { label: "Usuarios y roles", path: null },
+    { label: "Plantillas", path: "/plantillas" },
+    { label: "Garantía", path: "/garantia" },
+    { label: "Documentos", path: "/documentos" },
+  ],
+  meal_plan: [
+    { label: "Comidas y planes", path: "/comidas" },
+    { label: "Negocio", path: "" },
+  ],
+} as const;
+
+export type ConfigTab = "Negocio" | "Plantillas" | "Garantía" | "Documentos" | "Comidas y planes";
 
 export function ConfigTabs({
   businessId,
   current,
+  service = "residence",
 }: {
   businessId: string;
-  current: "Negocio" | "Plantillas" | "Garantía" | "Documentos";
+  current: ConfigTab;
+  service?: "residence" | "meal_plan";
 }) {
   return (
     <nav aria-label="Secciones de configuración" className="flex flex-wrap gap-2 border-b pb-3">
-      {TABS.map((tab) =>
+      {TABS[service].map((tab) =>
         tab.label === current ? (
           <span
             key={tab.label}

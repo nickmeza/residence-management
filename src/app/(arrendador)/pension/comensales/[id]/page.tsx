@@ -25,7 +25,7 @@ async function Content({ params }: Pick<Props, "params">) {
             href="/pension/comensales"
             className="underline-offset-4 hover:text-foreground hover:underline"
           >
-            Comensales
+            Clientes
           </Link>{" "}
           › <b className="text-foreground">{diner.name}</b>
         </nav>

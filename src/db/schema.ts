@@ -1023,12 +1023,20 @@ export const mealSettings = pgTable(
     // Por defecto se cocina para todos los afiliados; el comensal cancela hasta esta hora del DÍA ANTERIOR (hora de
     // Lima). Después solo la cocina puede cambiarlo (decisión del dueño, 2026-11-13).
     cancelDeadline: time().notNull().default("20:00"),
+    // Días que cocina (1 = lunes … 7 = domingo). Los demás no se cocinan ni se cobran (decisión del dueño, 2026-11-13).
+    serviceDays: smallint()
+      .array()
+      .notNull()
+      .default(sql`'{1,2,3,4,5,6,7}'`),
     serviceModes: mealServiceMode()
       .array()
       .notNull()
       .default(sql`'{dine_in}'`),
     seatsPerTurn: smallint(),
     acceptsExternal: boolean().notNull().default(true),
+    // ¿Los comensales pueden avisar su pago con comprobante desde "Mi pensión"? Apagado por defecto: la pensión
+    // chica coordina por WhatsApp y marca los pagos ella misma (decisión del dueño, 2026-11-13).
+    acceptsPaymentProofs: boolean().notNull().default(false),
     diets: text()
       .array()
       .notNull()
@@ -1037,6 +1045,10 @@ export const mealSettings = pgTable(
   },
   (t) => [
     check("meal_settings_seats", sql`${t.seatsPerTurn} is null or ${t.seatsPerTurn} between 1 and 1000`),
+    check(
+      "meal_settings_service_days",
+      sql`cardinality(${t.serviceDays}) between 1 and 7 and ${t.serviceDays} <@ '{1,2,3,4,5,6,7}'::smallint[]`,
+    ),
     pgPolicy("meal_settings_landlord_all", {
       for: "all",
       to: authenticatedRole,
@@ -1200,7 +1212,7 @@ export const menuItem = pgTable(
   },
   (t) => [
     uniqueIndex("menu_item_business_date_meal_idx").on(t.businessId, t.date, t.meal),
-    check("menu_item_dish", sql`length(trim(${t.dish})) between 1 and 200`),
+    check("menu_item_dish", sql`length(trim(${t.dish})) between 1 and 600`),
     pgPolicy("menu_item_landlord_all", {
       for: "all",
       to: authenticatedRole,
@@ -1250,8 +1262,10 @@ export const mealAttendance = pgTable(
 );
 
 // Pago de la pensión, por adelantado: cuánto pagó y qué días cubre ("S/ 85 · del 16 al 22 de noviembre"). No usa los
-// recibos de la residencia porque esos dependen de un contrato. Lo registra la cocina (el arrendador); el comensal lo
-// ve. Queda en la bitácora money_log (trigger de la migración 0014).
+// recibos de la residencia porque esos dependen de un contrato. Lo registra la cocina (queda confirmado) o el comensal
+// con su comprobante, si la pensión lo permite (queda en revisión hasta que la cocina lo apruebe o lo rechace con un
+// motivo; decisión del dueño, 2026-11-13). Solo los confirmados cuentan. Queda en la bitácora money_log (trigger de la
+// migración 0014).
 export const pensionPayment = pgTable(
   "pension_payment",
   {
@@ -1265,15 +1279,39 @@ export const pensionPayment = pgTable(
     coversFrom: date().notNull(),
     coversTo: date().notNull(),
     note: text(),
+    operationCode: text(),
+    // Comprobante en el espacio privado "documents": <negocio>/<ficha>/comprobantes/<id>.<ext>
+    proofPath: text().unique(),
+    // Lo que había antes de esta migración (todo lo registró la cocina) queda confirmado.
+    status: paymentStatus().notNull().default("confirmed"),
+    // Quién lo registró o lo mandó (la cocina o el comensal).
     registeredBy: uuid()
       .notNull()
       .references(() => person.id, { onDelete: "restrict" }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    reviewedBy: uuid().references(() => person.id, { onDelete: "set null" }),
+    reviewedAt: timestamp({ withTimezone: true }),
+    rejectionReason: text(),
   },
   (t) => [
     index("pension_payment_subscription_id_idx").on(t.subscriptionId),
     check("pension_payment_amount_positive", sql`${t.amount} > 0`),
     check("pension_payment_dates", sql`${t.coversTo} >= ${t.coversFrom}`),
+    check(
+      "pension_payment_rejection_reason",
+      sql`${t.status} <> 'rejected' or coalesce(trim(${t.rejectionReason}), '') <> ''`,
+    ),
+    // El comensal manda su comprobante: a su nombre, en revisión y solo si su pensión lo permite.
+    pgPolicy("pension_payment_insert_own", {
+      for: "insert",
+      to: authenticatedRole,
+      withCheck: sql`${t.subscriptionId} in ${myOwnSubscriptionIds} and ${t.registeredBy} in ${myPersonIds}
+        and ${t.status} = 'in_review' and ${t.reviewedBy} is null and ${t.proofPath} is not null
+        and exists (select 1 from public.pension_subscription s
+          join public.pension_plan p on p.id = s.plan_id
+          join public.meal_settings ms on ms.business_id = p.business_id
+          where s.id = ${t.subscriptionId} and ms.accepts_payment_proofs)`,
+    }),
     pgPolicy("pension_payment_landlord_all", {
       for: "all",
       to: authenticatedRole,

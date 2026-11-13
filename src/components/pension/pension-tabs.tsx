@@ -1,12 +1,12 @@
 import Link from "next/link";
 
-// Pestañas de Pensión: Hoy (cocina), Comensales, Pagos, Menú y Configuración.
+// Pestañas de Pensión: Hoy (cocina), Clientes, Pagos y Menú. Las comidas y los planes
+// están en Configuración (menú lateral).
 const TABS = [
   { key: "hoy", label: "Hoy", href: "/pension/hoy" },
-  { key: "comensales", label: "Comensales", href: "/pension/comensales" },
+  { key: "comensales", label: "Clientes", href: "/pension/comensales" },
   { key: "pagos", label: "Pagos", href: "/pension/pagos" },
   { key: "menu", label: "Menú", href: "/pension/menu" },
-  { key: "configuracion", label: "Configuración", href: "/pension/configuracion" },
 ] as const;
 
 export type PensionTab = (typeof TABS)[number]["key"];

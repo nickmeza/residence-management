@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
 
 import { withRls } from "@/db/rls";
 import {
@@ -22,10 +22,12 @@ import { limaToday, type IsoDate } from "@/server/contracts/dates";
 
 import {
   addDays,
+  ALL_DAYS,
   attendanceState,
   coversDay,
   hhmm,
   isPaused,
+  isServiceDay,
   kitchenCounts,
   cancelDeadline,
   limaNow,
@@ -84,9 +86,11 @@ async function loadSettings(tx: Tx, businessId: string) {
   const [s] = await tx.select().from(mealSettings).where(eq(mealSettings.businessId, businessId)).limit(1);
   return {
     cancelDeadline: hhmm(s?.cancelDeadline ?? "20:00"),
+    serviceDays: s?.serviceDays ?? ALL_DAYS,
     serviceModes: (s?.serviceModes ?? ["dine_in"]) as ServiceMode[],
     seatsPerTurn: s?.seatsPerTurn ?? null,
     acceptsExternal: s?.acceptsExternal ?? true,
+    acceptsPaymentProofs: s?.acceptsPaymentProofs ?? false,
     diets: s?.diets ?? [],
   };
 }
@@ -105,7 +109,7 @@ async function loadAccount(
     endDate: IsoDate | null;
   },
   pauses: { fromDate: IsoDate; toDate: IsoDate }[],
-  cancelTime: string,
+  settings: { cancelDeadline: string; serviceDays: number[] },
   today: IsoDate,
 ) {
   const [payments, cancelled] = await Promise.all([
@@ -118,10 +122,14 @@ async function loadAccount(
         coversFrom: pensionPayment.coversFrom,
         coversTo: pensionPayment.coversTo,
         note: pensionPayment.note,
+        status: pensionPayment.status,
+        operationCode: pensionPayment.operationCode,
+        hasProof: sql<boolean>`${pensionPayment.proofPath} is not null`,
+        rejectionReason: pensionPayment.rejectionReason,
       })
       .from(pensionPayment)
       .where(eq(pensionPayment.subscriptionId, sub.id))
-      .orderBy(desc(pensionPayment.coversTo)),
+      .orderBy(desc(pensionPayment.createdAt)),
     tx
       .select({ date: mealAttendance.date, updatedAt: mealAttendance.updatedAt })
       .from(mealAttendance)
@@ -134,7 +142,7 @@ async function loadAccount(
       ),
   ]);
   const cancelledOnTime = cancelled
-    .filter((c) => limaNow(c.updatedAt) < cancelDeadline(c.date, cancelTime))
+    .filter((c) => limaNow(c.updatedAt) < cancelDeadline(c.date, settings.cancelDeadline))
     .map((c) => c.date);
   return {
     payments,
@@ -146,7 +154,9 @@ async function loadAccount(
       subscription: sub,
       pauses,
       cancelledOnTime,
-      payments,
+      serviceDays: settings.serviceDays,
+      // Solo cuentan los pagos confirmados (los en revisión o rechazados, no).
+      payments: payments.filter((p) => p.status === "confirmed"),
     }),
   };
 }
@@ -305,7 +315,16 @@ export type KitchenMeal = {
   counts: ReturnType<typeof kitchenCounts>;
 };
 
-export type KitchenView = { businessId: string; date: IsoDate; today: IsoDate; meals: KitchenMeal[] };
+export type KitchenView = {
+  businessId: string;
+  date: IsoDate;
+  today: IsoDate;
+  // false = ese día la pensión no cocina (no hay comidas).
+  serviceDay: boolean;
+  // Días que cocina (1 = lunes … 7 = domingo): las flechas de día saltan los demás.
+  serviceDays: number[];
+  meals: KitchenMeal[];
+};
 
 // Panel de cocina de un día (PN-06, PN-07, PN-08): por comida, cuántas porciones (todos menos los que cancelaron
 // o pausaron), quién canceló y quién comió.
@@ -347,12 +366,15 @@ export async function getKitchenDay(businessId: string, date: IsoDate): Promise<
           .where(eq(pensionPlan.businessId, businessId))
       ).map((p) => [p.id, p.meals]),
     );
+    const serviceDay = isServiceDay(date, settings.serviceDays);
     return {
       businessId,
       date,
       today,
+      serviceDay,
+      serviceDays: settings.serviceDays,
       meals: meals
-        .filter((m) => m.active)
+        .filter((m) => serviceDay && m.active)
         .map((m): KitchenMeal => {
           const diners = subs
             .filter((s) => coversDay(s, date) && (planMeals.get(s.planId) ?? []).includes(m.type))
@@ -384,8 +406,15 @@ export async function getKitchenDay(businessId: string, date: IsoDate): Promise<
 
 export type WeekMenuView = {
   businessId: string;
+  // Lunes a domingo de la semana (también los días sin servicio, que se muestran como "No cocinas").
+  weekStart: IsoDate;
   days: IsoDate[];
+  // Días que la pensión cocina (1 = lunes … 7 = domingo) y hoy en Lima: lo que ya pasó no se mueve ni se edita.
+  serviceDays: number[];
+  today: IsoDate;
   meals: MealType[];
+  // Horario de cada comida activa, por ejemplo "07:00 – 09:00".
+  mealTimes: Partial<Record<MealType, string>>;
   entries: { date: IsoDate; meal: MealType; dish: string; hasVegetarian: boolean; published: boolean }[];
 };
 
@@ -395,7 +424,8 @@ export async function getWeekMenu(businessId: string, days: IsoDate[]): Promise<
   const claims = await getSessionClaims();
   return withRls(claims, async (tx) => {
     if (!(await pensionBusiness(tx, businessId))) return null;
-    const [{ meals }, rows] = await Promise.all([
+    const [settings, { meals }, rows] = await Promise.all([
+      loadSettings(tx, businessId),
       loadMeals(tx, businessId),
       tx
         .select({
@@ -410,10 +440,15 @@ export async function getWeekMenu(businessId: string, days: IsoDate[]): Promise<
           and(eq(menuItem.businessId, businessId), gte(menuItem.date, days[0]), lte(menuItem.date, days[6])),
         ),
     ]);
+    const active = meals.filter((m) => m.active);
     return {
       businessId,
+      weekStart: days[0],
       days,
-      meals: meals.filter((m) => m.active).map((m) => m.type),
+      serviceDays: settings.serviceDays,
+      today: limaToday(new Date()),
+      meals: active.map((m) => m.type),
+      mealTimes: Object.fromEntries(active.map((m) => [m.type, `${m.startTime} – ${m.endTime}`])),
       entries: rows.map((r) => ({ ...r, published: r.status === "published" })),
     };
   });
@@ -430,6 +465,8 @@ export type MyPensionDay = {
     menu: { dish: string; hasVegetarian: boolean } | null;
   }[];
   paused: boolean;
+  // true = ese día la pensión no cocina.
+  noService: boolean;
 };
 
 export type MyPension = {
@@ -447,6 +484,8 @@ export type MyPension = {
     pauses: { id: string; fromDate: IsoDate; toDate: IsoDate }[];
   } | null;
   days: MyPensionDay[];
+  // ¿Puede avisar su pago con comprobante? (lo decide la pensión en Configuración)
+  acceptsProofs: boolean;
   account: Awaited<ReturnType<typeof loadAccount>>;
 };
 
@@ -557,7 +596,8 @@ export async function getMyPension(): Promise<MyPension[]> {
           .map((d) => ({
             date: d,
             paused: isPaused(d, pauses),
-            meals: active.map((m) => {
+            noService: !isServiceDay(d, settings.serviceDays),
+            meals: (isServiceDay(d, settings.serviceDays) ? active : []).map((m) => {
               const a = attendance.find((x) => x.date === d && x.meal === m.type);
               const item = menu.find((x) => x.date === d && x.meal === m.type);
               return {
@@ -569,13 +609,8 @@ export async function getMyPension(): Promise<MyPension[]> {
               };
             }),
           })),
-        account: await loadAccount(
-          tx,
-          { ...sub, residentId: card.id },
-          pauses,
-          settings.cancelDeadline,
-          today,
-        ),
+        acceptsProofs: settings.acceptsPaymentProofs,
+        account: await loadAccount(tx, { ...sub, residentId: card.id }, pauses, settings, today),
       });
     }
     return out;
@@ -665,7 +700,7 @@ export async function listDiners(businessId: string): Promise<{ today: IsoDate; 
       const d = sub ? details.find((x) => x.id === sub.id) : undefined;
       let subscription: DinerRow["subscription"] = null;
       if (sub && d) {
-        const full = await loadAccount(tx, { ...sub, ...d }, sub.pauses, settings.cancelDeadline, today);
+        const full = await loadAccount(tx, { ...sub, ...d }, sub.pauses, settings, today);
         subscription = {
           ...sub,
           billingCycle: d.billingCycle,
@@ -673,6 +708,7 @@ export async function listDiners(businessId: string): Promise<{ today: IsoDate; 
             paidUntil: full.paidUntil,
             balance: full.balance,
             upToDate: full.upToDate,
+            partial: full.partial,
             next: full.next,
           },
         };
@@ -763,7 +799,7 @@ export async function getDiner(businessId: string, residentId: string): Promise<
           ? {
               ...sub,
               dailyPrice: d.dailyPrice,
-              account: await loadAccount(tx, { ...sub, ...d }, sub.pauses, settings.cancelDeadline, today),
+              account: await loadAccount(tx, { ...sub, ...d }, sub.pauses, settings, today),
             }
           : null,
       plans: plans.filter((x) => x.active || x.id === sub?.planId),
@@ -781,31 +817,50 @@ export type PensionPaymentRow = {
   coversFrom: IsoDate;
   coversTo: IsoDate;
   note: string | null;
+  status: (typeof pensionPayment.$inferSelect)["status"];
+  operationCode: string | null;
+  hasProof: boolean;
+  rejectionReason: string | null;
 };
 
-// Últimos pagos de la pensión (pantalla Pagos).
-export async function listPensionPayments(businessId: string, limit = 50): Promise<PensionPaymentRow[]> {
-  if (!isUuid(businessId)) return [];
+// Pantalla Pagos: todos los comprobantes por revisar y los últimos pagos revisados.
+export async function listPensionPayments(
+  businessId: string,
+  limit = 50,
+): Promise<{ pending: PensionPaymentRow[]; recent: PensionPaymentRow[] }> {
+  if (!isUuid(businessId)) return { pending: [], recent: [] };
   const claims = await getSessionClaims();
-  return withRls(claims, (tx) =>
-    tx
-      .select({
-        id: pensionPayment.id,
-        residentId: resident.id,
-        name: person.fullName,
-        amount: pensionPayment.amount,
-        method: pensionPayment.method,
-        paidOn: pensionPayment.paidOn,
-        coversFrom: pensionPayment.coversFrom,
-        coversTo: pensionPayment.coversTo,
-        note: pensionPayment.note,
-      })
-      .from(pensionPayment)
-      .innerJoin(pensionSubscription, eq(pensionSubscription.id, pensionPayment.subscriptionId))
-      .innerJoin(resident, eq(resident.id, pensionSubscription.residentId))
-      .innerJoin(person, eq(person.id, resident.personId))
-      .where(eq(resident.businessId, businessId))
-      .orderBy(desc(pensionPayment.paidOn), desc(pensionPayment.createdAt))
-      .limit(limit),
-  );
+  return withRls(claims, async (tx) => {
+    const base = () =>
+      tx
+        .select({
+          id: pensionPayment.id,
+          residentId: resident.id,
+          name: person.fullName,
+          amount: pensionPayment.amount,
+          method: pensionPayment.method,
+          paidOn: pensionPayment.paidOn,
+          coversFrom: pensionPayment.coversFrom,
+          coversTo: pensionPayment.coversTo,
+          note: pensionPayment.note,
+          status: pensionPayment.status,
+          operationCode: pensionPayment.operationCode,
+          hasProof: sql<boolean>`${pensionPayment.proofPath} is not null`,
+          rejectionReason: pensionPayment.rejectionReason,
+        })
+        .from(pensionPayment)
+        .innerJoin(pensionSubscription, eq(pensionSubscription.id, pensionPayment.subscriptionId))
+        .innerJoin(resident, eq(resident.id, pensionSubscription.residentId))
+        .innerJoin(person, eq(person.id, resident.personId));
+    const [pending, recent] = await Promise.all([
+      base()
+        .where(and(eq(resident.businessId, businessId), eq(pensionPayment.status, "in_review")))
+        .orderBy(asc(pensionPayment.createdAt)),
+      base()
+        .where(and(eq(resident.businessId, businessId), ne(pensionPayment.status, "in_review")))
+        .orderBy(desc(pensionPayment.paidOn), desc(pensionPayment.createdAt))
+        .limit(limit),
+    ]);
+    return { pending, recent };
+  });
 }

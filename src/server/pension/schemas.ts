@@ -16,6 +16,11 @@ export const pensionSettingsSchema = z
   .object({
     // Hora del día anterior hasta la que el comensal puede cancelar.
     cancelDeadline: clock,
+    // Días que cocina: 1 = lunes … 7 = domingo.
+    serviceDays: z
+      .array(z.number().int().min(1).max(7))
+      .min(1, "Elige al menos un día.")
+      .transform((v) => [...new Set(v)].sort()),
     serviceModes: z.array(z.enum(SERVICE_MODE_VALUES)).min(1, "Elige al menos una forma de servir."),
     seatsPerTurn: z
       .string()
@@ -23,6 +28,7 @@ export const pensionSettingsSchema = z
       .transform((v) => (v ? Number(v) : null))
       .refine((v) => v === null || (Number.isInteger(v) && v >= 1 && v <= 1000), "Entre 1 y 1000."),
     acceptsExternal: z.boolean(),
+    acceptsPaymentProofs: z.boolean(),
     diets: z.array(z.string().trim().min(1).max(40)).max(20, "Máximo 20 dietas."),
     meals: z.array(
       z
@@ -94,7 +100,7 @@ export const pauseSchema = z.object({ fromDate: isoDate, toDate: isoDate });
 export const menuEntrySchema = z.object({
   date: isoDate,
   meal: z.enum(MEAL_TYPE_VALUES),
-  dish: z.string().trim().max(200, "Es demasiado largo."),
+  dish: z.string().trim().max(600, "Es demasiado largo."),
   hasVegetarian: z.boolean(),
 });
 
@@ -207,3 +213,36 @@ export const kitchenChangeSchema = z.object({
   meal: z.enum(MEAL_TYPE_VALUES),
   change: z.enum(["cancel", "restore", "served", "not_served"]),
 });
+
+// El comensal avisa su pago con comprobante (decisión del dueño, 2026-11-13). La foto o el PDF es obligatorio.
+export const pensionProofSchema = z
+  .object({
+    subscriptionId: z.uuid(),
+    amount: money.refine((v) => Number(v) > 0, "Tiene que ser mayor que cero."),
+    method: z.enum(PAYMENT_METHODS, "Elige cómo pagaste."),
+    paidOn: isoDate,
+    coversFrom: isoDate,
+    coversTo: isoDate,
+    operationCode: z
+      .string()
+      .trim()
+      .max(40, "Es demasiado largo.")
+      .transform((v) => v || null),
+    proofPath: z.string().min(1, "Sube la foto o el PDF de tu comprobante."),
+  })
+  .superRefine((v, ctx) => {
+    if (v.coversTo < v.coversFrom) {
+      ctx.addIssue({ code: "custom", path: ["coversTo"], message: "No puede terminar antes de empezar." });
+    }
+  });
+
+export type PensionProofInput = z.input<typeof pensionProofSchema>;
+
+// La cocina aprueba o rechaza un comprobante. El motivo del rechazo lo ve el comensal.
+export const pensionReviewSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("confirmed") }),
+  z.object({
+    status: z.literal("rejected"),
+    reason: z.string().trim().min(3, "Escribe el motivo: tu comensal lo verá.").max(200, "Es demasiado largo."),
+  }),
+]);

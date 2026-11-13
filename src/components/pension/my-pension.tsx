@@ -14,6 +14,7 @@ import { BILLING_CYCLE_LABEL, cancellationOpen, limaNow, MEAL_LABEL } from "@/se
 import { METHOD_LABEL } from "@/server/payments/schemas";
 
 import { AccountSummary } from "./account-summary";
+import { MyProofForm } from "./my-proof-form";
 
 const card = "flex flex-col gap-3 rounded-xl border bg-card p-5 shadow-card";
 
@@ -27,6 +28,8 @@ function Pension({ p, today }: { p: MyPension; today: string }) {
   const [pending, startTransition] = useTransition();
   const now = limaNow(new Date());
   const s = p.subscription;
+  // Los días que la pensión no cocina no se muestran (decisión del dueño, 2026-11-13). Las pausas sí.
+  const days = p.days.filter((d) => !d.noService);
 
   const run = (action: () => Promise<PensionResult>, ok: string) =>
     startTransition(async () => {
@@ -59,18 +62,22 @@ function Pension({ p, today }: { p: MyPension; today: string }) {
         <h2 id={`dias-${p.residentId}`} className="text-lg font-bold">
           Próximos días
         </h2>
-        {p.days.length ? (
+        {days.length ? (
           <ul className="flex flex-col gap-3">
-            {p.days.map((d) => (
+            {days.map((d) => (
               <li key={d.date} className="rounded-lg border">
                 <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
                   <b className="text-sm">
                     {d.date === today ? "Hoy · " : ""}
                     {formatShortDate(d.date)}
                   </b>
-                  {d.paused ? <StatusBadge tone="warn">En pausa</StatusBadge> : null}
+                  {d.noService ? (
+                    <StatusBadge tone="neutral">No hay servicio</StatusBadge>
+                  ) : d.paused ? (
+                    <StatusBadge tone="warn">En pausa</StatusBadge>
+                  ) : null}
                 </div>
-                {d.paused ? (
+                {d.noService || d.paused ? (
                   <p className="px-3 py-2.5 text-sm text-muted-foreground">
                     Ese día no se cocina ni se cobra.
                   </p>
@@ -83,10 +90,9 @@ function Pension({ p, today }: { p: MyPension; today: string }) {
                           <span className="min-w-0 flex-1">
                             <b>{MEAL_LABEL[m.type]}</b>
                             {m.menu ? (
-                              <span className="text-muted-foreground">
-                                {" "}
-                                · {m.menu.dish}
-                                {m.menu.hasVegetarian ? " (hay opción vegetariana)" : ""}
+                              <span className="block whitespace-pre-line text-muted-foreground">
+                                {m.menu.dish}
+                                {m.menu.hasVegetarian ? "\n(hay opción vegetariana)" : ""}
                               </span>
                             ) : null}
                             <span className="block text-xs text-muted-foreground">
@@ -142,14 +148,45 @@ function Pension({ p, today }: { p: MyPension; today: string }) {
       <section className={card}>
         <h2 className="text-lg font-bold">Mis pagos</h2>
         <AccountSummary account={p.account} />
+        {s && p.acceptsProofs ? (
+          <MyProofForm
+            businessId={p.businessId}
+            residentId={p.residentId}
+            subscriptionId={s.id}
+            today={today}
+            suggestion={p.account.next}
+          />
+        ) : null}
         {p.account.payments.length ? (
           <ul className="divide-y rounded-lg border">
             {p.account.payments.map((x) => (
-              <li key={x.id} className="px-3 py-2.5 text-sm">
-                <b>{formatSoles(x.amount)}</b> · {METHOD_LABEL[x.method]} · {formatShortDate(x.paidOn)}
-                <span className="block text-muted-foreground">
-                  Cubre del {formatShortDate(x.coversFrom)} al {formatShortDate(x.coversTo)}
+              <li key={x.id} className="flex flex-wrap items-center gap-2 px-3 py-2.5 text-sm">
+                <span className="min-w-0 flex-1">
+                  <b>{formatSoles(x.amount)}</b> · {METHOD_LABEL[x.method]} · {formatShortDate(x.paidOn)}
+                  <span className="block text-muted-foreground">
+                    Para del {formatShortDate(x.coversFrom)} al {formatShortDate(x.coversTo)}
+                  </span>
+                  {x.status === "rejected" && x.rejectionReason ? (
+                    <span className="block text-danger">Motivo: {x.rejectionReason}</span>
+                  ) : null}
                 </span>
+                {x.hasProof ? (
+                  <a
+                    href={`/archivos/comprobante-pension/${x.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-11 items-center font-semibold text-link underline-offset-4 hover:underline"
+                  >
+                    Comprobante
+                  </a>
+                ) : null}
+                {x.status === "in_review" ? (
+                  <StatusBadge tone="warn">En revisión</StatusBadge>
+                ) : x.status === "rejected" ? (
+                  <StatusBadge tone="danger">Rechazado</StatusBadge>
+                ) : (
+                  <StatusBadge tone="ok">Confirmado</StatusBadge>
+                )}
               </li>
             ))}
           </ul>
@@ -157,8 +194,10 @@ function Pension({ p, today }: { p: MyPension; today: string }) {
           <p className="text-sm text-muted-foreground">Todavía no hay pagos registrados.</p>
         )}
         <p className="text-xs text-muted-foreground">
-          Los pagos los registra tu pensión. Las comidas que cancelas a tiempo y los días en pausa quedan como
-          saldo a favor.
+          {p.acceptsProofs
+            ? "Tu pensión registra tus pagos o tú le avisas con tu comprobante; cuenta cuando lo aprueba."
+            : "Los pagos los registra tu pensión."}{" "}
+          Las comidas que cancelas a tiempo y los días en pausa quedan como saldo a favor.
         </p>
       </section>
 

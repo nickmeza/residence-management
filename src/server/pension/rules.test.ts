@@ -6,9 +6,12 @@ import {
   cancellationOpen,
   coversDay,
   isPaused,
+  isServiceDay,
+  isoWeekday,
   kitchenCounts,
   kitchenProblem,
   limaNow,
+  nearestServiceDay,
   nextCoverage,
   overlapsSubscription,
   pauseProblem,
@@ -129,6 +132,51 @@ describe("cobro por adelantado", () => {
     expect(account.next).toEqual({ from: "2026-11-23", to: "2026-11-29", amount: "100.00" });
   });
 
+  it("días de atención: de lunes a viernes, el sábado y el domingo no se cobran", () => {
+    // 2026-11-16 es lunes.
+    expect(isoWeekday("2026-11-16")).toBe(1);
+    expect(isoWeekday("2026-11-22")).toBe(7);
+    expect(isServiceDay("2026-11-21", [1, 2, 3, 4, 5])).toBe(false);
+    expect(isServiceDay("2026-11-20", [1, 2, 3, 4, 5])).toBe(true);
+    expect(
+      rangeCost({ ...base, from: "2026-11-16", to: "2026-11-22", serviceDays: [1, 2, 3, 4, 5] }),
+    ).toEqual({ days: 5, amount: "75.00" });
+    // Lo sugerido para la semana también cuenta solo los días que se cocina.
+    const account = pensionAccount({
+      ...base,
+      today: "2026-11-16",
+      cycle: "weekly",
+      serviceDays: [1, 2, 3, 4, 5],
+      payments: [],
+    });
+    expect(account.next).toEqual({ from: "2026-11-16", to: "2026-11-22", amount: "75.00" });
+  });
+
+  it("pagos por partes: 'pagado hasta' avanza solo con el tramo completo y se sugiere lo que falta", () => {
+    // La semana del 16 al 22 cuesta S/ 105 (S/ 15 al día). Pagó S/ 40 y luego S/ 65.
+    const first = pensionAccount({
+      ...base,
+      today: "2026-11-16",
+      cycle: "weekly",
+      payments: [{ amount: "40.00", coversTo: "2026-11-22" }],
+    });
+    expect(first.paidUntil).toBe("2026-11-17"); // S/ 40 alcanza para 2 días (S/ 30)
+    expect(first.partial).toEqual({ from: "2026-11-18", to: "2026-11-22", missing: "65.00" });
+    expect(first.next).toEqual({ from: "2026-11-18", to: "2026-11-22", amount: "65.00" });
+    const done = pensionAccount({
+      ...base,
+      today: "2026-11-16",
+      cycle: "weekly",
+      payments: [
+        { amount: "40.00", coversTo: "2026-11-22" },
+        { amount: "65.00", coversTo: "2026-11-22" },
+      ],
+    });
+    expect(done.paidUntil).toBe("2026-11-22");
+    expect(done.partial).toBeNull();
+    expect(done.next).toEqual({ from: "2026-11-23", to: "2026-11-29", amount: "105.00" });
+  });
+
   it("sin pagos debe desde el inicio", () => {
     const account = pensionAccount({ ...base, today: "2026-11-17", cycle: "daily", payments: [] });
     expect(account.paidUntil).toBeNull();
@@ -203,5 +251,14 @@ describe("la cocina marca o cancela una comida", () => {
   it("una pausa se quita solo si todavía no empezó", () => {
     expect(pauseRemovable({ fromDate: "2026-11-14" }, "2026-11-13")).toBe(true);
     expect(pauseRemovable({ fromDate: "2026-11-13" }, "2026-11-13")).toBe(false);
+  });
+});
+
+describe("días sin servicio: no se muestran (decisión del dueño, 2026-11-13)", () => {
+  it("las flechas saltan los días que no se cocina", () => {
+    const weekdays = [1, 2, 3, 4, 5]; // lunes a viernes
+    expect(nearestServiceDay("2026-11-13", 1, weekdays)).toBe("2026-11-16"); // viernes → lunes
+    expect(nearestServiceDay("2026-11-16", -1, weekdays)).toBe("2026-11-13"); // lunes → viernes
+    expect(nearestServiceDay("2026-11-11", 1, weekdays)).toBe("2026-11-12");
   });
 });

@@ -11,6 +11,8 @@ import { BILLING_CYCLE_LABEL } from "@/server/pension/rules";
 import { METHOD_LABEL } from "@/server/payments/schemas";
 
 import { PaymentDialog } from "./payment-dialog";
+import { ProofReviewList } from "./proof-review";
+import { QuickPaidButton } from "./quick-paid-button";
 
 const GRID = "grid grid-cols-[1.5fr_1fr_.9fr_.9fr_1.3fr_auto] items-center gap-3 px-5";
 
@@ -19,10 +21,13 @@ const GRID = "grid grid-cols-[1.5fr_1fr_.9fr_.9fr_1.3fr_auto] items-center gap-3
 export function PaymentsBoard({
   today,
   diners,
+  pending,
   payments,
 }: {
   today: string;
   diners: DinerRow[];
+  // Comprobantes de comensales por revisar (solo si la pensión los recibe).
+  pending: PensionPaymentRow[];
   payments: PensionPaymentRow[];
 }) {
   const rows = diners
@@ -31,9 +36,10 @@ export function PaymentsBoard({
 
   return (
     <>
+      <ProofReviewList pending={pending} />
       <section className="overflow-hidden rounded-xl border bg-card shadow-card">
         <div className="overflow-x-auto">
-          <div className="min-w-[820px]">
+          <div className="min-w-[980px]">
             <div
               className={cn(
                 GRID,
@@ -72,7 +78,9 @@ export function PaymentsBoard({
                         )}
                       </span>
                       <span>
-                        {balance < 0 ? (
+                        {s.account.partial ? (
+                          <StatusBadge tone="warn">Pago parcial · faltan {formatSoles(s.account.partial.missing)}</StatusBadge>
+                        ) : balance < 0 ? (
                           <StatusBadge tone="danger">Debe {formatSoles(-balance)}</StatusBadge>
                         ) : balance > 0 ? (
                           <StatusBadge tone="ok">A favor {formatSoles(balance)}</StatusBadge>
@@ -86,24 +94,32 @@ export function PaymentsBoard({
                           {formatShortDate(s.account.next.from)} – {formatShortDate(s.account.next.to)}
                         </span>
                       </span>
-                      <PaymentDialog
-                        subscriptionId={s.id}
-                        name={d.name}
-                        today={today}
-                        suggestion={s.account.next}
-                        trigger={(open) => (
-                          <Button type="button" variant="outline" className="h-11" onClick={open}>
-                            Registrar pago
-                          </Button>
-                        )}
-                      />
+                      <span className="flex flex-wrap justify-end gap-2">
+                        <QuickPaidButton
+                          subscriptionId={s.id}
+                          name={d.name}
+                          today={today}
+                          suggestion={s.account.next}
+                        />
+                        <PaymentDialog
+                          subscriptionId={s.id}
+                          name={d.name}
+                          today={today}
+                          suggestion={s.account.next}
+                          trigger={(open) => (
+                            <Button type="button" variant="outline" className="h-11" onClick={open}>
+                              Registrar pago
+                            </Button>
+                          )}
+                        />
+                      </span>
                     </li>
                   );
                 })}
               </ul>
             ) : (
               <p className="border-t px-5 py-8 text-center text-muted-foreground">
-                Todavía no tienes comensales con plan. Agrégalos en la pestaña Comensales.
+                Todavía no tienes comensales con plan. Agrégalos en Clientes.
               </p>
             )}
           </div>
@@ -118,12 +134,29 @@ export function PaymentsBoard({
               <li key={p.id} className="flex flex-wrap items-center gap-3 py-2.5 text-sm">
                 <span className="min-w-0 flex-1">
                   <b>{p.name}</b> · {formatSoles(p.amount)} · {METHOD_LABEL[p.method]}
+                  {p.operationCode ? ` · Op. ${p.operationCode}` : ""}
                   <span className="block text-muted-foreground">
                     Pagó el {formatShortDate(p.paidOn)} · cubre del {formatShortDate(p.coversFrom)} al{" "}
                     {formatShortDate(p.coversTo)}
                     {p.note ? ` · ${p.note}` : ""}
+                    {p.status === "rejected" && p.rejectionReason ? ` · Motivo: ${p.rejectionReason}` : ""}
                   </span>
                 </span>
+                {p.hasProof ? (
+                  <a
+                    href={`/archivos/comprobante-pension/${p.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-11 items-center font-semibold text-link underline-offset-4 hover:underline"
+                  >
+                    Comprobante
+                  </a>
+                ) : null}
+                {p.status === "rejected" ? (
+                  <StatusBadge tone="danger">Rechazado</StatusBadge>
+                ) : (
+                  <StatusBadge tone="ok">Confirmado</StatusBadge>
+                )}
               </li>
             ))}
           </ul>

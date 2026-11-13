@@ -19,10 +19,14 @@ import {
   resident,
 } from "@/db/schema";
 import { limaToday, type IsoDate } from "@/server/contracts/dates";
+import { isFolderPathOf } from "@/server/documents/files";
 
+import { pastMenuChanged } from "./menu-moves";
 import {
   addDays,
+  ALL_DAYS,
   coversDay,
+  isServiceDay,
   kitchenProblem,
   overlapsSubscription,
   pauseProblem,
@@ -53,14 +57,16 @@ async function requirePension(tx: Tx, businessId: string) {
   if (!b) throw new PensionError("No encontramos tu pensión. Recarga la página.");
 }
 
-// Configuración › Pensión: hora de cancelación, formas de servir, capacidad, externos, dietas y las tres comidas.
+// Configuración › Comidas y planes: días de atención, hora de cancelación, formas de servir, capacidad, externos, dietas y las tres comidas.
 export async function savePensionSettings(tx: Tx, businessId: string, data: PensionSettingsData) {
   await requirePension(tx, businessId);
   const settings = {
     cancelDeadline: data.cancelDeadline,
+    serviceDays: data.serviceDays,
     serviceModes: data.serviceModes,
     seatsPerTurn: data.seatsPerTurn,
     acceptsExternal: data.acceptsExternal,
+    acceptsPaymentProofs: data.acceptsPaymentProofs,
     diets: [...new Set(data.diets)],
     updatedAt: new Date(),
   };
@@ -327,6 +333,14 @@ export async function kitchenChange(
   },
 ) {
   await requireDiner(tx, businessId, input.residentId);
+  const [st] = await tx
+    .select({ serviceDays: mealSettings.serviceDays })
+    .from(mealSettings)
+    .where(eq(mealSettings.businessId, businessId))
+    .limit(1);
+  if (!isServiceDay(input.date, st?.serviceDays ?? ALL_DAYS)) {
+    throw new PensionError("Ese día tu pensión no cocina.");
+  }
   const subs = await tx
     .select({
       id: pensionSubscription.id,
@@ -374,7 +388,9 @@ export async function kitchenChange(
 type MealKind = "breakfast" | "lunch" | "dinner";
 
 // Menú de una semana (PN-03): un plato por día y comida; vacío = se borra. Publicar lo deja visible para los
-// comensales; guardar sin publicar lo deja como borrador.
+// comensales; guardar sin publicar lo deja como borrador. Todo va en la misma transacción, así que mover o
+// intercambiar comidas entre días nunca queda a medias. El menú de un día que ya pasó no se cambia ni se borra
+// (decisión del dueño, 2026-11-13): si llega igual se ignora; si llega distinto, se rechaza.
 export async function saveWeekMenu(
   tx: Tx,
   businessId: string,
@@ -382,8 +398,31 @@ export async function saveWeekMenu(
   publish: boolean,
 ) {
   await requirePension(tx, businessId);
+  const today = limaToday(new Date());
+  const past = entries.filter((e) => e.date < today);
+  if (past.length) {
+    const dates = past.map((e) => e.date).sort();
+    const saved = await tx
+      .select({
+        date: menuItem.date,
+        meal: menuItem.meal,
+        dish: menuItem.dish,
+        hasVegetarian: menuItem.hasVegetarian,
+      })
+      .from(menuItem)
+      .where(
+        and(
+          eq(menuItem.businessId, businessId),
+          gte(menuItem.date, dates[0]),
+          lte(menuItem.date, dates[dates.length - 1]),
+        ),
+      );
+    if (pastMenuChanged(saved, past, today)) {
+      throw new PensionError("El menú de un día que ya pasó no se cambia. Cópialo y pégalo en otro día.");
+    }
+  }
   const status = publish ? ("published" as const) : ("draft" as const);
-  for (const e of entries) {
+  for (const e of entries.filter((x) => x.date >= today)) {
     const key = and(
       eq(menuItem.businessId, businessId),
       eq(menuItem.date, e.date),
@@ -410,9 +449,10 @@ export async function saveWeekMenu(
   }
 }
 
-// Copiar la semana anterior a esta (como borrador), sin pisar lo que ya esté escrito.
+// Copiar la semana anterior a esta (como borrador), sin pisar lo que ya esté escrito ni los días que ya pasaron.
 export async function copyPreviousWeek(tx: Tx, businessId: string, monday: IsoDate) {
   await requirePension(tx, businessId);
+  const today = limaToday(new Date());
   const previous = await tx
     .select()
     .from(menuItem)
@@ -424,10 +464,12 @@ export async function copyPreviousWeek(tx: Tx, businessId: string, monday: IsoDa
       ),
     );
   if (!previous.length) throw new PensionError("La semana anterior no tiene menú.");
+  const toCopy = previous.filter((p) => addDays(p.date, 7) >= today);
+  if (!toCopy.length) throw new PensionError("Los días de esta semana ya pasaron: no hay dónde copiar.");
   await tx
     .insert(menuItem)
     .values(
-      previous.map((p) => ({
+      toCopy.map((p) => ({
         businessId,
         date: addDays(p.date, 7),
         meal: p.meal,
@@ -456,7 +498,74 @@ export async function registerPensionPayment(
   if (data.coversFrom < sub.startDate || (sub.endDate !== null && data.coversTo > sub.endDate)) {
     throw new PensionError("Los días que cubre tienen que estar dentro de su afiliación.");
   }
-  await tx.insert(pensionPayment).values({ ...data, registeredBy: await myPersonId(tx) });
+  const me = await myPersonId(tx);
+  // Lo registra la cocina: queda confirmado (cuenta para el saldo desde ya).
+  await tx
+    .insert(pensionPayment)
+    .values({ ...data, status: "confirmed", registeredBy: me, reviewedBy: me, reviewedAt: new Date() });
+}
+
+// El comensal avisa su pago con el comprobante (decisión del dueño, 2026-11-13): solo si su pensión lo permite;
+// queda en revisión y no cuenta hasta que la cocina lo apruebe. El RLS de la base revisa lo mismo.
+export async function submitPensionProof(
+  tx: Tx,
+  data: {
+    subscriptionId: string;
+    amount: string;
+    method: (typeof pensionPayment.$inferInsert)["method"];
+    paidOn: IsoDate;
+    coversFrom: IsoDate;
+    coversTo: IsoDate;
+    operationCode: string | null;
+    proofPath: string;
+  },
+) {
+  const sub = await requireSubscription(tx, data.subscriptionId);
+  const [st] = await tx
+    .select({ accepts: mealSettings.acceptsPaymentProofs })
+    .from(mealSettings)
+    .where(eq(mealSettings.businessId, sub.businessId))
+    .limit(1);
+  if (!st?.accepts) throw new PensionError("Tu pensión no recibe comprobantes por aquí. Avísale por WhatsApp.");
+  if (!isFolderPathOf(data.proofPath, sub.businessId, sub.residentId, "comprobantes")) {
+    throw new PensionError("Sube la foto o el PDF de tu comprobante.");
+  }
+  if (data.coversFrom < sub.startDate || (sub.endDate !== null && data.coversTo > sub.endDate)) {
+    throw new PensionError("Los días que cubre tienen que estar dentro de tu plan.");
+  }
+  await tx.insert(pensionPayment).values({
+    ...data,
+    note: null,
+    status: "in_review",
+    registeredBy: await myPersonId(tx),
+  });
+}
+
+// La cocina aprueba o rechaza un comprobante que está en revisión. Rechazar pide un motivo (el comensal lo ve).
+export async function reviewPensionPayment(
+  tx: Tx,
+  paymentId: string,
+  review: { status: "confirmed" } | { status: "rejected"; reason: string },
+) {
+  const [current] = await tx
+    .select({ status: pensionPayment.status })
+    .from(pensionPayment)
+    .where(eq(pensionPayment.id, paymentId))
+    .limit(1);
+  if (!current) throw new PensionError("No encontramos ese pago. Recarga la página.");
+  if (current.status !== "in_review") throw new PensionError("Ese pago ya fue revisado.");
+  const updated = await tx
+    .update(pensionPayment)
+    .set({
+      status: review.status,
+      rejectionReason: review.status === "rejected" ? review.reason : null,
+      reviewedBy: await myPersonId(tx),
+      reviewedAt: new Date(),
+    })
+    .where(and(eq(pensionPayment.id, paymentId), eq(pensionPayment.status, "in_review")))
+    .returning({ id: pensionPayment.id });
+  // El RLS solo deja cambiarlo a la cocina de esa pensión.
+  if (!updated.length) throw new PensionError("No puedes revisar ese pago.");
 }
 
 // Quitar un pago registrado por error. La bitácora conserva lo que había (trigger de la base).
