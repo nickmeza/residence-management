@@ -7,9 +7,12 @@ import {
   coversDay,
   isPaused,
   kitchenCounts,
+  kitchenProblem,
   limaNow,
   nextCoverage,
+  overlapsSubscription,
   pauseProblem,
+  pauseRemovable,
   pensionAccount,
   planPriceWarning,
   rangeCost,
@@ -152,5 +155,53 @@ describe("semana y cocina", () => {
       { state: attendanceState({ paused: true, attendance: null }), served: false },
     ];
     expect(kitchenCounts(states)).toEqual({ portions: 3, cancelled: 1, served: 1 });
+  });
+});
+
+describe("una afiliación a la vez", () => {
+  const open = { startDate: "2026-11-01", endDate: null };
+  it("se cruza con una abierta o con fechas que se tocan", () => {
+    expect(overlapsSubscription({ startDate: "2026-12-01", endDate: null }, [open])).toBe(true);
+    expect(
+      overlapsSubscription({ startDate: "2026-10-01", endDate: "2026-11-01" }, [
+        { startDate: "2026-11-01", endDate: "2026-11-30" },
+      ]),
+    ).toBe(true);
+  });
+  it("no se cruza si la anterior terminó antes", () => {
+    expect(
+      overlapsSubscription({ startDate: "2026-12-01", endDate: null }, [
+        { startDate: "2026-11-01", endDate: "2026-11-30" },
+      ]),
+    ).toBe(false);
+    expect(overlapsSubscription({ startDate: "2026-12-01", endDate: null }, [])).toBe(false);
+  });
+});
+
+describe("la cocina marca o cancela una comida", () => {
+  const subscription = { startDate: "2026-11-01", endDate: null, planMeals: ["lunch" as const] };
+  it("solo si su plan la incluye ese día y no está en pausa", () => {
+    expect(kitchenProblem({ date: "2026-11-10", meal: "lunch", subscription, pauses: [] })).toBeNull();
+    expect(kitchenProblem({ date: "2026-11-10", meal: "dinner", subscription, pauses: [] })).toMatch(
+      /no incluye/,
+    );
+    expect(kitchenProblem({ date: "2026-10-31", meal: "lunch", subscription, pauses: [] })).toMatch(
+      /no incluye/,
+    );
+    expect(kitchenProblem({ date: "2026-11-10", meal: "lunch", subscription: null, pauses: [] })).toMatch(
+      /no incluye/,
+    );
+    expect(
+      kitchenProblem({
+        date: "2026-11-10",
+        meal: "lunch",
+        subscription,
+        pauses: [{ fromDate: "2026-11-09", toDate: "2026-11-12" }],
+      }),
+    ).toMatch(/pausa/);
+  });
+  it("una pausa se quita solo si todavía no empezó", () => {
+    expect(pauseRemovable({ fromDate: "2026-11-14" }, "2026-11-13")).toBe(true);
+    expect(pauseRemovable({ fromDate: "2026-11-13" }, "2026-11-13")).toBe(false);
   });
 });

@@ -596,3 +596,216 @@ export async function hasMyPension(): Promise<boolean> {
     return rows.length > 0;
   });
 }
+
+type Account = Awaited<ReturnType<typeof loadAccount>>;
+
+// La afiliación que importa hoy: la que cubre hoy; si no hay, la próxima; si tampoco, la más reciente.
+function currentOf<T extends { startDate: IsoDate; endDate: IsoDate | null }>(subs: T[], today: IsoDate) {
+  return (
+    subs.find((s) => coversDay(s, today)) ??
+    subs.filter((s) => s.startDate > today).sort((a, b) => a.startDate.localeCompare(b.startDate))[0] ??
+    [...subs].sort((a, b) => b.startDate.localeCompare(a.startDate))[0] ??
+    null
+  );
+}
+
+export type DinerRow = {
+  residentId: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  hasAccount: boolean;
+  subscription:
+    | (SubscriptionRow & {
+        billingCycle: BillingCycle;
+        account: Omit<Account, "payments">;
+      })
+    | null;
+};
+
+// Comensales de una pensión (PN-04, PN-09) con su afiliación de hoy y su estado de cuenta (cobro por adelantado).
+export async function listDiners(businessId: string): Promise<{ today: IsoDate; diners: DinerRow[] } | null> {
+  if (!isUuid(businessId)) return null;
+  const claims = await getSessionClaims();
+  const today = limaToday(new Date());
+  return withRls(claims, async (tx) => {
+    if (!(await pensionBusiness(tx, businessId))) return null;
+    const [settings, people, subs, details] = await Promise.all([
+      loadSettings(tx, businessId),
+      tx
+        .select({
+          residentId: resident.id,
+          name: person.fullName,
+          phone: person.phone,
+          email: person.email,
+          userId: person.userId,
+        })
+        .from(resident)
+        .innerJoin(person, eq(person.id, resident.personId))
+        .where(eq(resident.businessId, businessId))
+        .orderBy(asc(person.fullName)),
+      loadSubscriptions(tx, businessId, today),
+      tx
+        .select({
+          id: pensionSubscription.id,
+          billingCycle: pensionSubscription.billingCycle,
+          dailyPrice: pensionPlan.dailyPrice,
+          planMeals: pensionPlan.meals,
+        })
+        .from(pensionSubscription)
+        .innerJoin(pensionPlan, eq(pensionPlan.id, pensionSubscription.planId))
+        .where(eq(pensionPlan.businessId, businessId)),
+    ]);
+    const diners: DinerRow[] = [];
+    for (const p of people) {
+      const sub = currentOf(
+        subs.filter((s) => s.residentId === p.residentId),
+        today,
+      );
+      const d = sub ? details.find((x) => x.id === sub.id) : undefined;
+      let subscription: DinerRow["subscription"] = null;
+      if (sub && d) {
+        const full = await loadAccount(tx, { ...sub, ...d }, sub.pauses, settings.cancelDeadline, today);
+        subscription = {
+          ...sub,
+          billingCycle: d.billingCycle,
+          account: {
+            paidUntil: full.paidUntil,
+            balance: full.balance,
+            upToDate: full.upToDate,
+            next: full.next,
+          },
+        };
+      }
+      diners.push({
+        residentId: p.residentId,
+        name: p.name,
+        phone: p.phone,
+        email: p.email,
+        hasAccount: p.userId !== null,
+        subscription,
+      });
+    }
+    return { today, diners };
+  });
+}
+
+export type DinerDetail = {
+  businessId: string;
+  today: IsoDate;
+  residentId: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  hasAccount: boolean;
+  // Todas sus afiliaciones, de la más reciente a la más antigua.
+  subscriptions: (SubscriptionRow & { billingCycle: BillingCycle })[];
+  current: (SubscriptionRow & { billingCycle: BillingCycle; dailyPrice: string; account: Account }) | null;
+  // Planes que se le pueden ofrecer (activos) más el suyo aunque esté desactivado.
+  plans: { id: string; name: string; dailyPrice: string; active: boolean }[];
+};
+
+// Página de un comensal: sus datos, su plan, sus pausas y sus pagos.
+export async function getDiner(businessId: string, residentId: string): Promise<DinerDetail | null> {
+  if (!isUuid(businessId) || !isUuid(residentId)) return null;
+  const claims = await getSessionClaims();
+  const today = limaToday(new Date());
+  return withRls(claims, async (tx) => {
+    if (!(await pensionBusiness(tx, businessId))) return null;
+    const [p] = await tx
+      .select({ name: person.fullName, phone: person.phone, email: person.email, userId: person.userId })
+      .from(resident)
+      .innerJoin(person, eq(person.id, resident.personId))
+      .where(and(eq(resident.id, residentId), eq(resident.businessId, businessId)))
+      .limit(1);
+    if (!p) return null;
+    const [settings, all, details, plans] = await Promise.all([
+      loadSettings(tx, businessId),
+      loadSubscriptions(tx, businessId, today),
+      tx
+        .select({
+          id: pensionSubscription.id,
+          billingCycle: pensionSubscription.billingCycle,
+          dailyPrice: pensionPlan.dailyPrice,
+          planMeals: pensionPlan.meals,
+        })
+        .from(pensionSubscription)
+        .innerJoin(pensionPlan, eq(pensionPlan.id, pensionSubscription.planId))
+        .where(eq(pensionSubscription.residentId, residentId)),
+      tx
+        .select({
+          id: pensionPlan.id,
+          name: pensionPlan.name,
+          dailyPrice: pensionPlan.dailyPrice,
+          active: pensionPlan.active,
+        })
+        .from(pensionPlan)
+        .where(eq(pensionPlan.businessId, businessId))
+        .orderBy(asc(pensionPlan.name)),
+    ]);
+    const subscriptions = all
+      .filter((s) => s.residentId === residentId)
+      .map((s) => ({ ...s, billingCycle: details.find((d) => d.id === s.id)!.billingCycle }))
+      .sort((a, b) => b.startDate.localeCompare(a.startDate));
+    const sub = currentOf(subscriptions, today);
+    const d = sub ? details.find((x) => x.id === sub.id)! : null;
+    return {
+      businessId,
+      today,
+      residentId,
+      name: p.name,
+      phone: p.phone,
+      email: p.email,
+      hasAccount: p.userId !== null,
+      subscriptions,
+      current:
+        sub && d
+          ? {
+              ...sub,
+              dailyPrice: d.dailyPrice,
+              account: await loadAccount(tx, { ...sub, ...d }, sub.pauses, settings.cancelDeadline, today),
+            }
+          : null,
+      plans: plans.filter((x) => x.active || x.id === sub?.planId),
+    };
+  });
+}
+
+export type PensionPaymentRow = {
+  id: string;
+  residentId: string;
+  name: string;
+  amount: string;
+  method: (typeof pensionPayment.$inferSelect)["method"];
+  paidOn: IsoDate;
+  coversFrom: IsoDate;
+  coversTo: IsoDate;
+  note: string | null;
+};
+
+// Últimos pagos de la pensión (pantalla Pagos).
+export async function listPensionPayments(businessId: string, limit = 50): Promise<PensionPaymentRow[]> {
+  if (!isUuid(businessId)) return [];
+  const claims = await getSessionClaims();
+  return withRls(claims, (tx) =>
+    tx
+      .select({
+        id: pensionPayment.id,
+        residentId: resident.id,
+        name: person.fullName,
+        amount: pensionPayment.amount,
+        method: pensionPayment.method,
+        paidOn: pensionPayment.paidOn,
+        coversFrom: pensionPayment.coversFrom,
+        coversTo: pensionPayment.coversTo,
+        note: pensionPayment.note,
+      })
+      .from(pensionPayment)
+      .innerJoin(pensionSubscription, eq(pensionSubscription.id, pensionPayment.subscriptionId))
+      .innerJoin(resident, eq(resident.id, pensionSubscription.residentId))
+      .innerJoin(person, eq(person.id, resident.personId))
+      .where(eq(resident.businessId, businessId))
+      .orderBy(desc(pensionPayment.paidOn), desc(pensionPayment.createdAt))
+      .limit(limit),
+  );
+}

@@ -135,3 +135,75 @@ export const pensionPaymentSchema = z
   });
 
 export type PensionPaymentInput = z.input<typeof pensionPaymentSchema>;
+
+const phone = z
+  .string()
+  .trim()
+  .refine((v) => v === "" || /^[+\d][\d\s-]{5,19}$/.test(v), "Escribe solo números, por ejemplo 987 654 321.")
+  .transform((v) => v || null);
+
+const email = z
+  .string()
+  .trim()
+  .refine((v) => v === "" || z.email().safeParse(v).success, "Escribe un correo válido.")
+  .transform((v) => v || null);
+
+const dietNote = z
+  .string()
+  .trim()
+  .max(200, "Es demasiado largo.")
+  .transform((v) => v || null);
+
+// Datos de contacto de un comensal (decisión del dueño: solo nombre y celular o correo; sin DNI ni contrato).
+export const dinerContactSchema = z
+  .object({
+    fullName: z.string().trim().min(2, "Escribe el nombre y apellido.").max(120, "Es demasiado largo."),
+    phone,
+    email,
+  })
+  .superRefine((v, ctx) => {
+    if (!v.phone && !v.email) {
+      ctx.addIssue({ code: "custom", path: ["phone"], message: "Escribe su celular o su correo." });
+    }
+  });
+
+export type DinerContactInput = z.input<typeof dinerContactSchema>;
+
+// Agregar comensal (PN-04, PN-09): sus datos y su plan en un solo paso.
+export const newDinerSchema = z
+  .object({
+    fullName: z.string().trim().min(2, "Escribe el nombre y apellido.").max(120, "Es demasiado largo."),
+    phone,
+    email,
+    planId: z.uuid("Elige el plan."),
+    startDate: isoDate,
+    billingCycle: z.enum(BILLING_CYCLE_VALUES),
+    dietNote,
+  })
+  .superRefine((v, ctx) => {
+    if (!v.phone && !v.email) {
+      ctx.addIssue({ code: "custom", path: ["phone"], message: "Escribe su celular o su correo." });
+    }
+  });
+
+export type NewDinerInput = z.input<typeof newDinerSchema>;
+export type NewDinerData = z.output<typeof newDinerSchema>;
+
+// Cambiar el plan, la frecuencia de cobro, la dieta o la fecha de fin de una afiliación.
+export const subscriptionEditSchema = z.object({
+  planId: z.uuid("Elige el plan."),
+  billingCycle: z.enum(BILLING_CYCLE_VALUES),
+  dietNote,
+  endDate: z.union([z.literal(""), isoDate]).transform((v) => v || null),
+});
+
+export type SubscriptionEditInput = z.input<typeof subscriptionEditSchema>;
+export type SubscriptionEditData = z.output<typeof subscriptionEditSchema>;
+
+// Lo que hace la cocina con una comida de un comensal: cancelarla, volver a pedirla o marcar si comió.
+export const kitchenChangeSchema = z.object({
+  residentId: z.uuid(),
+  date: isoDate,
+  meal: z.enum(MEAL_TYPE_VALUES),
+  change: z.enum(["cancel", "restore", "served", "not_served"]),
+});

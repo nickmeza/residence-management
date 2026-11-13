@@ -2,7 +2,22 @@ import { sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { db } from "@/db";
-import { deletePlan, PensionError, savePensionSettings, savePlan } from "@/server/pension/mutations";
+import {
+  addDiner,
+  addPause,
+  copyPreviousWeek,
+  deletePensionPayment,
+  deletePlan,
+  kitchenChange,
+  PensionError,
+  registerPensionPayment,
+  removePause,
+  savePensionSettings,
+  savePlan,
+  saveWeekMenu,
+  subscribe,
+  updateSubscription,
+} from "@/server/pension/mutations";
 
 // Pensión (Fase 6) contra la base real, con RLS activo: las funciones del comensal (confirmar y pausar) y quién
 // ve qué. Cada prueba deshace todo. Las fechas se calculan desde "hoy en Lima" para no depender del reloj.
@@ -290,6 +305,170 @@ describe("configuración de la pensión", () => {
       );
       await deletePlan(tx, c.businessId, plan.id);
       expect((await rows(tx, sql`select 1 from public.pension_plan`)).length).toBe(1);
+    });
+  });
+});
+
+describe("comensales (la cocina los agrega y los afilia)", () => {
+  it("agrega un comensal con solo nombre y celular, ya afiliado; otro arrendador no puede", async () => {
+    await withPension(async (tx, c) => {
+      const data = {
+        fullName: "Comensal Nuevo",
+        phone: "987654321",
+        email: null,
+        planId: c.planId,
+        startDate: await day(tx, 0),
+        billingCycle: "weekly" as const,
+        dietNote: "Sin maní",
+      };
+      await actAs(tx, LANDLORD);
+      const id = await addDiner(tx, c.businessId, data);
+      const sub = await one<{ diet_note: string; billing_cycle: string }>(
+        tx,
+        sql`select diet_note, billing_cycle from public.pension_subscription where resident_id = ${id}`,
+      );
+      expect(sub).toEqual({ diet_note: "Sin maní", billing_cycle: "weekly" });
+      await actAs(tx, OTHER);
+      await expect(addDiner(tx, c.businessId, data)).rejects.toThrow(PensionError);
+    });
+  });
+
+  it("una afiliación a la vez: para afiliar de nuevo, primero se termina la actual", async () => {
+    await withPension(async (tx, c) => {
+      const [d10, d11] = [await day(tx, 10), await day(tx, 11)];
+      const again = {
+        residentId: c.residentId,
+        planId: c.planId,
+        startDate: d11,
+        endDate: null,
+        billingCycle: "monthly" as const,
+        dietNote: null,
+      };
+      const edit = (endDate: string) =>
+        updateSubscription(tx, c.subId, {
+          planId: c.planId,
+          billingCycle: "weekly",
+          dietNote: null,
+          endDate,
+        });
+      await actAs(tx, LANDLORD);
+      await expect(subscribe(tx, c.businessId, again)).rejects.toThrow(/Termina la actual/);
+      await edit(d10);
+      await subscribe(tx, c.businessId, again);
+      const n = await one<{ n: number }>(
+        tx,
+        sql`select count(*)::int as n from public.pension_subscription where resident_id = ${c.residentId}`,
+      );
+      expect(n.n).toBe(2);
+      await expect(edit(await day(tx, -30))).rejects.toThrow(/antes de empezar/);
+    });
+  });
+
+  it("la cocina pausa y quita una pausa que todavía no empieza", async () => {
+    await withPension(async (tx, c) => {
+      const [d3, d5] = [await day(tx, 3), await day(tx, 5)];
+      await actAs(tx, LANDLORD);
+      await addPause(tx, c.subId, d3, d5);
+      await expect(addPause(tx, c.subId, d5, await day(tx, 7))).rejects.toThrow(/pausa/);
+      const p = await one<{ id: string }>(tx, sql`select id from public.pension_pause`);
+      await removePause(tx, p.id);
+      expect(await rows(tx, sql`select 1 from public.pension_pause`)).toEqual([]);
+    });
+  });
+});
+
+describe("cocina: cancelar aunque haya cerrado, y marcar quién comió", () => {
+  it("cancela hoy (fuera de plazo), vuelve a pedir y marca que comió", async () => {
+    await withPension(async (tx, c) => {
+      const today = await day(tx, 0);
+      const state = () =>
+        rows<{ cancelled: boolean; served: boolean }>(
+          tx,
+          sql`select cancelled, served from public.meal_attendance
+            where resident_id = ${c.residentId} and date = ${today} and meal = 'lunch'`,
+        );
+      const change = (change: "cancel" | "restore" | "served" | "not_served") =>
+        kitchenChange(tx, c.businessId, { residentId: c.residentId, date: today, meal: "lunch", change });
+      await actAs(tx, LANDLORD);
+      await change("cancel");
+      expect(await state()).toEqual([{ cancelled: true, served: false }]);
+      await change("restore");
+      expect(await state()).toEqual([]);
+      await change("served");
+      expect(await state()).toEqual([{ cancelled: false, served: true }]);
+      await change("not_served");
+      expect(await state()).toEqual([]);
+    });
+  });
+
+  it("no marca comidas fuera de su plan ni días que todavía no llegan", async () => {
+    await withPension(async (tx, c) => {
+      await actAs(tx, LANDLORD);
+      const base = { residentId: c.residentId, change: "served" as const };
+      await expect(
+        kitchenChange(tx, c.businessId, { ...base, date: await day(tx, 0), meal: "breakfast" }),
+      ).rejects.toThrow(/no incluye/);
+      await expect(
+        kitchenChange(tx, c.businessId, { ...base, date: await day(tx, 2), meal: "lunch" }),
+      ).rejects.toThrow(/Todavía no llega/);
+    });
+  });
+});
+
+describe("pagos y menú desde las pantallas", () => {
+  it("registra un pago dentro de la afiliación y lo quita (queda en la bitácora)", async () => {
+    await withPension(async (tx, c) => {
+      const today = await day(tx, 0);
+      const payment = {
+        subscriptionId: c.subId,
+        amount: "119",
+        method: "yape" as const,
+        paidOn: today,
+        coversFrom: today,
+        coversTo: await day(tx, 6),
+        note: null,
+      };
+      await actAs(tx, LANDLORD);
+      await registerPensionPayment(tx, payment);
+      await expect(
+        registerPensionPayment(tx, { ...payment, coversFrom: await day(tx, -30) }),
+      ).rejects.toThrow(/dentro de su afiliación/);
+      const p = await one<{ id: string }>(tx, sql`select id from public.pension_payment`);
+      await deletePensionPayment(tx, p.id);
+      await tx.execute(sql`reset role`);
+      const ops = await rows<{ operation: string }>(
+        tx,
+        sql`select operation from public.money_log
+          where table_name = 'pension_payment' and row_id = ${p.id} order by id`,
+      );
+      expect(ops.map((o) => o.operation)).toEqual(["INSERT", "DELETE"]);
+    });
+  });
+
+  it("el menú en borrador no lo ve el comensal; publicado sí; copiar la semana queda en borrador", async () => {
+    await withPension(async (tx, c) => {
+      // Un lunes de la semana que viene y el de la siguiente, para que la copia no dependa del día de hoy.
+      const monday = await one<{ d: string }>(
+        tx,
+        sql`select (date_trunc('week', (now() at time zone 'America/Lima')::date + 7))::date::text as d`,
+      );
+      const next = await one<{ d: string }>(tx, sql`select (${monday.d}::date + 7)::text as d`);
+      const entry = { date: monday.d, meal: "lunch" as const, dish: "Lomo saltado", hasVegetarian: true };
+      await actAs(tx, LANDLORD);
+      await saveWeekMenu(tx, c.businessId, [entry], false);
+      await actAs(tx, DINER);
+      expect(await rows(tx, sql`select 1 from public.menu_item`)).toEqual([]);
+      await actAs(tx, LANDLORD);
+      await saveWeekMenu(tx, c.businessId, [entry], true);
+      await actAs(tx, DINER);
+      expect((await rows(tx, sql`select 1 from public.menu_item`)).length).toBe(1);
+      await actAs(tx, LANDLORD);
+      await copyPreviousWeek(tx, c.businessId, next.d);
+      const copied = await rows<{ status: string }>(
+        tx,
+        sql`select status::text from public.menu_item where date = ${next.d}::date`,
+      );
+      expect(copied).toEqual([{ status: "draft" }]);
     });
   });
 });

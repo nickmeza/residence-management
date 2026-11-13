@@ -220,3 +220,31 @@ export function kitchenCounts(states: { state: AttendanceState; served: boolean 
     served: states.filter((s) => s.served).length,
   };
 }
+
+// Un comensal no puede tener dos afiliaciones a la vez: se le cocinaría y cobraría doble. Sin fecha de fin = abierta.
+export function overlapsSubscription(
+  next: { startDate: IsoDate; endDate: IsoDate | null },
+  others: { startDate: IsoDate; endDate: IsoDate | null }[],
+): boolean {
+  const end = (d: IsoDate | null) => d ?? "9999-12-31";
+  return others.some((o) => o.startDate <= end(next.endDate) && end(o.endDate) >= next.startDate);
+}
+
+// La cocina marca "comió" o cancela una comida (aunque haya pasado la hora límite): el comensal tiene que tener esa
+// comida ese día en su plan y no estar en pausa. null si se puede; si no, el motivo.
+export function kitchenProblem(input: {
+  date: IsoDate;
+  meal: MealType;
+  subscription: { startDate: IsoDate; endDate: IsoDate | null; planMeals: MealType[] } | null;
+  pauses: DateRange[];
+}): string | null {
+  const s = input.subscription;
+  if (!s || !coversDay(s, input.date) || !s.planMeals.includes(input.meal)) {
+    return "Ese día su plan no incluye esa comida.";
+  }
+  if (isPaused(input.date, input.pauses)) return "Ese día tiene la pensión en pausa.";
+  return null;
+}
+
+// Una pausa que todavía no empezó se puede quitar; la que ya empezó, no (esos días ya no se cocinaron).
+export const pauseRemovable = (pause: { fromDate: IsoDate }, today: IsoDate) => pause.fromDate > today;
