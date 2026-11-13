@@ -38,6 +38,10 @@
   --ds-warn-text: #a16207;
   --ds-warn-bg: #fef9c3;
 
+  /* Portada con foto (inicio del residente): velo oscuro para que el texto blanco se lea sobre cualquier foto */
+  --ds-hero-overlay: rgba(20, 22, 42, 0.5);
+  --ds-on-hero: #ffffff;
+
   /* Medidas */
   --ds-radius-s: 10px;
   --ds-radius-m: 14px;
