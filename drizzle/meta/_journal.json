@@ -85,6 +85,13 @@
       "when": 1794528311756,
       "tag": "0011_portada_del_edificio",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794533953366,
+      "tag": "0012_pension",
+      "breakpoints": true
     }
   ]
 }

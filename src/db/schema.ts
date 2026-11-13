@@ -15,6 +15,7 @@ import {
   pgTable,
   smallint,
   text,
+  time,
   timestamp,
   uniqueIndex,
   uuid,
@@ -997,3 +998,248 @@ export const moneyLog = pgTable("money_log", {
   actorUserId: uuid(),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 }).enableRLS();
+
+// ---------------------------------------------------------------------------------------------------------------
+// Fase 6 · Pensión (comidas). Un negocio de Pensión tiene sus comidas, planes, menú y comensales. Los comensales son
+// fichas (resident) del negocio de Pensión: pueden vivir en otra residencia o ser externos (regla "negocios
+// independientes"). El comensal confirma y pausa con funciones de la base (migración 0012), que revisan la hora
+// límite y los días servidos; el arrendador (cocina) puede cambiar todo.
+
+export const mealType = pgEnum("meal_type", ["breakfast", "lunch", "dinner"]);
+export const mealServiceMode = pgEnum("meal_service_mode", ["dine_in", "takeaway", "delivery"]);
+export const menuStatus = pgEnum("menu_status", ["draft", "published"]);
+
+// Negocios donde la persona con sesión tiene ficha (para que el comensal lea comidas, planes y menú).
+const myResidentBusinessIds = sql`(select r.business_id from public.resident r where r.person_id in ${myPersonIds})`;
+
+// Configuración › Pensión: hora límite de confirmación, cómo se sirve, capacidad, externos y dietas que atiende.
+export const mealSettings = pgTable(
+  "meal_settings",
+  {
+    businessId: uuid()
+      .primaryKey()
+      .references(() => business.id, { onDelete: "cascade" }),
+    // La confirmación de cada día cierra a esta hora (hora de Lima). Si una comida empieza antes, cierra al empezar.
+    confirmDeadline: time().notNull().default("10:00"),
+    serviceModes: mealServiceMode()
+      .array()
+      .notNull()
+      .default(sql`'{dine_in}'`),
+    seatsPerTurn: smallint(),
+    acceptsExternal: boolean().notNull().default(true),
+    diets: text()
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("meal_settings_seats", sql`${t.seatsPerTurn} is null or ${t.seatsPerTurn} between 1 and 1000`),
+    pgPolicy("meal_settings_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in ${myBusinessIds}`,
+      withCheck: sql`${t.businessId} in ${myBusinessIds}`,
+    }),
+    pgPolicy("meal_settings_select_as_diner", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in ${myResidentBusinessIds}`,
+    }),
+  ],
+);
+
+// Una comida del día (desayuno, almuerzo o cena) con su horario y su precio suelto.
+export const meal = pgTable(
+  "meal",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => business.id, { onDelete: "cascade" }),
+    type: mealType().notNull(),
+    startTime: time().notNull(),
+    endTime: time().notNull(),
+    singlePrice: numeric({ precision: 10, scale: 2 }).notNull(),
+    active: boolean().notNull().default(true),
+  },
+  (t) => [
+    uniqueIndex("meal_business_type_idx").on(t.businessId, t.type),
+    check("meal_times", sql`${t.endTime} > ${t.startTime}`),
+    check("meal_price_not_negative", sql`${t.singlePrice} >= 0`),
+    pgPolicy("meal_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in ${myBusinessIds}`,
+      withCheck: sql`${t.businessId} in ${myBusinessIds}`,
+    }),
+    pgPolicy("meal_select_as_diner", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in ${myResidentBusinessIds}`,
+    }),
+  ],
+);
+
+// Plan de pensión (PN-01): qué comidas incluye y su precio por día. Estimado del mes = días × precio.
+export const pensionPlan = pgTable(
+  "pension_plan",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => business.id, { onDelete: "cascade" }),
+    name: text().notNull(),
+    meals: mealType().array().notNull(),
+    dailyPrice: numeric({ precision: 10, scale: 2 }).notNull(),
+    active: boolean().notNull().default(true),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("pension_plan_business_id_idx").on(t.businessId),
+    check("pension_plan_meals", sql`cardinality(${t.meals}) between 1 and 3`),
+    check("pension_plan_price", sql`${t.dailyPrice} >= 0`),
+    check("pension_plan_name", sql`length(trim(${t.name})) between 1 and 80`),
+    pgPolicy("pension_plan_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in ${myBusinessIds}`,
+      withCheck: sql`${t.businessId} in ${myBusinessIds}`,
+    }),
+    pgPolicy("pension_plan_select_as_diner", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in ${myResidentBusinessIds}`,
+    }),
+  ],
+);
+
+// Afiliación de un comensal a un plan (PN-04). Sin fecha de fin = hasta que se termine.
+export const pensionSubscription = pgTable(
+  "pension_subscription",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    residentId: uuid()
+      .notNull()
+      .references(() => resident.id, { onDelete: "restrict" }),
+    planId: uuid()
+      .notNull()
+      .references(() => pensionPlan.id, { onDelete: "restrict" }),
+    startDate: date().notNull(),
+    endDate: date(),
+    // Dietas y alergias que la cocina debe ver (PN-08).
+    dietNote: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("pension_subscription_resident_id_idx").on(t.residentId),
+    check("pension_subscription_dates", sql`${t.endDate} is null or ${t.endDate} >= ${t.startDate}`),
+    pgPolicy("pension_subscription_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.residentId} in ${myBusinessResidentIds}`,
+      withCheck: sql`${t.residentId} in ${myBusinessResidentIds}`,
+    }),
+    pgPolicy("pension_subscription_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.residentId} in ${myOwnResidentIds}`,
+    }),
+  ],
+);
+
+const myBusinessSubscriptionIds = sql`(select s.id from public.pension_subscription s where s.resident_id in ${myBusinessResidentIds})`;
+const myOwnSubscriptionIds = sql`(select s.id from public.pension_subscription s where s.resident_id in ${myOwnResidentIds})`;
+
+// Días pausados de una afiliación (por un viaje): no se cobran ni se cocinan. No se solapan con días servidos.
+export const pensionPause = pgTable(
+  "pension_pause",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    subscriptionId: uuid()
+      .notNull()
+      .references(() => pensionSubscription.id, { onDelete: "cascade" }),
+    fromDate: date().notNull(),
+    toDate: date().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("pension_pause_subscription_id_idx").on(t.subscriptionId),
+    check("pension_pause_dates", sql`${t.toDate} >= ${t.fromDate}`),
+    pgPolicy("pension_pause_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.subscriptionId} in ${myBusinessSubscriptionIds}`,
+      withCheck: sql`${t.subscriptionId} in ${myBusinessSubscriptionIds}`,
+    }),
+    pgPolicy("pension_pause_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.subscriptionId} in ${myOwnSubscriptionIds}`,
+    }),
+  ],
+);
+
+// Menú de un día y una comida (PN-03). El comensal solo ve lo publicado.
+export const menuItem = pgTable(
+  "menu_item",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => business.id, { onDelete: "cascade" }),
+    date: date().notNull(),
+    meal: mealType().notNull(),
+    dish: text().notNull(),
+    hasVegetarian: boolean().notNull().default(false),
+    status: menuStatus().notNull().default("draft"),
+  },
+  (t) => [
+    uniqueIndex("menu_item_business_date_meal_idx").on(t.businessId, t.date, t.meal),
+    check("menu_item_dish", sql`length(trim(${t.dish})) between 1 and 200`),
+    pgPolicy("menu_item_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in ${myBusinessIds}`,
+      withCheck: sql`${t.businessId} in ${myBusinessIds}`,
+    }),
+    pgPolicy("menu_item_select_published", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.status} = 'published' and ${t.businessId} in ${myResidentBusinessIds}`,
+    }),
+  ],
+);
+
+// Asistencia de un comensal a una comida: si confirmó que viene y si comió (PN-05, PN-06, PN-07). Sin fila = no
+// respondió (no se le cocina).
+export const mealAttendance = pgTable(
+  "meal_attendance",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    residentId: uuid()
+      .notNull()
+      .references(() => resident.id, { onDelete: "cascade" }),
+    date: date().notNull(),
+    meal: mealType().notNull(),
+    confirmed: boolean().notNull(),
+    served: boolean().notNull().default(false),
+    updatedBy: uuid().references(() => person.id, { onDelete: "set null" }),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("meal_attendance_resident_date_meal_idx").on(t.residentId, t.date, t.meal),
+    index("meal_attendance_date_idx").on(t.date),
+    pgPolicy("meal_attendance_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.residentId} in ${myBusinessResidentIds}`,
+      withCheck: sql`${t.residentId} in ${myBusinessResidentIds}`,
+    }),
+    pgPolicy("meal_attendance_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.residentId} in ${myOwnResidentIds}`,
+    }),
+  ],
+);
