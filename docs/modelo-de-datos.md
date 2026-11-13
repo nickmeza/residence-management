@@ -271,18 +271,20 @@ contrato. Los puede subir el residente o el arrendador, y se guarda quién lo hi
 
 | Campo | Tipo | Regla o descripción |
 |---|---|---|
-| comida.id, propiedad_id | uuid, → Propiedad |  |
-| comida.nombre | desayuno \| almuerzo \| cena |  |
+| comida.id, negocio_id (`meal`) | uuid, → Negocio | Cuelga del negocio de Pensión, no de una propiedad (decisión del dueño). |
+| comida.tipo | desayuno \| almuerzo \| cena | Una de cada tipo por negocio. |
 | comida.horario_inicio, horario_fin | hora |  |
 | comida.precio_suelto, activa | decimal, booleano |  |
-| plan_pension.id, nombre | uuid, texto | Ej.: Pensión completa. |
-| plan_pension.comidas | lista de comidas |  |
-| plan_pension.precio_dia | decimal | Precio mensual estimado = días × precio. |
-| config_pension.modalidades | comedor \| para_llevar \| delivery |  |
-| config_pension.capacidad_turno, hora_limite_confirmacion | entero, hora |  |
+| plan_pension.id, nombre (`pension_plan`) | uuid, texto | Ej.: Pensión completa. |
+| plan_pension.comidas | lista de comidas | Entre 1 y 3. |
+| plan_pension.precio_dia, activo | decimal, booleano | Desactivado: no se ofrece a nuevos; con afiliados no se borra. |
+| config_pension.modalidades (`meal_settings`) | comedor \| para_llevar \| delivery |  |
+| config_pension.capacidad_turno, hora_limite_cancelacion | entero, hora | Hora del **día anterior** hasta la que el comensal cancela. |
 | config_pension.acepta_externos, dietas | booleano, lista |  |
-| suscripcion.persona_id, plan_id, desde, hasta, pausada | → Persona, → Plan, fecha, fecha, booleano |  |
-| confirmacion.persona_id, fecha, comida, confirmada | → Persona, fecha, texto, booleano | Alimenta el panel de cocina. |
+| afiliacion.ficha_id, plan_id, desde, hasta (`pension_subscription`) | → Ficha del comensal, → Plan, fecha, fecha | Una a la vez por comensal. El comensal es una ficha (`resident`) del negocio de Pensión. |
+| afiliacion.frecuencia_cobro, nota_dieta | diario \| semanal \| mensual, texto | Se paga por adelantado. La dieta la ve la cocina. |
+| pago_pension.afiliacion_id, monto, metodo, pagado_el (`pension_payment`) | → Afiliación, decimal, método, fecha | Va a la bitácora `money_log`. |
+| pago_pension.cubre_desde, cubre_hasta, nota, registrado_por | fecha, fecha, texto, → Persona | Dentro de la afiliación. |
 
 ## Cobros (en la base: `charge`, `payment`)
 
@@ -350,9 +352,9 @@ Bitácora (`money_log`): cada cambio en estas tablas y en las de garantía queda
 | menu.fecha, comida | fecha, desayuno \| almuerzo \| cena |  |
 | menu.plato, opcion_vegetariana | texto, booleano |  |
 | menu.estado | borrador \| publicado |  |
-| asistencia.persona_id, fecha, comida | → Persona, fecha, texto |  |
-| asistencia.confirmo, sirvio | booleano | Confirmó antes de la hora límite; sirvió = comió. |
-| suscripcion.pausa_desde, pausa_hasta | fecha | Los días pausados no se cobran. |
+| asistencia.ficha_id, fecha, comida (`meal_attendance`) | → Ficha, fecha, comida | Sin fila = viene (por defecto se cocina). |
+| asistencia.cancelada, comio, cambiado_por, cambiado_en | booleano, booleano, → Persona, fecha-hora | Cancelada a tiempo = antes de la hora límite del día anterior. |
+| pausa.afiliacion_id, desde, hasta (`pension_pause`) | → Afiliación, fecha, fecha | Los días pausados no se cobran ni se cocinan. |
 
 ## Visitas y llaves
 

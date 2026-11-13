@@ -21,8 +21,11 @@ Reglas que el servidor debe cumplir.
 - **Reseñas:** Si la reseña es anónima, el arrendador ve las calificaciones y el comentario sin el nombre.
 - **Negocios independientes:** Una persona puede tener varios negocios (Residencia, Pensión y, más adelante, otros como lavandería). Cada negocio es un servicio con sus propios datos: RUC, contacto y forma de cobrar. Ningún negocio depende de otro, aunque sean del mismo dueño. Un residente puede estar inscrito en negocios de dueños distintos; por ejemplo, vivir en la residencia de una persona y comer en la pensión de otra.
 - **Recibo único:** Cada negocio cobra por separado, con sus propios datos (RUC, métodos de pago). El residente ve un solo resumen mensual con todo lo que debe (renta, pensión, servicios extra y consumos), agrupado por negocio, aunque los negocios sean de dueños distintos. Así sabe qué le cobra cada uno. Se construye en la Fase 5.
-- **Pensión: confirmación:** La confirmación diaria cierra a la hora límite. Después de esa hora, solo la cocina puede cambiarla.
-- **Pensión: pausa:** Los días pausados no se cobran. La pausa no se puede solapar con días ya servidos.
+- **Pensión: por defecto se cocina:** A todo afiliado se le cocina cada día de su plan. El comensal **cancela** (no confirma) hasta la hora límite **del día anterior**. Después de esa hora solo la cocina puede cambiarlo, y una cancelación tardía se cobra (decisión del dueño, 2026-11-13).
+- **Pensión: cobro por adelantado:** Se paga antes de comer (diario, semanal o mensual, por comensal). Cada pago dice qué días cubre. Una comida cancelada a tiempo vale el precio del día ÷ comidas del plan y queda como saldo a favor; los días en pausa no se cobran.
+- **Pensión: una afiliación a la vez:** Un comensal no puede tener dos afiliaciones con fechas que se crucen. Solo se afilia a planes activos de la misma pensión.
+- **Pensión: comensales:** Basta nombre y celular o correo; sin DNI ni contrato. La cocina marca "comió" solo hoy o días pasados.
+- **Pensión: pausa:** Los días pausados no se cobran ni se cocinan. La pausa empieza desde hoy, está dentro de la afiliación y no se puede solapar con días ya servidos ni con otra pausa. Una pausa se puede quitar solo si todavía no empezó.
 - **Reseñas:** Solo se puede calificar al terminar el contrato, y una sola vez por contrato.
 - **Postulantes:** Un postulante aprobado debe tener una unidad asignada antes de crear su contrato.
 - **Documentos rechazados:** Rechazar un documento exige un motivo, que el residente ve.

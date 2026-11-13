@@ -116,6 +116,18 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 5.6 Liquidación | `/garantias` (retenido, por liquidar, devuelto) y `/garantias/[id]` (descuentos con nota y foto, enviar, responder disputas, registrar devolución, cobrar o perdonar la diferencia, cerrar) |
 | 5.7 Pruebas | `tests/db/payments.test.ts`: recibos, renovación, RLS con dos arrendadores y un residente, liquidación y plazo del reporte de ingreso |
 
+### Fase 6, paso a paso
+
+| Paso | Qué se hizo |
+| ---- | ----------- |
+| 6.1 Datos y reglas | Migraciones 0012–0014: comidas, ajustes, planes, afiliaciones, pausas, menú, asistencia y pagos de la pensión, con RLS; funciones `cancel_my_meal` y `pause_my_pension` para el comensal. Reglas puras en `src/server/pension/rules.ts` |
+| 6.2 Configuración | `/pension/configuracion`: comidas con horario y precio suelto, hora de cancelación del día anterior, formas de entrega, dietas y planes |
+| 6.3 Comensales | `/pension/comensales` (buscador, Filtrar, Agregar comensal con nombre y celular o correo) y `/pension/comensales/[id]` (datos e Invitar, plan, pausas, pagos) |
+| 6.4 Hoy (cocina) | `/pension/hoy`: porciones por comida, quién canceló o pausó, dieta, "Comió", y cancelar o volver a pedir |
+| 6.5 Pagos | `/pension/pagos`: pagado hasta, saldo, próximo pago sugerido y Registrar pago |
+| 6.6 Menú y comensal | `/pension/menu` (borrador, publicar, copiar la semana anterior) y `/mi/pension` (cancelar, pausar, pagos) |
+| 6.7 Pruebas | `src/server/pension/rules.test.ts` y `tests/db/pension.test.ts` (cancelación, pausas, cocina, pagos, menú y RLS) |
+
 ### Pantallas de la app (después de iniciar sesión)
 
 | Dirección | Qué es |
@@ -263,3 +275,8 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-12 | **Listas simples** (Cobros, Residentes, Contratos, Garantías): título, buscador, botón "Filtrar" con casillas y la tabla; sin números arriba | Decisión del dueño: los números irán a un reporte más adelante. Un solo componente `FilterMenu` para las cuatro. |
 | 2026-11-12 | **Cobros**: selector de mes, aviso de comprobantes por revisar (separa los de otros meses), "+ debe octubre" bajo el nombre, alerta si todo está pagado; detalle del recibo con pagos parciales numerados | Diseño aprobado por el dueño; reemplaza los bloques "Comprobantes por revisar" y "Morosidad". |
 | 2026-11-12 | **Perfil del residente con 4 pestañas**: Datos · Cobros (todos los meses) · Contrato (actual y anteriores) · Garantía | Decisión del dueño. Cada pestaña carga solo sus datos. |
+| 2026-11-13 | **Pensión: por defecto se cocina** y el comensal cancela hasta la hora límite del día anterior; se cobra **por adelantado** | Decisión del dueño: el caso típico es pequeño y la cocina compra insumos antes. |
+| 2026-11-13 | La cocina puede cancelar aunque haya cerrado, pero esa comida **se cobra** | Mismo criterio que el comensal: solo lo cancelado a tiempo queda como saldo a favor. Pendiente de confirmar por el dueño. |
+| 2026-11-13 | **Una afiliación a la vez** por comensal; cambiar de plan = editar la afiliación | Evita cocinar y cobrar dos veces. |
+| 2026-11-13 | Un pago de pensión registrado por error **se quita** (queda en la bitácora) | La tabla `pension_payment` no tiene estado; la bitácora conserva el registro. Pendiente de confirmar por el dueño. |
+| 2026-11-13 | Sin QR ni recordatorios en la pensión | Llegan con los avisos automáticos (Fase 8). |
