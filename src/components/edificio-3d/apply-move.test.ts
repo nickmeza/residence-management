@@ -17,6 +17,7 @@ const unit = (id: string, x: number, rooms: BuildingUnit[] = []): BuildingUnit =
   spaceType: null,
   rect: { x, z: 0, width: 3, depth: 3 },
   status: "available",
+  occupant: null,
   rooms,
 });
 
@@ -24,6 +25,7 @@ const building: BuildingView = {
   id: "p",
   name: "Edificio",
   businessId: "b",
+  coverPhotoPath: null,
   summary: { floors: 2, apartments: 1, rentable: 2, occupied: 0 },
   floors: [
     { id: "f1", level: 1, outline: [], units: [unit("a", 0), unit("d", 3, [unit("d1", 3)])] },

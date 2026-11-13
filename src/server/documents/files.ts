@@ -76,3 +76,59 @@ export function isPathOf(path: string, businessId: string, residentId: string) {
     /^[0-9a-f-]{36}\.(pdf|jpg|png|webp|heic)$/.test(parts[2])
   );
 }
+
+// Foto de portada de un edificio: <negocio>/portadas/<id al azar>.<ext>. El arrendador la sube; el residente de
+// ese negocio puede verla (migración 0011). Solo JPG, PNG o WEBP (el navegador no muestra HEIC) y hasta 5 MB.
+const COVER_EXTENSION: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+export const COVER_ACCEPT = Object.keys(COVER_EXTENSION).join(",");
+export const COVER_MAX_MB = 5;
+
+export function coverProblem(file: { mimeType: string; sizeBytes: number }): string | null {
+  if (!COVER_EXTENSION[file.mimeType]) return "Solo se acepta una foto JPG, PNG o WEBP.";
+  return fileProblem(file, { acceptedFormats: ["image"], maxSizeMb: COVER_MAX_MB });
+}
+
+export const coverPath = (businessId: string, fileId: string, mimeType: string) =>
+  `${businessId}/portadas/${fileId}.${COVER_EXTENSION[mimeType] ?? "bin"}`;
+
+// ¿La ruta es una portada de este negocio, con la forma que crea coverPath?
+export function isCoverPathOf(path: string, businessId: string) {
+  const parts = path.split("/");
+  return (
+    parts.length === 3 &&
+    parts[0] === businessId &&
+    parts[1] === "portadas" &&
+    /^[0-9a-f-]{36}\.(jpg|png|webp)$/.test(parts[2])
+  );
+}
+
+// Archivos de cobros y garantía (Fase 5): <negocio>/<ficha>/<carpeta>/<id al azar>.<ext>. Las reglas de Storage
+// siguen leyendo las dos primeras carpetas, así que valen igual para quién puede verlos o subirlos.
+export const FILE_FOLDERS = ["comprobantes", "ingreso", "liquidacion", "devoluciones"] as const;
+export type FileFolder = (typeof FILE_FOLDERS)[number];
+
+export function folderPath(
+  businessId: string,
+  residentId: string,
+  folder: FileFolder,
+  fileId: string,
+  mimeType: string,
+) {
+  return `${businessId}/${residentId}/${folder}/${fileId}.${MIME_EXTENSION[mimeType] ?? "bin"}`;
+}
+
+// ¿La ruta es de esta ficha, de esa carpeta y con la forma que crea folderPath?
+export function isFolderPathOf(path: string, businessId: string, residentId: string, folder: FileFolder) {
+  const parts = path.split("/");
+  return (
+    parts.length === 4 &&
+    parts[0] === businessId &&
+    parts[1] === residentId &&
+    parts[2] === folder &&
+    /^[0-9a-f-]{36}\.(pdf|jpg|png|webp|heic)$/.test(parts[3])
+  );
+}

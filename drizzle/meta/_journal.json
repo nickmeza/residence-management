@@ -71,6 +71,20 @@
       "when": 1794381264401,
       "tag": "0009_lugares_del_residente",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794462846571,
+      "tag": "0010_cobros_y_garantia",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794528311756,
+      "tag": "0011_portada_del_edificio",
+      "breakpoints": true
     }
   ]
 }

@@ -46,6 +46,24 @@ export const contractStatus = pgEnum("contract_status", [
 export const documentFormat = pgEnum("document_format", ["pdf", "image"]);
 export const documentKind = pgEnum("document_kind", ["requirement", "signed_contract", "other"]);
 export const documentStatus = pgEnum("document_status", ["in_review", "verified", "rejected"]);
+// Fase 5. Regla 5: sin garantía, 1 mes, 2 meses o monto fijo.
+export const depositRule = pgEnum("deposit_rule", ["none", "one_month", "two_months", "fixed"]);
+// "Por cobrar" y "En disputa" no se guardan: salen del cargo de la garantía y de los descuentos.
+export const depositStatus = pgEnum("deposit_status", ["none", "held", "settling", "returned"]);
+// Pensión y servicios extra se agregan cuando lleguen sus fases.
+export const chargeConcept = pgEnum("charge_concept", ["rent", "deposit", "damages"]);
+export const paymentStatus = pgEnum("payment_status", ["in_review", "confirmed", "rejected"]);
+export const inspectionArea = pgEnum("inspection_area", [
+  "walls",
+  "door",
+  "window",
+  "furniture",
+  "keys",
+  "cleaning",
+  "other",
+]);
+export const settlementStatus = pgEnum("settlement_status", ["draft", "sent", "closed"]);
+export const discountStatus = pgEnum("discount_status", ["active", "disputed", "adjusted", "withdrawn"]);
 
 // Persona: dueño, encargado, residente… Puede tener cuenta (user_id) o no.
 // Se crea sola al registrarse (trigger en la migración a mano). Los roles llegan en la Fase 4.
@@ -136,6 +154,8 @@ export const business = pgTable(
       .default(sql`'{}'`),
     // Día de cobro del mes. 31 = fin de mes (en meses más cortos, el último día).
     billingDay: smallint(),
+    // Mes incompleto (entra o sale a mitad de mes): true = se cobran solo los días; false = el mes completo.
+    prorateRent: boolean().notNull().default(true),
   },
   (t) => [
     index("business_owner_id_idx").on(t.ownerId),
@@ -168,6 +188,8 @@ export const property = pgTable(
     ownerLivesHere: boolean().notNull().default(false),
     managerId: uuid().references(() => person.id, { onDelete: "set null" }),
     currency: text().notNull().default("PEN"),
+    // Foto de portada (la ve el residente en su inicio). Ruta en el espacio privado: <negocio>/portadas/<id>.<ext>.
+    coverPhotoPath: text(),
   },
   (t) => [
     index("property_business_id_idx").on(t.businessId),
@@ -386,6 +408,11 @@ export const contract = pgTable(
     confirmedAt: timestamp({ withTimezone: true }),
     cancelledAt: timestamp({ withTimezone: true }),
     renewedFromId: uuid().references((): AnyPgColumn => contract.id, { onDelete: "set null" }),
+    // Garantía decidida para esta persona (por ejemplo, un familiar sin garantía). Vacía = la de la unidad o la de
+    // la configuración del negocio. deposit_due_date: cuándo se cobra (vacía = al inicio del contrato).
+    depositRule: depositRule(),
+    depositFixedAmount: numeric({ precision: 10, scale: 2 }),
+    depositDueDate: date(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -406,6 +433,11 @@ export const contract = pgTable(
     ),
     check("contract_confirmed_at", sql`${t.status} <> 'confirmed' or ${t.confirmedAt} is not null`),
     check("contract_cancelled_at", sql`${t.status} <> 'cancelled' or ${t.cancelledAt} is not null`),
+    check(
+      "contract_deposit_fixed",
+      sql`(${t.depositRule} is not distinct from 'fixed') = (${t.depositFixedAmount} is not null)
+        and coalesce(${t.depositFixedAmount}, 0) >= 0`,
+    ),
     // La ficha y la unidad deben ser de los negocios del arrendador.
     pgPolicy("contract_landlord_all", {
       for: "all",
@@ -580,3 +612,388 @@ export const document = pgTable(
     }),
   ],
 );
+
+// --- Fase 5: cobros y garantía ---
+
+// Contratos de las fichas de la persona con sesión, como arrendador o como residente.
+const myBusinessContractIds = sql`(select c.id from public.contract c where c.resident_id in ${myBusinessResidentIds})`;
+const myOwnContractIds = sql`(select c.id from public.contract c where c.resident_id in ${myOwnResidentIds})`;
+
+// Configuración › Garantía de un negocio: la política por tipo de unidad, qué cubre y cómo se devuelve.
+// Sin fila = no se pide garantía. El residente la puede leer (ve qué cubre y en cuántos días se devuelve).
+export const depositSettings = pgTable(
+  "deposit_settings",
+  {
+    businessId: uuid()
+      .primaryKey()
+      .references(() => business.id, { onDelete: "cascade" }),
+    roomRule: depositRule().notNull().default("none"),
+    roomFixedAmount: numeric({ precision: 10, scale: 2 }),
+    apartmentRule: depositRule().notNull().default("none"),
+    apartmentFixedAmount: numeric({ precision: 10, scale: 2 }),
+    covers: inspectionArea()
+      .array()
+      .notNull()
+      .default(sql`'{walls,door,window,furniture,keys,cleaning}'`),
+    // Días hábiles para devolver la garantía después de la salida.
+    refundDays: smallint().notNull().default(7),
+    refundMethods: paymentMethod()
+      .array()
+      .notNull()
+      .default(sql`'{yape,plin,transfer}'`),
+    // Días desde el inicio del contrato en que el residente puede reportar lo que ya estaba mal (regla 8).
+    entryReportDays: smallint().notNull().default(7),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "deposit_settings_room_fixed",
+      sql`(${t.roomRule} = 'fixed') = (${t.roomFixedAmount} is not null) and coalesce(${t.roomFixedAmount}, 0) >= 0`,
+    ),
+    check(
+      "deposit_settings_apartment_fixed",
+      sql`(${t.apartmentRule} = 'fixed') = (${t.apartmentFixedAmount} is not null) and coalesce(${t.apartmentFixedAmount}, 0) >= 0`,
+    ),
+    check("deposit_settings_refund_days", sql`${t.refundDays} between 1 and 60`),
+    check("deposit_settings_entry_days", sql`${t.entryReportDays} between 0 and 60`),
+    pgPolicy("deposit_settings_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in ${myBusinessIds}`,
+      withCheck: sql`${t.businessId} in ${myBusinessIds}`,
+    }),
+    pgPolicy("deposit_settings_select_as_resident", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in (select r.business_id from public.resident r where r.person_id in ${myPersonIds})`,
+    }),
+  ],
+);
+
+// Excepción de garantía de una unidad (GA-02): gana sobre la configuración de su tipo.
+export const depositUnitException = pgTable(
+  "deposit_unit_exception",
+  {
+    unitId: uuid()
+      .primaryKey()
+      .references(() => unit.id, { onDelete: "cascade" }),
+    rule: depositRule().notNull(),
+    fixedAmount: numeric({ precision: 10, scale: 2 }),
+  },
+  (t) => [
+    check(
+      "deposit_unit_exception_fixed",
+      sql`(${t.rule} = 'fixed') = (${t.fixedAmount} is not null) and coalesce(${t.fixedAmount}, 0) >= 0`,
+    ),
+    pgPolicy("deposit_unit_exception_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`exists (select 1 from public.unit u join public.floor f on f.id = u.floor_id
+        join public.property p on p.id = f.property_id where u.id = ${t.unitId} and p.business_id in ${myBusinessIds})`,
+      withCheck: sql`exists (select 1 from public.unit u join public.floor f on f.id = u.floor_id
+        join public.property p on p.id = f.property_id where u.id = ${t.unitId} and p.business_id in ${myBusinessIds})`,
+    }),
+  ],
+);
+
+// Cargo: lo que se cobra en un mes (renta, garantía, daños). Se crean al confirmar el contrato. Su estado (pagado,
+// pendiente, vencido) no se guarda: sale de los pagos del recibo y de la fecha.
+export const charge = pgTable(
+  "charge",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    contractId: uuid()
+      .notNull()
+      .references(() => contract.id, { onDelete: "restrict" }),
+    concept: chargeConcept().notNull(),
+    // Mes del recibo donde aparece: "AAAA-MM".
+    period: text().notNull(),
+    amount: numeric({ precision: 10, scale: 2 }).notNull(),
+    dueDate: date().notNull(),
+    // Por ejemplo, "17 de 31 días" en un mes incompleto.
+    note: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("charge_contract_id_idx").on(t.contractId),
+    index("charge_period_idx").on(t.period),
+    // Una renta por mes y contrato.
+    uniqueIndex("charge_rent_once_idx")
+      .on(t.contractId, t.period)
+      .where(sql`${t.concept} = 'rent'`),
+    check("charge_period_format", sql`${t.period} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
+    check("charge_amount_not_negative", sql`${t.amount} >= 0`),
+    pgPolicy("charge_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.contractId} in ${myBusinessContractIds}`,
+      withCheck: sql`${t.contractId} in ${myBusinessContractIds}`,
+    }),
+    pgPolicy("charge_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.contractId} in ${myOwnContractIds}`,
+    }),
+  ],
+);
+
+// Pago de un recibo (todo lo que un residente le debe a un negocio en un mes). Puede ser parcial. Lo registra el
+// arrendador (queda confirmado) o el residente con su comprobante (queda en revisión hasta que el arrendador lo vea).
+export const payment = pgTable(
+  "payment",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    residentId: uuid()
+      .notNull()
+      .references(() => resident.id, { onDelete: "restrict" }),
+    period: text().notNull(),
+    amount: numeric({ precision: 10, scale: 2 }).notNull(),
+    method: paymentMethod().notNull(),
+    paidOn: date().notNull(),
+    operationCode: text(),
+    // Comprobante en el espacio privado "documents": <negocio>/<ficha>/comprobantes/<id>.<ext>
+    proofPath: text().unique(),
+    status: paymentStatus().notNull().default("in_review"),
+    submittedBy: uuid()
+      .notNull()
+      .references(() => person.id, { onDelete: "restrict" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    reviewedBy: uuid().references(() => person.id, { onDelete: "set null" }),
+    reviewedAt: timestamp({ withTimezone: true }),
+    rejectionReason: text(),
+  },
+  (t) => [
+    index("payment_resident_period_idx").on(t.residentId, t.period),
+    check("payment_period_format", sql`${t.period} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
+    check("payment_amount_positive", sql`${t.amount} > 0`),
+    check(
+      "payment_rejection_reason",
+      sql`${t.status} <> 'rejected' or coalesce(trim(${t.rejectionReason}), '') <> ''`,
+    ),
+    pgPolicy("payment_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.residentId} in ${myBusinessResidentIds}`,
+      withCheck: sql`${t.residentId} in ${myBusinessResidentIds}`,
+    }),
+    pgPolicy("payment_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.residentId} in ${myOwnResidentIds}`,
+    }),
+    // El residente manda su comprobante: a su nombre y en revisión, nunca confirmado por él mismo.
+    pgPolicy("payment_insert_own", {
+      for: "insert",
+      to: authenticatedRole,
+      withCheck: sql`${t.residentId} in ${myOwnResidentIds} and ${t.submittedBy} in ${myPersonIds}
+        and ${t.status} = 'in_review' and ${t.reviewedBy} is null`,
+    }),
+  ],
+);
+
+// Garantía de un contrato. Se crea al confirmarlo, con el monto de ese momento. Al renovar pasa al contrato nuevo
+// (regla 9): por eso contract_id se puede cambiar. charge_id: el cargo con el que se cobra (null si no hay).
+export const deposit = pgTable(
+  "deposit",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    contractId: uuid()
+      .notNull()
+      .unique()
+      .references(() => contract.id, { onDelete: "restrict" }),
+    amount: numeric({ precision: 10, scale: 2 }).notNull(),
+    rule: depositRule().notNull(),
+    status: depositStatus().notNull(),
+    chargeId: uuid().references(() => charge.id, { onDelete: "set null" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("deposit_amount_not_negative", sql`${t.amount} >= 0`),
+    check("deposit_none_is_zero", sql`(${t.status} = 'none') = (${t.amount} = 0)`),
+    pgPolicy("deposit_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.contractId} in ${myBusinessContractIds}`,
+      withCheck: sql`${t.contractId} in ${myBusinessContractIds}`,
+    }),
+    pgPolicy("deposit_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.contractId} in ${myOwnContractIds}`,
+    }),
+  ],
+);
+
+// Lo que el residente ya encontró mal al ingresar (regla 8), con foto. No es obligatorio: lo reporta cuando lo nota,
+// en los primeros días del contrato. Sirve de base al liquidar la garantía.
+export const entryReport = pgTable(
+  "entry_report",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    contractId: uuid()
+      .notNull()
+      .references(() => contract.id, { onDelete: "cascade" }),
+    area: inspectionArea().notNull(),
+    note: text().notNull(),
+    photoPath: text().notNull().unique(),
+    reportedBy: uuid()
+      .notNull()
+      .references(() => person.id, { onDelete: "restrict" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("entry_report_contract_id_idx").on(t.contractId),
+    pgPolicy("entry_report_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.contractId} in ${myBusinessContractIds}`,
+      withCheck: sql`${t.contractId} in ${myBusinessContractIds}`,
+    }),
+    pgPolicy("entry_report_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.contractId} in ${myOwnContractIds}`,
+    }),
+    // A su nombre y solo dentro del plazo (función de la migración 0010). Borrar o cambiar, no.
+    pgPolicy("entry_report_insert_own", {
+      for: "insert",
+      to: authenticatedRole,
+      withCheck: sql`${t.contractId} in ${myOwnContractIds} and ${t.reportedBy} in ${myPersonIds}
+        and public.entry_report_open(${t.contractId})`,
+    }),
+  ],
+);
+
+// Liquidación de una garantía. El residente no la ve mientras es borrador. Sus respuestas (aceptar, disputar,
+// dónde recibe) pasan por funciones de la base (migración 0010), no por un permiso de escritura en la tabla.
+export const settlement = pgTable(
+  "settlement",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    depositId: uuid()
+      .notNull()
+      .unique()
+      .references(() => deposit.id, { onDelete: "cascade" }),
+    status: settlementStatus().notNull().default("draft"),
+    refundMethod: paymentMethod(),
+    refundAccount: text(),
+    sentAt: timestamp({ withTimezone: true }),
+    acceptedAt: timestamp({ withTimezone: true }),
+    closedAt: timestamp({ withTimezone: true }),
+    // Pregunta 9: lo que pasa la garantía se cobra como cargo o el arrendador lo perdona.
+    excessChargeId: uuid().references(() => charge.id, { onDelete: "set null" }),
+    excessWaived: boolean().notNull().default(false),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("settlement_sent_at", sql`${t.status} = 'draft' or ${t.sentAt} is not null`),
+    check("settlement_closed_at", sql`${t.status} <> 'closed' or ${t.closedAt} is not null`),
+    pgPolicy("settlement_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.depositId} in (select d.id from public.deposit d where d.contract_id in ${myBusinessContractIds})`,
+      withCheck: sql`${t.depositId} in (select d.id from public.deposit d where d.contract_id in ${myBusinessContractIds})`,
+    }),
+    pgPolicy("settlement_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.status} <> 'draft'
+        and ${t.depositId} in (select d.id from public.deposit d where d.contract_id in ${myOwnContractIds})`,
+    }),
+  ],
+);
+
+// Liquidaciones de las garantías de la persona con sesión como residente, sin borradores.
+const myOwnSettlementIds = sql`(select s.id from public.settlement s join public.deposit d on d.id = s.deposit_id
+  where s.status <> 'draft' and d.contract_id in ${myOwnContractIds})`;
+const myBusinessSettlementIds = sql`(select s.id from public.settlement s join public.deposit d on d.id = s.deposit_id
+  where d.contract_id in ${myBusinessContractIds})`;
+
+// Descuento de una liquidación (GA-08). worse_than_entry: el rubro estaba en el reporte de ingreso y está peor.
+export const settlementDiscount = pgTable(
+  "settlement_discount",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    settlementId: uuid()
+      .notNull()
+      .references(() => settlement.id, { onDelete: "cascade" }),
+    area: inspectionArea().notNull(),
+    note: text().notNull(),
+    amount: numeric({ precision: 10, scale: 2 }).notNull(),
+    // Monto antes de ajustarlo tras una disputa.
+    originalAmount: numeric({ precision: 10, scale: 2 }),
+    photoPath: text().unique(),
+    worseThanEntry: boolean().notNull().default(false),
+    status: discountStatus().notNull().default("active"),
+    disputeReason: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("settlement_discount_settlement_id_idx").on(t.settlementId),
+    check("settlement_discount_amount_positive", sql`${t.amount} > 0`),
+    check(
+      "settlement_discount_dispute_reason",
+      sql`${t.status} <> 'disputed' or coalesce(trim(${t.disputeReason}), '') <> ''`,
+    ),
+    pgPolicy("settlement_discount_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.settlementId} in ${myBusinessSettlementIds}`,
+      withCheck: sql`${t.settlementId} in ${myBusinessSettlementIds}`,
+    }),
+    pgPolicy("settlement_discount_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.settlementId} in ${myOwnSettlementIds}`,
+    }),
+  ],
+);
+
+// Devolución de la garantía al residente (GA-15). Puede ir en partes: lo no disputado primero.
+export const depositRefund = pgTable(
+  "deposit_refund",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    settlementId: uuid()
+      .notNull()
+      .references(() => settlement.id, { onDelete: "cascade" }),
+    amount: numeric({ precision: 10, scale: 2 }).notNull(),
+    method: paymentMethod().notNull(),
+    paidOn: date().notNull(),
+    operationCode: text(),
+    proofPath: text().unique(),
+    registeredBy: uuid()
+      .notNull()
+      .references(() => person.id, { onDelete: "restrict" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("deposit_refund_settlement_id_idx").on(t.settlementId),
+    check("deposit_refund_amount_positive", sql`${t.amount} > 0`),
+    pgPolicy("deposit_refund_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.settlementId} in ${myBusinessSettlementIds}`,
+      withCheck: sql`${t.settlementId} in ${myBusinessSettlementIds}`,
+    }),
+    pgPolicy("deposit_refund_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.settlementId} in ${myOwnSettlementIds}`,
+    }),
+  ],
+);
+
+// Bitácora de cambios de dinero (CLAUDE.md, sección 10): cargos, pagos, garantías, liquidaciones, descuentos y
+// devoluciones. La llenan triggers de la base (migración 0010), así que también anota lo que entre por la API.
+// Sin políticas: nadie la lee ni la cambia con su sesión; solo el administrador de la base.
+export const moneyLog = pgTable("money_log", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  tableName: text().notNull(),
+  rowId: uuid().notNull(),
+  operation: text().notNull(),
+  oldRow: jsonb(),
+  newRow: jsonb(),
+  actorUserId: uuid(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+}).enableRLS();

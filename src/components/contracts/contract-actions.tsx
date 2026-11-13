@@ -133,6 +133,9 @@ export function ContractActions({ c, options }: { c: ContractDetail; options: Co
                   paymentDay: String(c.paymentDay),
                   paperwork: c.paperwork,
                   templateId: c.templateId ?? "",
+                  depositRule: "",
+                  depositFixedAmount: "",
+                  depositDueDate: "",
                 },
               })
             }

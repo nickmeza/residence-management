@@ -12,8 +12,11 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { cn } from "@/lib/utils";
 import { changeTermsAction, createContractAction, type ContractResult } from "@/server/contracts/actions";
 import { limaToday } from "@/server/contracts/dates";
+import { DEPOSIT_RULE_LABEL, depositAmount } from "@/server/deposits/rules";
+import { formatSoles } from "@/lib/format";
 import type { ContractFormOptions } from "@/server/contracts/queries";
 import {
+  DEPOSIT_CHOICES,
   PAPERWORK_HINT,
   PAPERWORK_LABEL,
   PAPERWORK_OPTIONS,
@@ -30,13 +33,18 @@ function ContractForm({
   options,
   initial,
   lockResident,
+  lockUnit,
   submit,
   onDone,
   draftAllowed,
+  showDeposit,
 }: {
+  showDeposit: boolean;
   options: ContractFormOptions;
   initial: ContractFormInput;
   lockResident: boolean;
+  // Llega elegida desde la página de la unidad ("Agregar residente").
+  lockUnit: boolean;
   submit: (values: ContractFormInput, asDraft: boolean) => Promise<ContractResult>;
   onDone: (id: string) => void;
   draftAllowed: boolean;
@@ -44,6 +52,22 @@ function ContractForm({
   const methods = useForm<ContractFormInput>({ defaultValues: initial });
   const { register, setValue, setError, handleSubmit, formState } = methods;
   const paperwork = useWatch({ control: methods.control, name: "paperwork" });
+  const [unitId, rent, depositRule] = useWatch({
+    control: methods.control,
+    name: ["unitId", "monthlyRent", "depositRule"],
+  });
+  const unitDeposit = options.units.find((u) => u.id === unitId)?.deposit ?? null;
+  // "1 mes de renta · S/ 650" con la renta escrita (si todavía no es un monto válido, sin el monto).
+  const defaultDeposit = (() => {
+    if (!unitDeposit) return "Elige la unidad para ver cuánto le toca.";
+    const label = unitDeposit.rule === "fixed" ? "Monto fijo" : DEPOSIT_RULE_LABEL[unitDeposit.rule];
+    if (unitDeposit.rule === "none") return label;
+    try {
+      return `${label} · ${formatSoles(depositAmount(unitDeposit, rent || "0"))}`;
+    } catch {
+      return label;
+    }
+  })();
   const [message, setMessage] = useState<string>();
   const [pending, startTransition] = useTransition();
 
@@ -87,6 +111,7 @@ function ContractForm({
           <select
             id="unitId"
             className={selectClass}
+            disabled={lockUnit}
             {...unitField}
             onChange={(e) => {
               void unitField.onChange(e);
@@ -172,6 +197,42 @@ function ContractForm({
           </div>
         ) : null}
 
+        {showDeposit ? (
+          <fieldset className="flex flex-col gap-3 rounded-lg border p-3">
+            <legend className="px-1 text-sm font-semibold">Garantía</legend>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="depositRule">Para esta persona</Label>
+              <select id="depositRule" className={selectClass} {...register("depositRule")}>
+                {DEPOSIT_CHOICES.map((c) => (
+                  <option key={c} value={c}>
+                    {c === "" ? `La de siempre (${defaultDeposit})` : DEPOSIT_RULE_LABEL[c]}
+                  </option>
+                ))}
+              </select>
+              <p className="text-sm text-muted-foreground">
+                La de siempre sale de la unidad o de Configuración › Garantía. Cámbiala solo si con esta
+                persona es distinto, por ejemplo un familiar.
+              </p>
+            </div>
+            {depositRule === "fixed" ? (
+              <TextField
+                name="depositFixedAmount"
+                label="Monto de la garantía"
+                prefix="S/"
+                inputMode="decimal"
+              />
+            ) : null}
+            {depositRule !== "none" ? (
+              <TextField
+                name="depositDueDate"
+                label="Cobrarla el (opcional)"
+                type="date"
+                hint="Vacío: con el primer recibo. Si se la pides después, elige la fecha."
+              />
+            ) : null}
+          </fieldset>
+        ) : null}
+
         <FormMessage message={message} />
 
         <div className="mt-auto flex flex-wrap justify-end gap-2 border-t pt-4">
@@ -200,7 +261,7 @@ function ContractForm({
 }
 
 export type ContractSheetTarget =
-  | { mode: "create"; residentId?: string }
+  | { mode: "create"; residentId?: string; unitId?: string }
   // Cambiar condiciones: el actual termina el día anterior y empieza uno nuevo con estos datos.
   | { mode: "terms"; contractId: string; initial: ContractFormInput };
 
@@ -218,13 +279,19 @@ export function ContractSheet({
   const today = limaToday(new Date());
   const blank: ContractFormInput = {
     residentId: target?.mode === "create" ? (target.residentId ?? "") : "",
-    unitId: "",
+    unitId: target?.mode === "create" ? (target.unitId ?? "") : "",
     startDate: today,
     endDate: "",
-    monthlyRent: "",
+    // Con la unidad ya elegida, la renta propuesta es su precio (igual que al elegirla en la lista).
+    monthlyRent: priceText(
+      target?.mode === "create" ? (options.units.find((u) => u.id === target.unitId)?.monthlyPrice ?? null) : null,
+    ),
     paymentDay: String(options.billingDay),
     paperwork: "none",
     templateId: "",
+    depositRule: "",
+    depositFixedAmount: "",
+    depositDueDate: "",
   };
 
   return (
@@ -244,11 +311,18 @@ export function ContractSheet({
               <p className="px-4 text-sm text-muted-foreground">Primero agrega a un residente.</p>
             ) : (
               <ContractForm
-                key={target.mode === "terms" ? target.contractId : (target.residentId ?? "nuevo")}
+                key={
+                  target.mode === "terms"
+                    ? target.contractId
+                    : `${target.residentId ?? "nuevo"}-${target.unitId ?? ""}`
+                }
                 options={options}
                 initial={target.mode === "terms" ? target.initial : blank}
                 lockResident={target.mode === "terms" || Boolean(target.residentId)}
+                lockUnit={target.mode === "create" && Boolean(target.unitId)}
                 draftAllowed={target.mode === "create"}
+                // Al cambiar condiciones la garantía no se toca: pasa al contrato nuevo (regla 9).
+                showDeposit={target.mode === "create"}
                 submit={(values, asDraft) =>
                   target.mode === "terms"
                     ? changeTermsAction(target.contractId, values)

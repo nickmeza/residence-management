@@ -177,58 +177,61 @@ sin contrato escrito (solo el acuerdo de pago), contrato en papel propio (se sub
 | nombre, texto | texto | El texto admite datos que se rellenan solos: {nombre}, {unidad}, {renta}… |
 | creada_en, actualizada_en | fecha-hora |  |
 
-## Política de garantía
+## Configuración de garantía (en la base: `deposit_settings`, `deposit_unit_exception`)
+
+Igual que los documentos: la configuración del negocio es lo de siempre; la unidad puede tener una excepción y el
+contrato puede tener lo decidido para esa persona. Gana el nivel más específico. Sin configuración no se pide garantía.
+
+| Campo | Tipo | Regla o descripción |
+|---|---|---|
+| negocio_id | → Negocio | Una fila por negocio. El residente la puede leer (qué cubre, plazo). |
+| regla_cuarto, monto_fijo_cuarto | sin_garantia \| 1_mes \| 2_meses \| monto_fijo, decimal | Para quien alquila un cuarto. El monto solo con monto fijo. |
+| regla_departamento, monto_fijo_departamento | igual | Para quien alquila un departamento completo. |
+| cubre | lista de rubros | Paredes, puerta, ventana, muebles, llaves, limpieza. |
+| plazo_devolucion_dias | entero 1–60 | Días hábiles. Ej.: 7. |
+| metodos_devolucion | lista de métodos de pago | |
+| dias_reporte_ingreso | entero 0–60 | Días desde el inicio del contrato para reportar lo que ya estaba mal. Ej.: 7. |
+| excepcion_unidad | unidad_id, regla, monto_fijo | Gana sobre la regla de su tipo. |
+| negocio.cobro_proporcional | booleano | Mes incompleto: true = solo los días; false = mes completo. |
+| contrato.regla_garantia, monto_fijo_garantia, cobrar_garantia_el | (opcionales) | Lo decidido para esta persona. Vacío = lo de la unidad o del negocio. |
+
+## Garantía (en la base: `deposit`)
 
 | Campo | Tipo | Regla o descripción |
 |---|---|---|
 | id | uuid |  |
-| propiedad_id | → Propiedad |  |
-| tipo_unidad | cuarto \| departamento |  |
-| calculo | 1_mes \| 2_meses \| monto_fijo |  |
-| monto_fijo | decimal (opcional) |  |
-| cubre | lista | Paredes, puertas y ventanas, muebles, llaves, limpieza. |
-| plazo_devolucion_dias | entero | Ej.: 7 días hábiles. |
-| metodo_devolucion | yape \| plin \| transferencia \| efectivo |  |
-| excepcion_unidad | unidad_id, con_garantia, calculo | Anula la política para una unidad. |
+| contrato_id | → Contrato | Único. Al renovar pasa al contrato nuevo (regla 9). |
+| monto, regla | decimal, regla | Se calcula una vez, al confirmar el contrato. |
+| estado | sin_garantia \| retenida \| en_liquidacion \| devuelta | "Por cobrar" y "En disputa" se calculan. |
+| cargo_id | → Cargo (opcional) | El cargo "Garantía" del recibo donde se cobra. |
 
-## Garantía
+## Reporte de ingreso (en la base: `entry_report`)
+
+No hay inspección obligatoria al entrar: el residente reporta lo que ya estaba mal cuando lo nota, con una foto, durante
+los primeros días del contrato (lo revisa también la base). Es la base de la regla 8.
 
 | Campo | Tipo | Regla o descripción |
 |---|---|---|
-| id | uuid |  |
 | contrato_id | → Contrato |  |
-| monto | decimal | Calculado con la política al firmar. |
-| estado | sin_garantia \| retenida \| en_liquidacion \| devuelta |  |
-| depositada_en | fecha |  |
+| rubro | paredes \| puerta \| ventana \| muebles \| llaves \| limpieza \| otro |  |
+| nota, foto | texto, archivo | La foto es obligatoria. |
+| reportado_por, creado_en | → Persona, fecha-hora |  |
 
-## Inspección
-
-| Campo | Tipo | Regla o descripción |
-|---|---|---|
-| id | uuid |  |
-| contrato_id | → Contrato |  |
-| momento | ingreso \| salida |  |
-| realizada_por | → Persona |  |
-| fecha | fecha |  |
-| item.rubro | paredes \| puerta \| ventana \| muebles \| llaves \| limpieza \| otro |  |
-| item.condicion | buen_estado \| detalle_menor \| daño_menor \| daño_mayor |  |
-| item.nota, item.fotos | texto, lista de archivos |  |
-| item.descuento | decimal | Solo en la inspección de salida. |
-
-## Liquidación
+## Liquidación (en la base: `settlement`, `settlement_discount`, `deposit_refund`)
 
 | Campo | Tipo | Regla o descripción |
 |---|---|---|
-| id | uuid |  |
-| garantia_id | → Garantía |  |
-| total_descuentos | decimal | Suma de descuentos vigentes. |
-| monto_devolver | decimal | Garantía menos descuentos; nunca negativo. |
-| estado | borrador \| enviada \| aceptada \| en_disputa \| pagada |  |
-| metodo, cuenta | texto | Donde recibe el residente. |
-| enviada_en, respondida_en, pagada_en | fecha-hora |  |
-| descuento.rubro, nota, monto, fotos | texto, decimal, lista |  |
-| descuento.estado | vigente \| disputado \| ajustado \| retirado |  |
-| descuento.motivo_disputa | texto (opcional) |  |
+| garantia_id | → Garantía | Una por garantía. |
+| estado | borrador \| enviada \| cerrada | El residente no ve el borrador. "Aceptada" y "En disputa" se calculan. |
+| metodo, cuenta | método de pago, texto | Donde recibe el residente (lo elige él). |
+| enviada_en, aceptada_en, cerrada_en | fecha-hora |  |
+| cargo_diferencia_id, diferencia_perdonada | → Cargo, booleano | Si los descuentos pasan la garantía: se cobra o se perdona. |
+| descuento.rubro, nota, monto, foto | texto, decimal, archivo |  |
+| descuento.peor_que_al_ingresar | booleano | Obligatorio (con foto) si el rubro está en el reporte de ingreso (regla 8). |
+| descuento.estado | vigente \| disputado \| ajustado \| retirado | Lo disputado no se resta ni se paga (regla 7). |
+| descuento.motivo_disputa, monto_original | texto, decimal |  |
+| devolucion.monto, metodo, fecha, operacion, comprobante | | Puede ir en partes; nunca más de lo no disputado. |
+| monto_devolver | (se calcula) | Garantía − descuentos vigentes y ajustados; nunca negativo. |
 
 ## Cierre y renovación
 
@@ -281,14 +284,22 @@ contrato. Los puede subir el residente o el arrendador, y se guarda quién lo hi
 | suscripcion.persona_id, plan_id, desde, hasta, pausada | → Persona, → Plan, fecha, fecha, booleano |  |
 | confirmacion.persona_id, fecha, comida, confirmada | → Persona, fecha, texto, booleano | Alimenta el panel de cocina. |
 
-## Cobros
+## Cobros (en la base: `charge`, `payment`)
+
+Un **recibo** no es una tabla: es todo lo que un residente le debe a un negocio en un mes (sus cargos de ese mes).
+Pagado, pago parcial, pendiente y vencido se calculan con los pagos confirmados y la fecha.
 
 | Campo | Tipo | Regla o descripción |
 |---|---|---|
 | cargo.id, contrato_id | uuid, → Contrato |  |
-| cargo.concepto | renta \| garantia \| pension \| servicio_extra \| descuento |  |
-| cargo.monto, periodo, estado | decimal, texto, pendiente \| pagado \| vencido | Un residente recibe un solo recibo mensual con todos los cargos. |
-| pago.id, cargo_id, metodo, fecha, comprobante | uuid, → Cargo, texto, fecha, archivo |  |
+| cargo.concepto | renta \| garantia \| danos | Pensión y servicios extra llegan con sus fases. |
+| cargo.periodo, monto, vence_el, nota | AAAA-MM, decimal, fecha, texto | Una renta por mes y contrato. Se crean al confirmar el contrato. |
+| pago.ficha_id, periodo | → Ficha, AAAA-MM | El pago es del recibo, no de un cargo. Puede ser parcial. |
+| pago.monto, metodo, pagado_el, operacion, comprobante | decimal, método, fecha, texto, archivo |  |
+| pago.estado | en_revision \| confirmado \| rechazado | Lo del arrendador queda confirmado; lo del residente, en revisión. Rechazar exige motivo. |
+| pago.enviado_por, revisado_por, revisado_en | → Persona, → Persona, fecha-hora |  |
+
+Bitácora (`money_log`): cada cambio en estas tablas y en las de garantía queda anotado (antes, después y quién).
 
 ## Mantenimiento
 

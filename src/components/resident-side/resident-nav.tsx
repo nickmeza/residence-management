@@ -1,16 +1,51 @@
 "use client";
 
-import { FileText, Home, ScrollText } from "lucide-react";
+import { FileText, Home, ScrollText, ShieldCheck, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LINKS = [
   { href: "/mi", label: "Inicio", icon: Home },
   { href: "/mi/documentos", label: "Documentos", icon: FileText },
+  { href: "/mi/pagos", label: "Pagos", icon: Wallet },
   { href: "/mi/contrato", label: "Contrato", icon: ScrollText },
+  { href: "/mi/garantia", label: "Garantía", icon: ShieldCheck },
 ] as const;
 
-// Navegación del residente: abajo en el celular (al alcance del pulgar), arriba en pantallas grandes.
+const isCurrent = (href: string, path: string) => (href === "/mi" ? path === "/mi" : path.startsWith(href));
+
+// Menú lateral del residente en escritorio (igual que el del arrendador: a la izquierda, un ícono por opción).
+export function ResidentSidebarNav() {
+  const path = usePathname();
+  return (
+    <nav aria-label="Secciones">
+      <ul className="flex flex-col gap-1">
+        {LINKS.map(({ href, label, icon: Icon }) => {
+          const current = isCurrent(href, path);
+          return (
+            <li key={href}>
+              <Link
+                href={href}
+                aria-current={current ? "page" : undefined}
+                className={
+                  "flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition-colors duration-200 " +
+                  (current
+                    ? "bg-primary-soft text-primary-text"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground")
+                }
+              >
+                <Icon className="size-5 shrink-0" aria-hidden="true" />
+                {label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+// Navegación del residente: abajo en el celular (al alcance del pulgar), arriba en tablet.
 export function ResidentNav() {
   const path = usePathname();
   return (
@@ -20,14 +55,14 @@ export function ResidentNav() {
     >
       <ul className="mx-auto flex max-w-2xl justify-around sm:justify-start sm:gap-2">
         {LINKS.map(({ href, label, icon: Icon }) => {
-          const current = href === "/mi" ? path === "/mi" : path.startsWith(href);
+          const current = isCurrent(href, path);
           return (
             <li key={href}>
               <Link
                 href={href}
                 aria-current={current ? "page" : undefined}
                 className={
-                  "flex min-h-14 flex-col items-center justify-center gap-0.5 px-4 text-xs font-semibold transition-colors duration-200 sm:min-h-11 sm:flex-row sm:gap-2 sm:rounded-lg sm:text-sm " +
+                  "flex min-h-14 flex-col items-center justify-center gap-0.5 px-2 text-xs font-semibold transition-colors duration-200 sm:min-h-11 sm:flex-row sm:gap-2 sm:rounded-lg sm:text-sm " +
                   (current
                     ? "text-primary-text sm:bg-primary-soft"
                     : "text-muted-foreground hover:text-foreground")

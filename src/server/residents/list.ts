@@ -41,7 +41,14 @@ export function documentsSummary(input: {
   return { missing, inReview };
 }
 
-export type ResidentFilter = "all" | "ending_soon" | "documents";
+export type ResidentFilter = "active" | "ending_soon" | "documents" | "no_contract";
+
+export const RESIDENT_FILTERS: { id: ResidentFilter; label: string }[] = [
+  { id: "active", label: "Activos" },
+  { id: "ending_soon", label: "Por vencer" },
+  { id: "documents", label: "Documentos pendientes" },
+  { id: "no_contract", label: "Sin contrato" },
+];
 
 export type ResidentRow = {
   id: string;
@@ -53,10 +60,17 @@ export type ResidentRow = {
 };
 
 export function matchesFilter(row: ResidentRow, filter: ResidentFilter): boolean {
+  if (filter === "active") return isActivePhase(row.phase);
   if (filter === "ending_soon") return row.phase === "ending_soon";
   if (filter === "documents") return row.documents.missing > 0 || row.documents.inReview > 0;
-  return true;
+  return row.phase === null;
 }
+
+// Sin filtros marcados, todos. Con varios, los que cumplan cualquiera.
+export const filterResidents = <T extends ResidentRow>(rows: T[], filters: ResidentFilter[], query: string) =>
+  rows.filter(
+    (r) => (filters.length === 0 || filters.some((f) => matchesFilter(r, f))) && matchesSearch(r, query),
+  );
 
 // Busca por nombre o unidad, sin importar mayúsculas ni tildes ("maria" encuentra "María").
 const fold = (text: string) =>

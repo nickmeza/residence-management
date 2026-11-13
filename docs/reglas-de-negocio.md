@@ -8,10 +8,11 @@ Reglas que el servidor debe cumplir.
 - **Tamaño de la propiedad:** Un cuarto es una propiedad con un piso y una unidad. Un piso es una propiedad con un piso. No hay modelos distintos, solo distinto nivel de detalle.
 - **Contratos:** Una unidad no puede tener dos contratos vigentes con fechas que se solapen.
 - **Estado de la unidad:** Se deriva del contrato vigente (ocupado), de la ausencia de contrato (disponible) o de una orden de mantenimiento abierta.
-- **Garantía:** La política es del arrendador: puede no pedir, pedir 1 mes, 2 meses o un monto fijo, por tipo de unidad y con excepciones por unidad.
+- **Garantía:** La política es del arrendador: puede no pedir, pedir 1 mes, 2 meses o un monto fijo, por tipo de unidad, con excepciones por unidad y por persona (en su contrato). Gana lo más específico. Se calcula al confirmar el contrato.
 - **Monto a devolver:** Garantía menos la suma de descuentos vigentes. Nunca es negativo.
-- **Disputa:** Un descuento disputado no se paga hasta que el arrendador lo ajuste o lo retire.
-- **Revisión de ingreso:** Sirve de base. Lo que figura como detalle al ingresar no se puede descontar al salir.
+- **Disputa:** Un descuento disputado no se resta ni se paga hasta que el arrendador lo ajuste o lo retire. Mientras tanto se puede devolver lo que nadie discute.
+- **Revisión de ingreso:** Sirve de base. El residente reporta lo que ya estaba mal (con foto) en los primeros días del contrato. En ese rubro solo se descuenta al salir si está peor que al entrar, con una foto.
+- **Diferencia:** Si los descuentos pasan la garantía, el arrendador cobra la diferencia como un cargo o la perdona.
 - **Renovación:** Al renovar no se liquida la garantía: pasa al contrato nuevo y no se pide otra.
 - **Firma del contrato:** Solo se habilita cuando todos los documentos obligatorios están verificados.
 - **Posición de cuartos:** El servidor valida que estén dentro de la losa y sin solaparse, no solo el navegador.
@@ -29,4 +30,5 @@ Reglas que el servidor debe cumplir.
 - **Acciones destructivas:** Eliminar, liquidar, descartar cambios y cerrar sesión piden confirmación.
 - **Errores:** Un error nunca borra lo que la persona escribió. Siempre ofrece reintentar o corregir.
 - **Notificaciones:** Cada persona elige qué avisos recibe y por qué canal. Los avisos de pago vencido no se pueden desactivar en la app.
-- **Comprobante de pago:** Un comprobante cuyo monto no coincide con el recibo queda en revisión, no se confirma solo.
+- **Comprobante de pago:** Todo comprobante del residente queda en revisión hasta que el arrendador lo confirma; si el monto no coincide con lo que falta del recibo, se avisa.
+- **Recibos:** Se crean al confirmar el contrato, uno por mes. El mes incompleto se cobra proporcional a los días (o completo, si el arrendador lo elige). Se aceptan pagos parciales. No se cobra mora: solo se marca vencido y se cuentan los días de atraso.

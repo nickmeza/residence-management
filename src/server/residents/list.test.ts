@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import type { ContractInput } from "@/server/contracts/rules";
 
-import { currentContract, documentsSummary, matchesFilter, matchesSearch, type ResidentRow } from "./list";
+import {
+  currentContract,
+  documentsSummary,
+  filterResidents,
+  matchesFilter,
+  matchesSearch,
+  type ResidentRow,
+} from "./list";
 
 const contract = (over: Partial<ContractInput>): ContractInput => ({
   id: "c",
@@ -91,11 +98,21 @@ describe("filtros y buscador", () => {
     documents: { missing: 0, inReview: 0 },
   };
 
-  it("filtra por vencer y por documentos pendientes", () => {
-    expect(matchesFilter(row, "all")).toBe(true);
+  it("filtra por activos, por vencer, documentos pendientes y sin contrato", () => {
+    expect(matchesFilter(row, "active")).toBe(true);
     expect(matchesFilter(row, "ending_soon")).toBe(true);
     expect(matchesFilter(row, "documents")).toBe(false);
+    expect(matchesFilter(row, "no_contract")).toBe(false);
     expect(matchesFilter({ ...row, documents: { missing: 1, inReview: 0 } }, "documents")).toBe(true);
+    expect(matchesFilter({ ...row, phase: null }, "no_contract")).toBe(true);
+    expect(matchesFilter({ ...row, phase: "ended" }, "active")).toBe(false);
+  });
+
+  it("sin filtros, todos; con varios, los que cumplan cualquiera; y la búsqueda", () => {
+    const rows = [row, { ...row, id: "s", fullName: "Luis", searchText: "Luis", phase: null }];
+    expect(filterResidents(rows, [], "")).toHaveLength(2);
+    expect(filterResidents(rows, ["ending_soon", "no_contract"], "").map((r) => r.id)).toEqual(["r", "s"]);
+    expect(filterResidents(rows, ["no_contract"], "maria")).toEqual([]);
   });
 
   it("busca por nombre o unidad sin importar tildes ni mayúsculas", () => {

@@ -232,14 +232,14 @@ Marca cada fase cuando funcione y esté probada.
 - [x] **Fase 2:** registro y edificio en modo simple
 - [x] **Fase 3:** edificio en 3D (mostrar, clic, doble clic directo, arrastre, guardar)
 - [x] **Fase 4:** residentes, contratos y documentos
-- [ ] **Fase 5:** cobros y garantía
+- [x] **Fase 5:** cobros y garantía
 - [ ] **Fase 6:** pensión (menú, confirmación diaria, cocina)
 - [ ] **Fase 7:** operación diaria (mantenimiento, avisos, postulantes, check-in/out, reportes, configuración)
 - [ ] **Fase 8:** avisos automáticos y pagos en línea
 - [ ] **Fase 9:** estados, móvil y pulido
 - [ ] **Fase 10 (opcional):** preparar Foráneos (ubicación, visibilidad por unidad, lugar de interés)
 
-**Fase actual:** 5
+**Fase actual:** 6
 
 ## 15. Lo que NO debes hacer
 

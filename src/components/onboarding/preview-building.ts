@@ -32,6 +32,7 @@ export function previewBuilding(property: SetupForm["property"]): BuildingView {
       spaceType: null,
       rect: rectOf(key),
       status: "available",
+      occupant: null,
     });
     const unit = (u: UnitForm): BuildingUnit => ({
       ...base(u.key, u.name, u.type === "apartment" && u.rentalMode === "by_room" ? "" : u.monthlyPrice),
@@ -54,6 +55,7 @@ export function previewBuilding(property: SetupForm["property"]): BuildingView {
     id: "vista-previa",
     name: property.name || "Tu propiedad",
     businessId: "",
+    coverPhotoPath: null,
     floors,
     summary: { floors: s.floors, apartments: s.apartments, rentable: s.rentable, occupied: 0 },
   };

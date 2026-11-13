@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { BusinessEditForm } from "@/components/business/business-edit-form";
 import { ConfigTabs } from "@/components/business/config-tabs";
+import { DeleteBusinessButton } from "@/components/business/delete-business-button";
 import { getBusinessForEdit } from "@/server/business/queries";
 
 export const metadata: Metadata = { title: "Configuración · Gestión de residencias" };
@@ -43,6 +44,7 @@ async function Content({ params }: { params: PageProps<"/negocio/[id]">["params"
           billingDay: String(b.billingDay ?? 5),
         }}
       />
+      <DeleteBusinessButton id={b.id} name={b.tradeName} />
     </>
   );
 }

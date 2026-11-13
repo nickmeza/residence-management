@@ -39,6 +39,8 @@ export type MyResidence = {
     hasTemplate: boolean;
     phase: ContractPhase;
     signedCopies: UploadedDocument[];
+    // Foto de portada de su edificio (ruta en el espacio privado), si el arrendador subió una.
+    coverPath: string | null;
   } | null;
   // Solo lo que se le pide: obligatorio, activo, de su lista (cuarto o departamento) y sin excepción.
   requirements: {
@@ -60,6 +62,7 @@ type Place = {
   unit_name: string | null;
   unit_type: UnitType | null;
   property_name: string | null;
+  property_cover_path: string | null;
 };
 
 export async function getMyResidences(): Promise<{ firstName: string; residences: MyResidence[] }> {
@@ -182,6 +185,7 @@ export async function getMyResidences(): Promise<{ firstName: string; residences
                 hasTemplate: shown.templateId !== null,
                 phase: contractPhase(shown, today),
                 signedCopies: own.filter((d) => d.contractId === shown.id),
+                coverPath: place?.property_cover_path ?? null,
               }
             : null,
         requirements: asked,
@@ -189,6 +193,34 @@ export async function getMyResidences(): Promise<{ firstName: string; residences
       };
     });
     return { firstName, residences };
+  });
+}
+
+// Para el menú del residente: su nombre y el contacto de cada negocio donde está inscrito.
+export type MyShell = {
+  fullName: string;
+  contacts: { businessId: string; businessName: string; phone: string | null }[];
+};
+
+export async function getMyShell(): Promise<MyShell> {
+  const claims = await getSessionClaims();
+  return withRls(claims, async (tx) => {
+    const [me] = await tx
+      .select({ fullName: person.fullName })
+      .from(person)
+      .where(eq(person.userId, claims.sub))
+      .limit(1);
+    const info = (await tx.execute(
+      sql`select business_id, trade_name, phone from public.my_payment_info()`,
+    )) as unknown as {
+      business_id: string;
+      trade_name: string;
+      phone: string | null;
+    }[];
+    return {
+      fullName: me?.fullName ?? "",
+      contacts: info.map((b) => ({ businessId: b.business_id, businessName: b.trade_name, phone: b.phone })),
+    };
   });
 }
 

@@ -4,22 +4,22 @@ import { Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { FilterMenu } from "@/components/filter-menu";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { initials } from "@/lib/greeting";
 import { formatSoles } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { matchesFilter, matchesSearch, type ResidentFilter } from "@/server/residents/list";
+import {
+  filterResidents,
+  matchesFilter,
+  RESIDENT_FILTERS,
+  type ResidentFilter,
+} from "@/server/residents/list";
 import type { ResidentListRow } from "@/server/residents/queries";
 
 import { ContractPhaseBadge, DocumentsBadge } from "./badges";
 import { ResidentSheet, type ResidentSheetTarget } from "./resident-sheet";
-
-const FILTERS: { id: ResidentFilter; label: string }[] = [
-  { id: "all", label: "Todos" },
-  { id: "ending_soon", label: "Por vencer" },
-  { id: "documents", label: "Documentos pendientes" },
-];
 
 // Columnas de la tabla, como el prototipo (sin "Pagos": llega con los cobros en la Fase 5).
 const GRID = "grid grid-cols-[1.7fr_1.3fr_.8fr_1fr_1.1fr_1.1fr_auto] items-center gap-3 px-5";
@@ -33,13 +33,12 @@ export function AddResidentButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-// Lista de residentes con filtros, buscador y el panel para agregar.
+// Lista de residentes, versión simple (como Cobros): buscador, Filtrar, Agregar residente y la tabla.
 export function ResidentList({ rows }: { rows: ResidentListRow[] }) {
-  const [filter, setFilter] = useState<ResidentFilter>("all");
+  const [filters, setFilters] = useState<ResidentFilter[]>([]);
   const [query, setQuery] = useState("");
   const [sheet, setSheet] = useState<ResidentSheetTarget | null>(null);
-  const shown = rows.filter((r) => matchesFilter(r, filter) && matchesSearch(r, query));
-  const count = (f: ResidentFilter) => rows.filter((r) => matchesFilter(r, f)).length;
+  const shown = filterResidents(rows, filters, query);
   const openCreate = () => setSheet({ mode: "create" });
 
   const panel = <ResidentSheet target={sheet} onClose={() => setSheet(null)} />;
@@ -62,47 +61,40 @@ export function ResidentList({ rows }: { rows: ResidentListRow[] }) {
 
   return (
     <>
-      <section className="overflow-hidden rounded-xl border bg-card shadow-card">
-        <div className="flex flex-wrap items-center gap-2.5 p-4 sm:px-5">
-          {FILTERS.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              aria-pressed={filter === f.id}
-              onClick={() => setFilter(f.id)}
-              className={cn(
-                "min-h-10 rounded-lg px-3.5 text-sm font-semibold transition-colors duration-200",
-                filter === f.id
-                  ? "bg-primary text-primary-foreground"
-                  : "border bg-card text-foreground hover:bg-muted",
-              )}
-            >
-              {f.label} {count(f.id)}
-            </button>
-          ))}
-          <span className="hidden flex-1 sm:block" />
-          <div className="relative w-full sm:max-w-72">
-            <Search
-              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <Input
-              aria-label="Buscar"
-              type="search"
-              placeholder="Buscar por nombre o unidad"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="h-11 pl-9"
-            />
-          </div>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="relative w-full sm:w-72">
+          <Search
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <Input
+            aria-label="Buscar"
+            type="search"
+            placeholder="Buscar por nombre o unidad"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="h-11 pl-9"
+          />
         </div>
+        <FilterMenu
+          options={RESIDENT_FILTERS.map((f) => ({
+            ...f,
+            count: rows.filter((r) => matchesFilter(r, f.id)).length,
+          }))}
+          selected={filters}
+          onChange={setFilters}
+        />
+        <span className="hidden flex-1 sm:block" />
+        <AddResidentButton onClick={openCreate} />
+      </div>
+      <section className="overflow-hidden rounded-xl border bg-card shadow-card">
         {/* En móvil la tabla se desliza de lado. */}
         <div className="overflow-x-auto">
           <div className="min-w-[760px]">
             <div
               className={cn(
                 GRID,
-                "border-t bg-background py-3 text-xs font-bold tracking-wide text-muted-foreground uppercase",
+                "bg-background py-3 text-xs font-bold tracking-wide text-muted-foreground uppercase",
               )}
             >
               <span>Residente</span>
@@ -153,10 +145,10 @@ export function ResidentList({ rows }: { rows: ResidentListRow[] }) {
             )}
           </div>
         </div>
+        <p className="border-t px-5 py-3 text-sm text-muted-foreground">
+          Mostrando {shown.length} de {rows.length} {rows.length === 1 ? "residente" : "residentes"}
+        </p>
       </section>
-      <div>
-        <AddResidentButton onClick={openCreate} />
-      </div>
       {panel}
     </>
   );

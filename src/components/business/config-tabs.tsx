@@ -5,7 +5,7 @@ const TABS = [
   { label: "Negocio", path: "" },
   { label: "Usuarios y roles", path: null },
   { label: "Plantillas", path: "/plantillas" },
-  { label: "Garantía", path: null },
+  { label: "Garantía", path: "/garantia" },
   { label: "Documentos", path: "/documentos" },
 ] as const;
 
@@ -14,7 +14,7 @@ export function ConfigTabs({
   current,
 }: {
   businessId: string;
-  current: "Negocio" | "Plantillas" | "Documentos";
+  current: "Negocio" | "Plantillas" | "Garantía" | "Documentos";
 }) {
   return (
     <nav aria-label="Secciones de configuración" className="flex flex-wrap gap-2 border-b pb-3">

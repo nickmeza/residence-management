@@ -65,6 +65,8 @@
   --color-danger-soft: var(--ds-danger-bg);
   --color-warn: var(--ds-warn-text);
   --color-warn-soft: var(--ds-warn-bg);
+  --color-hero-overlay: var(--ds-hero-overlay);
+  --color-on-hero: var(--ds-on-hero);
   --shadow-card: var(--ds-shadow);
   --radius-full: var(--ds-radius-full);
 }
