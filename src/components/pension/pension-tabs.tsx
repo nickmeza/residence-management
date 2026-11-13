@@ -1,11 +1,11 @@
 import Link from "next/link";
 
-// Pestañas de Pensión. Las que todavía no existen se ven como "Pronto", sin enlace (se construyen por piezas).
+// Pestañas de Pensión: Hoy (cocina), Comensales, Pagos, Menú y Configuración.
 const TABS = [
-  { key: "hoy", label: "Hoy", href: null },
-  { key: "comensales", label: "Comensales", href: null },
-  { key: "pagos", label: "Pagos", href: null },
-  { key: "menu", label: "Menú", href: null },
+  { key: "hoy", label: "Hoy", href: "/pension/hoy" },
+  { key: "comensales", label: "Comensales", href: "/pension/comensales" },
+  { key: "pagos", label: "Pagos", href: "/pension/pagos" },
+  { key: "menu", label: "Menú", href: "/pension/menu" },
   { key: "configuracion", label: "Configuración", href: "/pension/configuracion" },
 ] as const;
 
@@ -23,7 +23,7 @@ export function PensionTabs({ current }: { current: PensionTab }) {
           >
             {t.label}
           </span>
-        ) : t.href ? (
+        ) : (
           <Link
             key={t.key}
             href={t.href}
@@ -31,15 +31,6 @@ export function PensionTabs({ current }: { current: PensionTab }) {
           >
             {t.label}
           </Link>
-        ) : (
-          <span
-            key={t.key}
-            aria-disabled="true"
-            className="flex items-center gap-1.5 rounded-lg border bg-card px-3.5 py-2 text-sm font-semibold text-muted-foreground opacity-60"
-          >
-            {t.label}
-            <span className="text-xs font-normal">Pronto</span>
-          </span>
         ),
       )}
     </nav>

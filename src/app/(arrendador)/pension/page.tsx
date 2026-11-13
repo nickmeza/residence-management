@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-// "Hoy" (panel de cocina) llega en una pieza siguiente; por ahora Pensión abre en Configuración.
+// Pensión abre en "Hoy": lo que la cocina necesita saber primero.
 export default function PensionPage() {
-  redirect("/pension/configuracion");
+  redirect("/pension/hoy");
 }

@@ -8,3 +8,13 @@ export function formatSoles(amount: string | number | null | undefined): string 
   const n = typeof amount === "number" ? amount : Number(amount);
   return Number.isFinite(n) ? `S/ ${soles.format(n)}` : null;
 }
+
+const shortDate = new Intl.DateTimeFormat("es-PE", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+
+// "2026-11-16" → "lun. 16 nov." (fechas guardadas sin hora: se leen en UTC para que no se corran un día).
+export const formatShortDate = (date: string) => shortDate.format(new Date(`${date}T00:00:00Z`));
