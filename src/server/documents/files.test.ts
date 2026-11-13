@@ -1,8 +1,41 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_LIMITS, fileProblem, folderPath, isFolderPathOf, isPathOf, storagePath } from "./files";
+import {
+  coverPath,
+  coverProblem,
+  DEFAULT_LIMITS,
+  fileProblem,
+  folderPath,
+  isCoverPathOf,
+  isFolderPathOf,
+  isPathOf,
+  storagePath,
+} from "./files";
 
 const MB = 1024 * 1024;
+
+describe("foto de portada del edificio", () => {
+  const business = "11111111-1111-4111-8111-111111111111";
+  const file = "22222222-2222-4222-8222-222222222222";
+
+  it("solo JPG, PNG o WEBP hasta 5 MB", () => {
+    expect(coverProblem({ mimeType: "image/jpeg", sizeBytes: MB })).toBeNull();
+    expect(coverProblem({ mimeType: "image/heic", sizeBytes: MB })).toBe(
+      "Solo se acepta una foto JPG, PNG o WEBP.",
+    );
+    expect(coverProblem({ mimeType: "application/pdf", sizeBytes: MB })).not.toBeNull();
+    expect(coverProblem({ mimeType: "image/png", sizeBytes: 6 * MB })).toMatch(/5 MB/);
+  });
+
+  it("la ruta va en la carpeta portadas de su negocio", () => {
+    const path = coverPath(business, file, "image/webp");
+    expect(path).toBe(`${business}/portadas/${file}.webp`);
+    expect(isCoverPathOf(path, business)).toBe(true);
+    expect(isCoverPathOf(path, "33333333-3333-4333-8333-333333333333")).toBe(false);
+    expect(isCoverPathOf(`${business}/${file}/comprobantes/${file}.jpg`, business)).toBe(false);
+    expect(isCoverPathOf(`${business}/portadas/../${file}.jpg`, business)).toBe(false);
+  });
+});
 
 describe("archivos de documentos", () => {
   it("acepta PDF y fotos dentro del tamaño", () => {

@@ -188,6 +188,8 @@ export const property = pgTable(
     ownerLivesHere: boolean().notNull().default(false),
     managerId: uuid().references(() => person.id, { onDelete: "set null" }),
     currency: text().notNull().default("PEN"),
+    // Foto de portada (la ve el residente en su inicio). Ruta en el espacio privado: <negocio>/portadas/<id>.<ext>.
+    coverPhotoPath: text(),
   },
   (t) => [
     index("property_business_id_idx").on(t.businessId),

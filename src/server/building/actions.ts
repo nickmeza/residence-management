@@ -7,7 +7,9 @@ import { withRls } from "@/db/rls";
 import { getSessionClaims } from "@/server/auth/session";
 import { isUuid } from "@/server/business/queries";
 import { issuesByPath } from "@/server/onboarding/schema";
+import { fileExists } from "@/server/payments/storage";
 
+import { removeCover } from "./cover";
 import * as m from "./mutations";
 import { unitEditSchema } from "./schemas";
 
@@ -26,7 +28,8 @@ async function run(
   const claims = await getSessionClaims();
   try {
     const { propertyId } = await withRls(claims, change);
-    revalidatePath(`/edificio/${propertyId}`);
+    // "layout": también las páginas de cada piso y unidad.
+    revalidatePath(`/edificio/${propertyId}`, "layout");
     return { ok: true };
   } catch (e) {
     if (e instanceof m.BuildingError) {
@@ -96,6 +99,31 @@ export async function setFloorShapeAction(floorId: string, shape: unknown) {
   const parsed = slabShapeSchema.safeParse(shape);
   if (!parsed.success) return { ok: false as const, message: "Revisa las medidas de la losa." };
   return run([floorId], (tx) => m.setFloorShape(tx, floorId, parsed.data));
+}
+
+// Foto de portada: el navegador ya la subió al espacio privado; aquí se revisa que exista y se guarda la ruta.
+// null = quitar la foto. La foto anterior se borra del espacio privado.
+export async function setCoverPhotoAction(propertyId: string, path: string | null): Promise<BuildingResult> {
+  const parsed = z.string().max(200).nullable().safeParse(path);
+  if (!parsed.success || !isUuid(propertyId)) {
+    return { ok: false, message: "No encontramos lo que quieres cambiar. Recarga la página." };
+  }
+  if (parsed.data !== null && !(await fileExists(parsed.data))) {
+    return { ok: false, message: "No encontramos la foto subida. Vuelve a intentarlo." };
+  }
+  const claims = await getSessionClaims();
+  try {
+    const { oldPath } = await withRls(claims, (tx) => m.setCoverPhoto(tx, propertyId, parsed.data));
+    if (oldPath) await removeCover(oldPath);
+    revalidatePath(`/edificio/${propertyId}`, "layout");
+    revalidatePath("/mi");
+    return { ok: true };
+  } catch (e) {
+    if (parsed.data !== null) await removeCover(parsed.data);
+    if (e instanceof m.BuildingError) return { ok: false, message: e.message };
+    console.error(e);
+    return { ok: false, message: "No pudimos guardar la foto. Vuelve a intentarlo." };
+  }
 }
 
 export async function moveFloorToAction(floorId: string, level: number) {

@@ -3,7 +3,8 @@ import "server-only";
 import { and, asc, eq, inArray, or, type SQL } from "drizzle-orm";
 
 import type { db } from "@/db";
-import { contract, floor, unit } from "@/db/schema";
+import { contract, floor, property, unit } from "@/db/schema";
+import { isCoverPathOf } from "@/server/documents/files";
 
 import {
   outlineForNewFloor,
@@ -362,4 +363,20 @@ export async function moveFloorTo(tx: Tx, floorId: string, level: number) {
     await tx.update(floor).set({ level: next }).where(eq(floor.id, id));
   }
   return { propertyId: f.propertyId };
+}
+
+// Pone, cambia o quita (path = null) la foto de portada del edificio. Devuelve la foto anterior para borrarla
+// del espacio privado. La ruta tiene que ser de la carpeta de portadas del negocio dueño del edificio.
+export async function setCoverPhoto(tx: Tx, propertyId: string, path: string | null) {
+  const [prop] = await tx
+    .select({ businessId: property.businessId, old: property.coverPhotoPath })
+    .from(property)
+    .where(eq(property.id, propertyId))
+    .limit(1);
+  if (!prop) throw new BuildingError("No encontramos el edificio. Recarga la página.");
+  if (path !== null && !isCoverPathOf(path, prop.businessId)) {
+    throw new BuildingError("No pudimos guardar la foto. Vuelve a subirla.");
+  }
+  await tx.update(property).set({ coverPhotoPath: path }).where(eq(property.id, propertyId));
+  return { propertyId, oldPath: prop.old !== path ? prop.old : null };
 }
