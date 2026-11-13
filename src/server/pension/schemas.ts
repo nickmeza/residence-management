@@ -1,11 +1,12 @@
 import { z } from "zod";
 
-import { money } from "@/server/payments/schemas";
+import { money, PAYMENT_METHODS } from "@/server/payments/schemas";
 
 // Formularios de la pensión. Los campos llegan como texto; vacío = sin dato. Se validan en el servidor.
 
 export const MEAL_TYPE_VALUES = ["breakfast", "lunch", "dinner"] as const;
 export const SERVICE_MODE_VALUES = ["dine_in", "takeaway", "delivery"] as const;
+export const BILLING_CYCLE_VALUES = ["daily", "weekly", "monthly"] as const;
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige una fecha.");
 const clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:00)?$/, "Escribe una hora, por ejemplo 12:30.");
@@ -13,7 +14,8 @@ const clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:00)?$/, "Escribe una h
 // Configuración › Pensión: cada comida con su horario y precio, la hora límite y cómo se sirve.
 export const pensionSettingsSchema = z
   .object({
-    confirmDeadline: clock,
+    // Hora del día anterior hasta la que el comensal puede cancelar.
+    cancelDeadline: clock,
     serviceModes: z.array(z.enum(SERVICE_MODE_VALUES)).min(1, "Elige al menos una forma de servir."),
     seatsPerTurn: z
       .string()
@@ -69,6 +71,7 @@ export const subscriptionSchema = z
     planId: z.uuid("Elige el plan."),
     startDate: isoDate,
     endDate: z.union([z.literal(""), isoDate]).transform((v) => v || null),
+    billingCycle: z.enum(BILLING_CYCLE_VALUES),
     dietNote: z
       .string()
       .trim()
@@ -102,10 +105,33 @@ export const weekMenuSchema = z.object({
 
 export type WeekMenuInput = z.input<typeof weekMenuSchema>;
 
-// Confirmar asistencia (comensal o cocina) y marcar que comió.
+// Cancelar o volver a pedir una comida (comensal antes de la hora límite; la cocina, siempre).
 export const attendanceSchema = z.object({
   residentId: z.uuid(),
   date: isoDate,
   meal: z.enum(MEAL_TYPE_VALUES),
-  going: z.boolean(),
+  cancel: z.boolean(),
 });
+
+// Pago de la pensión, por adelantado: cuánto y qué días cubre.
+export const pensionPaymentSchema = z
+  .object({
+    subscriptionId: z.uuid(),
+    amount: money.refine((v) => Number(v) > 0, "Tiene que ser mayor que cero."),
+    method: z.enum(PAYMENT_METHODS, "Elige cómo pagó."),
+    paidOn: isoDate,
+    coversFrom: isoDate,
+    coversTo: isoDate,
+    note: z
+      .string()
+      .trim()
+      .max(120, "Es demasiado largo.")
+      .transform((v) => v || null),
+  })
+  .superRefine((v, ctx) => {
+    if (v.coversTo < v.coversFrom) {
+      ctx.addIssue({ code: "custom", path: ["coversTo"], message: "No puede terminar antes de empezar." });
+    }
+  });
+
+export type PensionPaymentInput = z.input<typeof pensionPaymentSchema>;

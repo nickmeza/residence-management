@@ -25,10 +25,10 @@ const day = (tx: Tx, offset: number) =>
     sql`select ((now() at time zone 'America/Lima')::date + ${offset}::int)::text as d`,
   ).then((r) => r.d);
 
-const confirm = (tx: Tx, residentId: string, date: string, meal: string, going: boolean) =>
+const cancel = (tx: Tx, residentId: string, date: string, meal: string, yes: boolean) =>
   one<{ r: string }>(
     tx,
-    sql`select public.confirm_my_meal(${residentId}::uuid, ${date}::date, ${meal}::public.meal_type, ${going}) as r`,
+    sql`select public.cancel_my_meal(${residentId}::uuid, ${date}::date, ${meal}::public.meal_type, ${yes}) as r`,
   ).then((x) => x.r);
 
 const pause = (tx: Tx, subId: string, from: string, to: string) =>
@@ -41,7 +41,7 @@ class Rollback extends Error {}
 
 type Ctx = { businessId: string; residentId: string; subId: string; planId: string };
 
-// Una pensión del arrendador con almuerzo (12:30) y cena (19:00), hora límite 10:00, un plan con las dos y un comensal
+// Una pensión del arrendador con almuerzo (12:30) y cena (19:00), hora límite de cancelación 20:00 del día anterior, un plan con las dos y un comensal
 // afiliado desde hace 5 días. Se crea como administrador de la base y la prueba corre después con la sesión que elija.
 async function withPension(fn: (tx: Tx, ctx: Ctx) => Promise<void>) {
   try {
@@ -58,7 +58,7 @@ async function withPension(fn: (tx: Tx, ctx: Ctx) => Promise<void>) {
       await tx.execute(sql`insert into public.meal (business_id, type, start_time, end_time, single_price) values
         (${b.id}, 'lunch', '12:30', '14:30', 11), (${b.id}, 'dinner', '19:00', '21:00', 8)`);
       await tx.execute(
-        sql`insert into public.meal_settings (business_id, confirm_deadline) values (${b.id}, '10:00')`,
+        sql`insert into public.meal_settings (business_id, cancel_deadline) values (${b.id}, '20:00')`,
       );
       const plan = await one<{ id: string }>(
         tx,
@@ -84,28 +84,32 @@ async function withPension(fn: (tx: Tx, ctx: Ctx) => Promise<void>) {
   }
 }
 
-describe("confirmación diaria (regla 12)", () => {
-  it("el comensal confirma y cambia de opinión antes de la hora límite", async () => {
+describe("cancelación (regla 12: por defecto se cocina; se cancela hasta el día anterior)", () => {
+  it("el comensal cancela y vuelve a pedir antes de la hora límite", async () => {
     await withPension(async (tx, c) => {
       const date = await day(tx, 2);
+      const row = () =>
+        rows<{ cancelled: boolean }>(
+          tx,
+          sql`select cancelled from public.meal_attendance where resident_id = ${c.residentId} and date = ${date}`,
+        );
       await actAs(tx, DINER);
-      expect(await confirm(tx, c.residentId, date, "lunch", true)).toBe("ok");
-      expect(await confirm(tx, c.residentId, date, "lunch", false)).toBe("ok");
-      const a = await one<{ confirmed: boolean }>(
-        tx,
-        sql`select confirmed from public.meal_attendance where resident_id = ${c.residentId} and date = ${date}`,
-      );
-      expect(a.confirmed).toBe(false);
+      expect(await cancel(tx, c.residentId, date, "lunch", true)).toBe("ok");
+      expect((await row())[0].cancelled).toBe(true);
+      // Volver a pedirla borra la fila: sin fila = viene.
+      expect(await cancel(tx, c.residentId, date, "lunch", false)).toBe("ok");
+      expect(await row()).toEqual([]);
     });
   });
 
-  it("después de la hora límite ya no puede; ni comidas fuera de su plan; ni la ficha de otro", async () => {
+  it("para hoy ya cerró (la hora límite fue ayer); ni comidas fuera de su plan; ni la ficha de otro", async () => {
     await withPension(async (tx, c) => {
       await actAs(tx, DINER);
-      expect(await confirm(tx, c.residentId, await day(tx, -1), "lunch", true)).toBe("closed");
-      expect(await confirm(tx, c.residentId, await day(tx, 2), "breakfast", true)).toBe("no_plan");
+      expect(await cancel(tx, c.residentId, await day(tx, 0), "lunch", true)).toBe("closed");
+      expect(await cancel(tx, c.residentId, await day(tx, -1), "lunch", true)).toBe("closed");
+      expect(await cancel(tx, c.residentId, await day(tx, 2), "breakfast", true)).toBe("no_plan");
       await actAs(tx, OTHER);
-      expect(await confirm(tx, c.residentId, await day(tx, 2), "lunch", true)).toBe("not_found");
+      expect(await cancel(tx, c.residentId, await day(tx, 2), "lunch", true)).toBe("not_found");
     });
   });
 
@@ -115,8 +119,8 @@ describe("confirmación diaria (regla 12)", () => {
       await actAs(tx, DINER);
       await expect(
         tx.transaction((sp) =>
-          sp.execute(sql`insert into public.meal_attendance (resident_id, date, meal, confirmed, served)
-            values (${c.residentId}, ${date}, 'lunch', true, true)`),
+          sp.execute(sql`insert into public.meal_attendance (resident_id, date, meal, cancelled, served)
+            values (${c.residentId}, ${date}, 'lunch', false, true)`),
         ),
       ).rejects.toThrow();
     });
@@ -124,18 +128,18 @@ describe("confirmación diaria (regla 12)", () => {
 });
 
 describe("pausas (los días pausados no se cobran ni se cocinan)", () => {
-  it("pausa unos días: borra sus confirmaciones y no deja confirmar ahí", async () => {
+  it("pausa unos días: borra sus cancelaciones y no deja cancelar ahí", async () => {
     await withPension(async (tx, c) => {
       const [d3, d4, d5] = [await day(tx, 3), await day(tx, 4), await day(tx, 5)];
       await actAs(tx, DINER);
-      expect(await confirm(tx, c.residentId, d4, "lunch", true)).toBe("ok");
+      expect(await cancel(tx, c.residentId, d4, "lunch", true)).toBe("ok");
       expect(await pause(tx, c.subId, d3, d5)).toBe("ok");
       const left = await one<{ n: number }>(
         tx,
         sql`select count(*)::int as n from public.meal_attendance where resident_id = ${c.residentId}`,
       );
       expect(left.n).toBe(0);
-      expect(await confirm(tx, c.residentId, d4, "dinner", true)).toBe("paused");
+      expect(await cancel(tx, c.residentId, d4, "dinner", true)).toBe("paused");
       expect(await pause(tx, c.subId, d4, await day(tx, 6))).toBe("overlap");
       expect(await pause(tx, c.subId, await day(tx, -2), d3)).toBe("invalid");
     });
@@ -145,10 +149,41 @@ describe("pausas (los días pausados no se cobran ni se cocinan)", () => {
     await withPension(async (tx, c) => {
       const d10 = await day(tx, 10);
       await actAs(tx, LANDLORD);
-      await tx.execute(sql`insert into public.meal_attendance (resident_id, date, meal, confirmed, served)
-        values (${c.residentId}, ${d10}, 'lunch', true, true)`);
+      await tx.execute(sql`insert into public.meal_attendance (resident_id, date, meal, served)
+        values (${c.residentId}, ${d10}, 'lunch', true)`);
       await actAs(tx, DINER);
       expect(await pause(tx, c.subId, await day(tx, 9), await day(tx, 11))).toBe("served");
+    });
+  });
+});
+
+describe("pagos por adelantado", () => {
+  it("la cocina registra el pago; el comensal lo ve pero no puede registrarlo; queda en la bitácora", async () => {
+    await withPension(async (tx, c) => {
+      const [from, to] = [await day(tx, 0), await day(tx, 6)];
+      await actAs(tx, LANDLORD);
+      const pay = await one<{ id: string }>(
+        tx,
+        sql`insert into public.pension_payment (subscription_id, amount, method, paid_on, covers_from, covers_to, registered_by)
+          select ${c.subId}, 119, 'yape', ${from}, ${from}, ${to}, id from public.person where user_id = ${LANDLORD}
+          returning id`,
+      );
+      await actAs(tx, DINER);
+      expect((await rows(tx, sql`select 1 from public.pension_payment`)).length).toBe(1);
+      await expect(
+        tx.transaction((sp) =>
+          sp.execute(sql`insert into public.pension_payment (subscription_id, amount, method, paid_on, covers_from, covers_to, registered_by)
+            select ${c.subId}, 1, 'cash', ${from}, ${from}, ${from}, id from public.person where user_id = ${DINER}`),
+        ),
+      ).rejects.toThrow();
+      await actAs(tx, OTHER);
+      expect((await rows(tx, sql`select 1 from public.pension_payment`)).length).toBe(0);
+      await tx.execute(sql`reset role`);
+      const logged = await one<{ n: number }>(
+        tx,
+        sql`select count(*)::int as n from public.money_log where table_name = 'pension_payment' and row_id = ${pay.id}`,
+      );
+      expect(logged.n).toBe(1);
     });
   });
 });
@@ -165,7 +200,14 @@ describe("quién ve qué", () => {
       expect(seen.map((r) => r.dish)).toEqual(["Ají de gallina"]);
       expect((await rows(tx, sql`select 1 from public.pension_plan`)).length).toBe(1);
       await actAs(tx, OTHER);
-      for (const table of ["menu_item", "meal", "pension_plan", "pension_subscription", "meal_settings"]) {
+      for (const table of [
+        "menu_item",
+        "meal",
+        "pension_plan",
+        "pension_subscription",
+        "meal_settings",
+        "pension_payment",
+      ]) {
         expect((await rows(tx, sql`select 1 from ${sql.raw(`public.${table}`)}`)).length).toBe(0);
       }
     });

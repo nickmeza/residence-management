@@ -1008,6 +1008,7 @@ export const moneyLog = pgTable("money_log", {
 export const mealType = pgEnum("meal_type", ["breakfast", "lunch", "dinner"]);
 export const mealServiceMode = pgEnum("meal_service_mode", ["dine_in", "takeaway", "delivery"]);
 export const menuStatus = pgEnum("menu_status", ["draft", "published"]);
+export const pensionBillingCycle = pgEnum("pension_billing_cycle", ["daily", "weekly", "monthly"]);
 
 // Negocios donde la persona con sesión tiene ficha (para que el comensal lea comidas, planes y menú).
 const myResidentBusinessIds = sql`(select r.business_id from public.resident r where r.person_id in ${myPersonIds})`;
@@ -1019,8 +1020,9 @@ export const mealSettings = pgTable(
     businessId: uuid()
       .primaryKey()
       .references(() => business.id, { onDelete: "cascade" }),
-    // La confirmación de cada día cierra a esta hora (hora de Lima). Si una comida empieza antes, cierra al empezar.
-    confirmDeadline: time().notNull().default("10:00"),
+    // Por defecto se cocina para todos los afiliados; el comensal cancela hasta esta hora del DÍA ANTERIOR (hora de
+    // Lima). Después solo la cocina puede cambiarlo (decisión del dueño, 2026-11-13).
+    cancelDeadline: time().notNull().default("20:00"),
     serviceModes: mealServiceMode()
       .array()
       .notNull()
@@ -1129,6 +1131,8 @@ export const pensionSubscription = pgTable(
     endDate: date(),
     // Dietas y alergias que la cocina debe ver (PN-08).
     dietNote: text(),
+    // Cada cuánto paga por adelantado (decisión del dueño: la pensión compra insumos antes de cocinar).
+    billingCycle: pensionBillingCycle().notNull().default("weekly"),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -1222,7 +1226,8 @@ export const mealAttendance = pgTable(
       .references(() => resident.id, { onDelete: "cascade" }),
     date: date().notNull(),
     meal: mealType().notNull(),
-    confirmed: boolean().notNull(),
+    // true = canceló esa comida (no se cocina ni se cobra si fue a tiempo). Sin fila = viene.
+    cancelled: boolean().notNull().default(false),
     served: boolean().notNull().default(false),
     updatedBy: uuid().references(() => person.id, { onDelete: "set null" }),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -1240,6 +1245,45 @@ export const mealAttendance = pgTable(
       for: "select",
       to: authenticatedRole,
       using: sql`${t.residentId} in ${myOwnResidentIds}`,
+    }),
+  ],
+);
+
+// Pago de la pensiÃ³n, por adelantado: cuÃ¡nto pagÃ³ y quÃ© dÃ­as cubre ("S/ 85 Â· del 16 al 22 de noviembre"). No usa los
+// recibos de la residencia porque esos dependen de un contrato. Lo registra la cocina (el arrendador); el comensal lo
+// ve. Queda en la bitÃ¡cora money_log (trigger de la migraciÃ³n 0014).
+export const pensionPayment = pgTable(
+  "pension_payment",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    subscriptionId: uuid()
+      .notNull()
+      .references(() => pensionSubscription.id, { onDelete: "restrict" }),
+    amount: numeric({ precision: 10, scale: 2 }).notNull(),
+    method: paymentMethod().notNull(),
+    paidOn: date().notNull(),
+    coversFrom: date().notNull(),
+    coversTo: date().notNull(),
+    note: text(),
+    registeredBy: uuid()
+      .notNull()
+      .references(() => person.id, { onDelete: "restrict" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("pension_payment_subscription_id_idx").on(t.subscriptionId),
+    check("pension_payment_amount_positive", sql`${t.amount} > 0`),
+    check("pension_payment_dates", sql`${t.coversTo} >= ${t.coversFrom}`),
+    pgPolicy("pension_payment_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.subscriptionId} in ${myBusinessSubscriptionIds}`,
+      withCheck: sql`${t.subscriptionId} in ${myBusinessSubscriptionIds}`,
+    }),
+    pgPolicy("pension_payment_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.subscriptionId} in ${myOwnSubscriptionIds}`,
     }),
   ],
 );

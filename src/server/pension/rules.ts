@@ -40,16 +40,13 @@ export function limaNow(now: Date): string {
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
 
-// Hora límite para confirmar una comida: la hora límite del negocio ese día, o el inicio de la comida si es antes
-// (no se puede confirmar un desayuno de las 7 hasta las 10). Igual que la función confirm_my_meal de la base.
-export function mealDeadline(date: IsoDate, mealStart: string, confirmDeadline: string): string {
-  const start = hhmm(mealStart);
-  const limit = hhmm(confirmDeadline);
-  return `${date}T${start < limit ? start : limit}`;
-}
+// Por defecto se cocina para todos los afiliados; el comensal cancela hasta la hora de cancelación del DÍA ANTERIOR
+// (decisión del dueño, 2026-11-13). Igual que la función cancel_my_meal de la base.
+export const cancelDeadline = (date: IsoDate, cancelTime: string) =>
+  `${addDays(date, -1)}T${hhmm(cancelTime)}`;
 
-// ¿El comensal todavía puede confirmar o cambiar? Después de la hora límite solo la cocina.
-export const confirmationOpen = (nowLima: string, deadline: string) => nowLima < deadline;
+// ¿El comensal todavía puede cancelar o volver a pedir? Después de la hora límite solo la cocina.
+export const cancellationOpen = (nowLima: string, deadline: string) => nowLima < deadline;
 
 type DateRange = { fromDate: IsoDate; toDate: IsoDate };
 
@@ -96,27 +93,93 @@ export function planPriceWarning(
   return `El plan cuesta más que sus comidas sueltas (S/ ${fromCents(single)} al día).`;
 }
 
-// Estimado del mes (PN-16): días del mes que cubre la afiliación, menos los pausados, por el precio del día.
-export function monthEstimate(input: {
-  period: Period;
+export type BillingCycle = "daily" | "weekly" | "monthly";
+
+export const BILLING_CYCLE_LABEL: Record<BillingCycle, string> = {
+  daily: "Diario",
+  weekly: "Semanal",
+  monthly: "Mensual",
+};
+
+// Lo que cuesta un tramo de días de una afiliación (cobro por adelantado, decisión del dueño):
+// - días pausados: no se cobran;
+// - una comida cancelada a tiempo no se cobra: vale el precio del día dividido entre las comidas del plan;
+// - una cancelación fuera de plazo (la hizo la cocina después de la hora límite) sí se cobra.
+export function rangeCost(input: {
+  from: IsoDate;
+  to: IsoDate;
   dailyPrice: string;
+  mealsPerDay: number;
   subscription: { startDate: IsoDate; endDate: IsoDate | null };
   pauses: DateRange[];
+  cancelledOnTime: IsoDate[]; // una fecha por cada comida cancelada a tiempo
 }) {
-  const first = `${input.period}-01`;
-  const last = `${input.period}-${String(daysInPeriod(input.period)).padStart(2, "0")}`;
-  const from = input.subscription.startDate > first ? input.subscription.startDate : first;
-  const end = input.subscription.endDate;
-  const to = end !== null && end < last ? end : last;
-  if (to < from) return { days: 0, pausedDays: 0, amount: "0.00" };
+  const s = input.subscription;
+  const from = input.from > s.startDate ? input.from : s.startDate;
+  const to = s.endDate !== null && s.endDate < input.to ? s.endDate : input.to;
+  const perDay = toCents(input.dailyPrice);
+  const perMeal = Math.round(perDay / Math.max(1, input.mealsPerDay));
   let days = 0;
-  let pausedDays = 0;
-  for (let i = 0; i <= daysBetween(from, to); i++) {
+  let cents = 0;
+  for (let i = 0; from <= to && i <= daysBetween(from, to); i++) {
     const day = addDays(from, i);
-    if (isPaused(day, input.pauses)) pausedDays++;
-    else days++;
+    if (isPaused(day, input.pauses)) continue;
+    days++;
+    const cancelled = input.cancelledOnTime.filter((d) => d === day).length;
+    cents += Math.max(0, perDay - perMeal * cancelled);
   }
-  return { days, pausedDays, amount: fromCents(toCents(input.dailyPrice) * days) };
+  return { days, amount: fromCents(cents) };
+}
+
+// Hasta qué día cubre el próximo pago, según la frecuencia: un día, una semana o hasta el mismo día del mes siguiente.
+export function nextCoverage(from: IsoDate, cycle: BillingCycle): { from: IsoDate; to: IsoDate } {
+  if (cycle === "daily") return { from, to: from };
+  if (cycle === "weekly") return { from, to: addDays(from, 6) };
+  const [y, m, d] = from.split("-").map(Number);
+  const nextMonth = new Date(Date.UTC(y, m, Math.min(d, daysInPeriod(nextPeriodOf(y, m)))));
+  return { from, to: addDays(nextMonth.toISOString().slice(0, 10), -1) };
+}
+
+const nextPeriodOf = (year: number, month: number): Period =>
+  month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, "0")}`;
+
+// Estado de cuenta de un comensal (PN-16): hasta qué día pagó y si tiene saldo a favor o deuda a hoy.
+// Saldo = lo pagado − lo que cuestan los días desde el inicio hasta lo último pagado (o hasta hoy si debe).
+export function pensionAccount(input: {
+  today: IsoDate;
+  dailyPrice: string;
+  mealsPerDay: number;
+  cycle: BillingCycle;
+  subscription: { startDate: IsoDate; endDate: IsoDate | null };
+  pauses: DateRange[];
+  cancelledOnTime: IsoDate[];
+  payments: { amount: string; coversTo: IsoDate }[];
+}) {
+  const paid = input.payments.reduce((t, p) => t + toCents(p.amount), 0);
+  const paidUntil = input.payments.reduce<IsoDate | null>(
+    (max, p) => (max === null || p.coversTo > max ? p.coversTo : max),
+    null,
+  );
+  const through = paidUntil !== null && paidUntil > input.today ? paidUntil : input.today;
+  const cost = toCents(rangeCost({ ...input, from: input.subscription.startDate, to: through }).amount);
+  const balance = paid - cost;
+  // El próximo pago empieza el día después de lo pagado (o al inicio) y llega por lo menos hasta hoy más un tramo.
+  const from = paidUntil === null ? input.subscription.startDate : addDays(paidUntil, 1);
+  const to = nextCoverage(from > input.today ? from : input.today, input.cycle).to;
+  const nextCost = toCents(rangeCost({ ...input, from, to }).amount);
+  // Saldo a favor de lo ya pagado (cancelaciones a tiempo dentro de lo pagado, o pagó de más): se descuenta.
+  const credit =
+    paidUntil === null
+      ? 0
+      : paid - toCents(rangeCost({ ...input, from: input.subscription.startDate, to: paidUntil }).amount);
+  return {
+    paidUntil,
+    // Positivo = saldo a favor (cancelaciones a tiempo, pagó de más); negativo = debe a hoy.
+    balance: fromCents(balance),
+    upToDate: paidUntil !== null && paidUntil >= input.today && balance >= 0,
+    // Sugerido para el próximo pago: el siguiente tramo menos el saldo a favor.
+    next: { from, to, amount: fromCents(Math.max(0, nextCost - credit)) },
+  };
 }
 
 export function addDays(date: IsoDate, days: number): IsoDate {
@@ -132,31 +195,28 @@ export function weekOf(date: IsoDate): IsoDate[] {
   return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 }
 
-export type AttendanceState = "confirmed" | "declined" | "pending" | "paused";
+export type AttendanceState = "coming" | "cancelled" | "paused";
 
-// Cómo está cada comensal para una comida de un día (panel de cocina, PN-06).
+// Cómo está cada comensal para una comida de un día (panel de cocina, PN-06). Sin fila = viene.
 export function attendanceState(input: {
   paused: boolean;
-  attendance: { confirmed: boolean } | null;
+  attendance: { cancelled: boolean } | null;
 }): AttendanceState {
   if (input.paused) return "paused";
-  if (!input.attendance) return "pending";
-  return input.attendance.confirmed ? "confirmed" : "declined";
+  return input.attendance?.cancelled ? "cancelled" : "coming";
 }
 
 export const ATTENDANCE_LABEL: Record<AttendanceState, string> = {
-  confirmed: "Viene",
-  declined: "No viene",
-  pending: "Sin responder",
+  coming: "Viene",
+  cancelled: "Canceló",
   paused: "Pausado",
 };
 
-// Porciones a preparar: solo los que confirmaron (sin respuesta = no se cocina, para no desperdiciar).
+// Porciones a preparar: todos los afiliados menos los que cancelaron o pausaron.
 export function kitchenCounts(states: { state: AttendanceState; served: boolean }[]) {
   return {
-    portions: states.filter((s) => s.state === "confirmed").length,
-    declined: states.filter((s) => s.state === "declined").length,
-    pending: states.filter((s) => s.state === "pending").length,
+    portions: states.filter((s) => s.state === "coming").length,
+    cancelled: states.filter((s) => s.state === "cancelled").length,
     served: states.filter((s) => s.served).length,
   };
 }

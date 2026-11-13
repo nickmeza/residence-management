@@ -92,6 +92,20 @@
       "when": 1794533953366,
       "tag": "0012_pension",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794550964038,
+      "tag": "0013_pension_quitar_confirmar",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794550999691,
+      "tag": "0014_pension_cancelar_y_pagos",
+      "breakpoints": true
     }
   ]
 }

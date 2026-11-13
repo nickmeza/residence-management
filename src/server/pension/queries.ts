@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 
 import { withRls } from "@/db/rls";
 import {
@@ -10,6 +10,7 @@ import {
   mealSettings,
   menuItem,
   pensionPause,
+  pensionPayment,
   pensionPlan,
   pensionSubscription,
   person,
@@ -18,7 +19,6 @@ import {
 import { getSessionClaims } from "@/server/auth/session";
 import { isUuid } from "@/server/business/queries";
 import { limaToday, type IsoDate } from "@/server/contracts/dates";
-import { periodOf } from "@/server/payments/rules";
 
 import {
   addDays,
@@ -27,11 +27,13 @@ import {
   hhmm,
   isPaused,
   kitchenCounts,
+  cancelDeadline,
+  limaNow,
   MEAL_TYPES,
-  mealDeadline,
-  monthEstimate,
+  pensionAccount,
   planPriceWarning,
   type AttendanceState,
+  type BillingCycle,
   type MealType,
   type ServiceMode,
 } from "./rules";
@@ -81,11 +83,71 @@ async function loadMeals(tx: Tx, businessId: string): Promise<{ meals: MealRow[]
 async function loadSettings(tx: Tx, businessId: string) {
   const [s] = await tx.select().from(mealSettings).where(eq(mealSettings.businessId, businessId)).limit(1);
   return {
-    confirmDeadline: hhmm(s?.confirmDeadline ?? "10:00"),
+    cancelDeadline: hhmm(s?.cancelDeadline ?? "20:00"),
     serviceModes: (s?.serviceModes ?? ["dine_in"]) as ServiceMode[],
     seatsPerTurn: s?.seatsPerTurn ?? null,
     acceptsExternal: s?.acceptsExternal ?? true,
     diets: s?.diets ?? [],
+  };
+}
+
+// Estado de cuenta de una afiliación (cobro por adelantado): sus pagos, sus cancelaciones hechas a tiempo (antes de
+// la hora límite del día anterior, en hora de Lima) y el cálculo de pensionAccount.
+async function loadAccount(
+  tx: Tx,
+  sub: {
+    id: string;
+    residentId: string;
+    dailyPrice: string;
+    planMeals: MealType[];
+    billingCycle: BillingCycle;
+    startDate: IsoDate;
+    endDate: IsoDate | null;
+  },
+  pauses: { fromDate: IsoDate; toDate: IsoDate }[],
+  cancelTime: string,
+  today: IsoDate,
+) {
+  const [payments, cancelled] = await Promise.all([
+    tx
+      .select({
+        id: pensionPayment.id,
+        amount: pensionPayment.amount,
+        method: pensionPayment.method,
+        paidOn: pensionPayment.paidOn,
+        coversFrom: pensionPayment.coversFrom,
+        coversTo: pensionPayment.coversTo,
+        note: pensionPayment.note,
+      })
+      .from(pensionPayment)
+      .where(eq(pensionPayment.subscriptionId, sub.id))
+      .orderBy(desc(pensionPayment.coversTo)),
+    tx
+      .select({ date: mealAttendance.date, updatedAt: mealAttendance.updatedAt })
+      .from(mealAttendance)
+      .where(
+        and(
+          eq(mealAttendance.residentId, sub.residentId),
+          eq(mealAttendance.cancelled, true),
+          gte(mealAttendance.date, sub.startDate),
+        ),
+      ),
+  ]);
+  const cancelledOnTime = cancelled
+    .filter((c) => limaNow(c.updatedAt) < cancelDeadline(c.date, cancelTime))
+    .map((c) => c.date);
+  return {
+    payments,
+    ...pensionAccount({
+      today,
+      dailyPrice: sub.dailyPrice,
+      mealsPerDay: sub.planMeals.length,
+      cycle: sub.billingCycle,
+      subscription: sub,
+      pauses,
+      cancelledOnTime,
+      payments,
+    }),
   };
 }
 
@@ -245,7 +307,8 @@ export type KitchenMeal = {
 
 export type KitchenView = { businessId: string; date: IsoDate; today: IsoDate; meals: KitchenMeal[] };
 
-// Panel de cocina de un día (PN-06, PN-07, PN-08): por comida, quién viene, quién no, quién no respondió y quién comió.
+// Panel de cocina de un día (PN-06, PN-07, PN-08): por comida, cuántas porciones (todos menos los que cancelaron
+// o pausaron), quién canceló y quién comió.
 export async function getKitchenDay(businessId: string, date: IsoDate): Promise<KitchenView | null> {
   if (!isUuid(businessId) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   const claims = await getSessionClaims();
@@ -260,7 +323,7 @@ export async function getKitchenDay(businessId: string, date: IsoDate): Promise<
         .select({
           residentId: mealAttendance.residentId,
           meal: mealAttendance.meal,
-          confirmed: mealAttendance.confirmed,
+          cancelled: mealAttendance.cancelled,
           served: mealAttendance.served,
         })
         .from(mealAttendance)
@@ -307,7 +370,7 @@ export async function getKitchenDay(businessId: string, date: IsoDate): Promise<
           return {
             type: m.type,
             startTime: m.startTime,
-            deadline: mealDeadline(date, m.startTime, settings.confirmDeadline),
+            deadline: cancelDeadline(date, settings.cancelDeadline),
             menu: item
               ? { dish: item.dish, hasVegetarian: item.hasVegetarian, published: item.status === "published" }
               : null,
@@ -361,7 +424,8 @@ export type MyPensionDay = {
   meals: {
     type: MealType;
     deadline: string;
-    confirmed: boolean | null;
+    // true = canceló; false = viene (por defecto).
+    cancelled: boolean;
     served: boolean;
     menu: { dish: string; hasVegetarian: boolean } | null;
   }[];
@@ -379,14 +443,15 @@ export type MyPension = {
     dailyPrice: string;
     startDate: IsoDate;
     endDate: IsoDate | null;
+    billingCycle: BillingCycle;
     pauses: { id: string; fromDate: IsoDate; toDate: IsoDate }[];
   } | null;
   days: MyPensionDay[];
-  estimate: ReturnType<typeof monthEstimate> | null;
-  period: string;
+  account: Awaited<ReturnType<typeof loadAccount>>;
 };
 
-// "Mi pensión" (PN-05, PN-15, PN-16): los próximos 7 días con sus comidas, el menú publicado y el estimado del mes.
+// "Mi pensión" (PN-05, PN-15, PN-16): los próximos 7 días con sus comidas, el menú publicado y su estado de
+// cuenta (pagado hasta, saldo a favor o deuda).
 // Una entrada por cada pensión donde la persona tiene ficha (pueden ser de dueños distintos).
 export async function getMyPension(): Promise<MyPension[]> {
   const claims = await getSessionClaims();
@@ -413,6 +478,7 @@ export async function getMyPension(): Promise<MyPension[]> {
         dailyPrice: pensionPlan.dailyPrice,
         startDate: pensionSubscription.startDate,
         endDate: pensionSubscription.endDate,
+        billingCycle: pensionSubscription.billingCycle,
       })
       .from(pensionSubscription)
       .innerJoin(pensionPlan, eq(pensionPlan.id, pensionSubscription.planId))
@@ -452,7 +518,7 @@ export async function getMyPension(): Promise<MyPension[]> {
           .select({
             date: mealAttendance.date,
             meal: mealAttendance.meal,
-            confirmed: mealAttendance.confirmed,
+            cancelled: mealAttendance.cancelled,
             served: mealAttendance.served,
           })
           .from(mealAttendance)
@@ -496,20 +562,20 @@ export async function getMyPension(): Promise<MyPension[]> {
               const item = menu.find((x) => x.date === d && x.meal === m.type);
               return {
                 type: m.type,
-                deadline: mealDeadline(d, m.startTime, settings.confirmDeadline),
-                confirmed: a ? a.confirmed : null,
+                deadline: cancelDeadline(d, settings.cancelDeadline),
+                cancelled: a?.cancelled ?? false,
                 served: a?.served ?? false,
                 menu: item ? { dish: item.dish, hasVegetarian: item.hasVegetarian } : null,
               };
             }),
           })),
-        estimate: monthEstimate({
-          period: periodOf(today),
-          dailyPrice: sub.dailyPrice,
-          subscription: sub,
+        account: await loadAccount(
+          tx,
+          { ...sub, residentId: card.id },
           pauses,
-        }),
-        period: periodOf(today),
+          settings.cancelDeadline,
+          today,
+        ),
       });
     }
     return out;
