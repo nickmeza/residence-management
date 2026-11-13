@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Home, ScrollText, ShieldCheck, Wallet } from "lucide-react";
+import { FileText, Home, ScrollText, ShieldCheck, Soup, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -10,17 +10,23 @@ const LINKS = [
   { href: "/mi/pagos", label: "Pagos", icon: Wallet },
   { href: "/mi/contrato", label: "Contrato", icon: ScrollText },
   { href: "/mi/garantia", label: "Garantía", icon: ShieldCheck },
-] as const;
+];
+
+// "Pensión" aparece solo si la persona come en alguna pensión.
+const linksFor = (pension: boolean) =>
+  pension
+    ? [...LINKS.slice(0, 3), { href: "/mi/pension", label: "Pensión", icon: Soup }, ...LINKS.slice(3)]
+    : LINKS;
 
 const isCurrent = (href: string, path: string) => (href === "/mi" ? path === "/mi" : path.startsWith(href));
 
 // Menú lateral del residente en escritorio (igual que el del arrendador: a la izquierda, un ícono por opción).
-export function ResidentSidebarNav() {
+export function ResidentSidebarNav({ pension = false }: { pension?: boolean }) {
   const path = usePathname();
   return (
     <nav aria-label="Secciones">
       <ul className="flex flex-col gap-1">
-        {LINKS.map(({ href, label, icon: Icon }) => {
+        {linksFor(pension).map(({ href, label, icon: Icon }) => {
           const current = isCurrent(href, path);
           return (
             <li key={href}>
@@ -46,7 +52,7 @@ export function ResidentSidebarNav() {
 }
 
 // Navegación del residente: abajo en el celular (al alcance del pulgar), arriba en tablet.
-export function ResidentNav() {
+export function ResidentNav({ pension = false }: { pension?: boolean }) {
   const path = usePathname();
   return (
     <nav
@@ -54,7 +60,7 @@ export function ResidentNav() {
       className="fixed inset-x-0 bottom-0 z-10 border-t bg-card sm:static sm:border-t-0 sm:bg-transparent"
     >
       <ul className="mx-auto flex max-w-2xl justify-around sm:justify-start sm:gap-2">
-        {LINKS.map(({ href, label, icon: Icon }) => {
+        {linksFor(pension).map(({ href, label, icon: Icon }) => {
           const current = isCurrent(href, path);
           return (
             <li key={href}>
