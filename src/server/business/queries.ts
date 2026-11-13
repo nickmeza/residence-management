@@ -2,10 +2,11 @@ import "server-only";
 
 import { asc, eq, inArray } from "drizzle-orm";
 
+import { cache } from "react";
 import { z } from "zod";
 
 import { withRls } from "@/db/rls";
-import { business, contract, floor, property, unit, type OutlinePoint } from "@/db/schema";
+import { business, contract, floor, person, property, resident, unit, type OutlinePoint } from "@/db/schema";
 import { getSessionClaims } from "@/server/auth/session";
 import { buildingSummary, type UnitInput } from "@/server/building/rules";
 import { unitStatus, type UnitStatus } from "@/server/building/status";
@@ -37,24 +38,41 @@ export type BuildingUnit = {
   // Rectángulo en la planta, en metros (para el 3D).
   rect: { x: number; z: number; width: number; depth: number };
   status: UnitStatus;
+  // Quién vive hoy: su contrato o el de su departamento (si se alquila completo). null si está libre.
+  occupant: Occupant | null;
   rooms: BuildingUnit[];
+};
+
+export type Occupant = {
+  contractId: string;
+  residentId: string;
+  name: string;
+  startDate: string;
+  endDate: string | null;
 };
 
 export type BuildingView = {
   id: string;
   name: string;
   businessId: string;
+  coverPhotoPath: string | null;
   floors: { id: string; level: number; outline: OutlinePoint[]; units: BuildingUnit[] }[];
   summary: { floors: number; apartments: number; rentable: number; occupied: number };
 };
 
 // Una propiedad con sus pisos y unidades, para la pantalla Edificio. null si no es de quien inició sesión.
-export async function getBuilding(propertyId: string): Promise<BuildingView | null> {
+// cache(): el marco del edificio (layout) y la página la piden en la misma visita y se consulta una sola vez.
+export const getBuilding = cache(async (propertyId: string): Promise<BuildingView | null> => {
   if (!isUuid(propertyId)) return null;
   const claims = await getSessionClaims();
   return withRls(claims, async (tx) => {
     const [prop] = await tx
-      .select({ id: property.id, name: property.name, businessId: property.businessId })
+      .select({
+        id: property.id,
+        name: property.name,
+        businessId: property.businessId,
+        coverPhotoPath: property.coverPhotoPath,
+      })
       .from(property)
       .where(eq(property.id, propertyId))
       .limit(1);
@@ -82,11 +100,15 @@ export async function getBuilding(propertyId: string): Promise<BuildingView | nu
           .select({
             id: contract.id,
             unitId: contract.unitId,
+            residentId: contract.residentId,
+            name: person.fullName,
             startDate: contract.startDate,
             endDate: contract.endDate,
             status: contract.status,
           })
           .from(contract)
+          .innerJoin(resident, eq(resident.id, contract.residentId))
+          .innerJoin(person, eq(person.id, resident.personId))
           .where(
             inArray(
               contract.unitId,
@@ -95,9 +117,16 @@ export async function getBuilding(propertyId: string): Promise<BuildingView | nu
           )
       : [];
     const today = limaToday(new Date());
-    const occupiedIds = new Set(contracts.filter((c) => occupiesToday(c, today)).map((c) => c.unitId));
-    const isOccupied = (u: (typeof units)[number]) =>
-      occupiedIds.has(u.id) || (u.parentUnitId !== null && occupiedIds.has(u.parentUnitId));
+    const occupantByUnit = new Map<string, Occupant>(
+      contracts
+        .filter((c) => occupiesToday(c, today))
+        .map((c) => [
+          c.unitId,
+          { contractId: c.id, residentId: c.residentId, name: c.name, startDate: c.startDate, endDate: c.endDate },
+        ]),
+    );
+    const occupantOf = (u: (typeof units)[number]) =>
+      occupantByUnit.get(u.id) ?? (u.parentUnitId ? occupantByUnit.get(u.parentUnitId) : undefined) ?? null;
 
     const toView = (u: (typeof units)[number]): BuildingUnit => ({
       id: u.id,
@@ -111,7 +140,8 @@ export async function getBuilding(propertyId: string): Promise<BuildingView | nu
       furnished: u.furnished,
       spaceType: u.spaceType,
       rect: { x: u.posX, z: u.posZ, width: u.width, depth: u.depth },
-      status: unitStatus({ hasActiveContract: isOccupied(u) }),
+      status: unitStatus({ hasActiveContract: occupantOf(u) !== null }),
+      occupant: occupantOf(u),
       rooms: units.filter((r) => r.parentUnitId === u.id).map(toView),
     });
     const toRule = (u: (typeof units)[number]): UnitInput => ({
@@ -142,4 +172,4 @@ export async function getBuilding(propertyId: string): Promise<BuildingView | nu
       .filter((u) => u.status === "occupied").length;
     return { ...prop, floors: viewFloors, summary: { ...summary, occupied } };
   });
-}
+});

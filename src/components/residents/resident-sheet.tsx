@@ -33,7 +33,7 @@ export const EMPTY_RESIDENT: ResidentInput = {
 
 const selectClass = "h-11 rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm";
 
-function ResidentForm({
+export function ResidentForm({
   residentId,
   initial,
   hasAccount,

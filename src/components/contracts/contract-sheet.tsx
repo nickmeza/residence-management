@@ -33,6 +33,7 @@ function ContractForm({
   options,
   initial,
   lockResident,
+  lockUnit,
   submit,
   onDone,
   draftAllowed,
@@ -42,6 +43,8 @@ function ContractForm({
   options: ContractFormOptions;
   initial: ContractFormInput;
   lockResident: boolean;
+  // Llega elegida desde la página de la unidad ("Agregar residente").
+  lockUnit: boolean;
   submit: (values: ContractFormInput, asDraft: boolean) => Promise<ContractResult>;
   onDone: (id: string) => void;
   draftAllowed: boolean;
@@ -108,6 +111,7 @@ function ContractForm({
           <select
             id="unitId"
             className={selectClass}
+            disabled={lockUnit}
             {...unitField}
             onChange={(e) => {
               void unitField.onChange(e);
@@ -257,7 +261,7 @@ function ContractForm({
 }
 
 export type ContractSheetTarget =
-  | { mode: "create"; residentId?: string }
+  | { mode: "create"; residentId?: string; unitId?: string }
   // Cambiar condiciones: el actual termina el día anterior y empieza uno nuevo con estos datos.
   | { mode: "terms"; contractId: string; initial: ContractFormInput };
 
@@ -275,10 +279,13 @@ export function ContractSheet({
   const today = limaToday(new Date());
   const blank: ContractFormInput = {
     residentId: target?.mode === "create" ? (target.residentId ?? "") : "",
-    unitId: "",
+    unitId: target?.mode === "create" ? (target.unitId ?? "") : "",
     startDate: today,
     endDate: "",
-    monthlyRent: "",
+    // Con la unidad ya elegida, la renta propuesta es su precio (igual que al elegirla en la lista).
+    monthlyRent: priceText(
+      target?.mode === "create" ? (options.units.find((u) => u.id === target.unitId)?.monthlyPrice ?? null) : null,
+    ),
     paymentDay: String(options.billingDay),
     paperwork: "none",
     templateId: "",
@@ -304,10 +311,15 @@ export function ContractSheet({
               <p className="px-4 text-sm text-muted-foreground">Primero agrega a un residente.</p>
             ) : (
               <ContractForm
-                key={target.mode === "terms" ? target.contractId : (target.residentId ?? "nuevo")}
+                key={
+                  target.mode === "terms"
+                    ? target.contractId
+                    : `${target.residentId ?? "nuevo"}-${target.unitId ?? ""}`
+                }
                 options={options}
                 initial={target.mode === "terms" ? target.initial : blank}
                 lockResident={target.mode === "terms" || Boolean(target.residentId)}
+                lockUnit={target.mode === "create" && Boolean(target.unitId)}
                 draftAllowed={target.mode === "create"}
                 // Al cambiar condiciones la garantía no se toca: pasa al contrato nuevo (regla 9).
                 showDeposit={target.mode === "create"}

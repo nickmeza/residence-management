@@ -9,7 +9,6 @@ import { ConfirmButton } from "@/components/confirm-button";
 import { FieldError, TextField } from "@/components/onboarding/form-field";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatSoles } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { addRoomAction, deleteUnitAction, updateUnitAction } from "@/server/building/actions";
@@ -48,14 +47,17 @@ export type SheetTarget = {
   onlyUnit: boolean;
 };
 
-function UnitForm({
+// inPage: dentro de la página de la unidad. Ahí los cuartos de un departamento tienen su propia pestaña.
+export function UnitForm({
   target,
   onSelect,
   onDone,
+  inPage = false,
 }: {
   target: SheetTarget;
   onSelect: (id: string) => void;
   onDone: () => void;
+  inPage?: boolean;
 }) {
   const { unit, parent } = target;
   const methods = useForm<Form>({ defaultValues: toForm(unit) });
@@ -116,7 +118,11 @@ function UnitForm({
 
   return (
     <FormProvider {...methods}>
-      <form onSubmit={save} noValidate className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4">
+      <form
+        onSubmit={save}
+        noValidate
+        className={inPage ? "flex flex-col gap-5" : "flex flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4"}
+      >
         <TextField name="name" label="Nombre" />
         {priceNote ? (
           <p className="rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground">{priceNote}</p>
@@ -214,7 +220,7 @@ function UnitForm({
           </label>
         </div>
 
-        {isApartment ? (
+        {isApartment && !inPage ? (
           <section className="flex flex-col gap-2" aria-label="Cuartos del departamento">
             <h3 className="text-sm font-semibold">
               {unit.rentalMode === "by_room" ? "Cuartos que se alquilan" : "Cuartos del departamento"}
@@ -287,36 +293,5 @@ function UnitForm({
         </div>
       </form>
     </FormProvider>
-  );
-}
-
-// Panel lateral para editar una unidad (decisión del dueño). En móvil ocupa toda la pantalla.
-export function UnitSheet({
-  target,
-  onClose,
-  onSelect,
-}: {
-  target: SheetTarget | null;
-  onClose: () => void;
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <Sheet open={target !== null} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="right" className="flex w-full flex-col gap-4 sm:max-w-md">
-        {target ? (
-          <>
-            <SheetHeader>
-              <SheetTitle>Editar {target.unit.name}</SheetTitle>
-              <SheetDescription>
-                {target.floorLabel} · {target.unit.type === "apartment" ? "Departamento" : "Cuarto"}
-                {target.parent ? ` · dentro de ${target.parent.name}` : ""}
-              </SheetDescription>
-            </SheetHeader>
-            {/* key: al cambiar de unidad, el formulario empieza con los datos de la nueva. */}
-            <UnitForm key={target.unit.id} target={target} onSelect={onSelect} onDone={onClose} />
-          </>
-        ) : null}
-      </SheetContent>
-    </Sheet>
   );
 }

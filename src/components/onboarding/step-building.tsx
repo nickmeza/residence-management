@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronRight, Info, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Info, X } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
+import { useState } from "react";
+import { useFieldArray, useFormContext, useFormState, useWatch } from "react-hook-form";
 
 import { ConfirmButton } from "@/components/confirm-button";
 import { Button } from "@/components/ui/button";
@@ -318,7 +319,7 @@ function PreviewRow({
   );
 }
 
-// Columna derecha: "Resumen del edificio" con cifras y la vista previa en acordeones.
+// Columna derecha: "Resumen del edificio" con cifras y la vista previa en acordeones (cerrados: poca información).
 function BuildingPreview() {
   const floors = useWatch<SetupForm, "property.floors">({ name: "property.floors" });
   const summary = formSummary(floors);
@@ -355,7 +356,7 @@ function BuildingPreview() {
             floor.units[0].occupiesWholeFloor;
           const first = floor.units[0];
           return (
-            <details key={f} open className="group rounded-lg border">
+            <details key={f} className="group rounded-lg border">
               <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm font-semibold">
                 <ChevronRight
                   className="size-4 transition-transform duration-200 group-open:rotate-90"
@@ -470,6 +471,47 @@ function Preview3DAside() {
   );
 }
 
+// Lista de pisos (como la página Edificio): poca información y se toca uno para editarlo. Un piso con algo por
+// corregir lo dice en texto, porque al tocar "Siguiente" puede que no lo estés viendo.
+function FloorList({ onEdit }: { onEdit: (index: number) => void }) {
+  const floors = useWatch<SetupForm, "property.floors">({ name: "property.floors" });
+  const { errors } = useFormState<SetupForm>({ name: "property.floors" });
+  return (
+    <ul className="flex flex-col gap-2">
+      {floors.map((floor, i) => {
+        const only = floor.units.length === 1 ? floor.units[0] : null;
+        const whole = only?.type === "apartment" && only.occupiesWholeFloor ? only : null;
+        const hasError = Boolean(errors.property?.floors?.[i]);
+        return (
+          <li key={i}>
+            <button
+              type="button"
+              onClick={() => onEdit(i)}
+              className="flex min-h-14 w-full items-center gap-3 rounded-xl border bg-card px-4 py-2 text-left transition-colors duration-200 hover:bg-muted/60"
+            >
+              <span className="min-w-0 flex-1">
+                <b className="block truncate">
+                  {floorName(i + 1)}
+                  {whole ? ` · ${whole.name || "Sin nombre"}` : ""}
+                </b>
+                <span className={cn("text-sm", hasError ? "font-semibold text-danger" : "text-muted-foreground")}>
+                  {hasError
+                    ? "Revisa este piso"
+                    : whole
+                      ? "Ocupa todo el piso"
+                      : `${floor.units.length} ${floor.units.length === 1 ? "unidad" : "unidades"}`}
+                </span>
+              </span>
+              <span className="text-sm font-semibold text-link">Editar</span>
+              <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function StepBuilding({
   mode,
   onModeChange,
@@ -482,6 +524,13 @@ export function StepBuilding({
   const { control } = useFormContext<SetupForm>();
   const type = useWatch<SetupForm, "property.type">({ name: "property.type" });
   const floors = useFieldArray({ control, name: "property.floors", keyName: "_id" });
+  // Piso que se está editando; null = la lista de pisos. Un cuarto suelto o un piso suelto tienen un solo piso:
+  // se edita directo.
+  const [picked, setPicked] = useState<number | null>(null);
+  const editing = type !== "building" ? 0 : picked !== null && picked < floors.fields.length ? picked : null;
+  const { errors } = useFormState<SetupForm>({ name: "property.floors" });
+  const otherErrors =
+    editing !== null && floors.fields.some((_, i) => i !== editing && errors.property?.floors?.[i]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -522,23 +571,53 @@ export function StepBuilding({
                 : "Cada piso puede mezclar departamentos y cuartos. El precio va en lo que se alquila."
             }
           >
-            {floors.fields.map((f, i) => (
-              <FloorBlock
-                key={f._id}
-                index={i}
-                canRemove={type === "building" && floors.fields.length > 1}
-                canAddUnits={type !== "room"}
-                onRemove={() => floors.remove(i)}
-              />
-            ))}
+            {editing === null ? (
+              <FloorList onEdit={setPicked} />
+            ) : (
+              <>
+                {type === "building" ? (
+                  <div>
+                    <Button type="button" variant="ghost" className="h-11 gap-1 px-2" onClick={() => setPicked(null)}>
+                      <ChevronLeft className="size-4" aria-hidden="true" />
+                      Todos los pisos
+                    </Button>
+                  </div>
+                ) : null}
+                <FloorBlock
+                  key={floors.fields[editing]._id}
+                  index={editing}
+                  canRemove={type === "building" && floors.fields.length > 1}
+                  canAddUnits={type !== "room"}
+                  onRemove={() => {
+                    floors.remove(editing);
+                    setPicked(null);
+                  }}
+                />
+                {otherErrors ? (
+                  <p role="alert" className="text-sm font-semibold text-danger">
+                    Hay otros pisos por revisar. Vuelve a “Todos los pisos” para verlos.
+                  </p>
+                ) : null}
+                {type === "building" ? (
+                  <div>
+                    <Button type="button" className="h-11 px-5" onClick={() => setPicked(null)}>
+                      Listo
+                    </Button>
+                  </div>
+                ) : null}
+              </>
+            )}
             <FieldError name="property.floors" />
-            {type === "building" ? (
+            {type === "building" && editing === null ? (
               <div>
                 <Button
                   type="button"
                   variant="outline"
                   className="h-11"
-                  onClick={() => floors.append({ units: [newUnit("room", floors.fields.length + 1, 0)] })}
+                  onClick={() => {
+                    floors.append({ units: [newUnit("room", floors.fields.length + 1, 0)] });
+                    setPicked(floors.fields.length);
+                  }}
                 >
                   + Agregar piso
                 </Button>

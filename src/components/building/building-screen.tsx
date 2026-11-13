@@ -1,14 +1,21 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
-import { decideMode, readDeviceInfo, saveViewMode, type ViewMode } from "@/lib/view-mode";
+import {
+  decideMode,
+  readDeviceInfo,
+  saveViewMode,
+  type ModeDecision,
+  type ViewMode,
+} from "@/lib/view-mode";
 import type { BuildingView } from "@/server/business/queries";
 
-import { BuildingEditor } from "./building-editor";
+import { parseBuildingPath } from "./building-route";
 
 // El 3D (three.js) se descarga solo cuando se elige ese modo. El modo simple no lo necesita.
 const Building3DView = dynamic(
@@ -23,29 +30,41 @@ const Building3DView = dynamic(
   },
 );
 
-// Pantalla Edificio: elige el modo (3D o Simple), lo recuerda en este dispositivo y muestra el que toca.
-// Corre solo en el navegador (ver building-screen-loader.tsx) porque necesita saber qué aguanta el equipo.
-export function BuildingScreen({ building }: { building: BuildingView }) {
-  const [decision] = useState(() => decideMode(readDeviceInfo()));
-  const [mode, setMode] = useState<ViewMode>(decision.mode);
-  const [notice, setNotice] = useState(decision.notice);
+// Qué modo usar se sabe solo en el navegador (lo guardado y lo que aguanta el equipo). Se calcula una vez por
+// carga; en el servidor es null y se dibuja la página sola, como en el modo simple.
+let decided: ModeDecision | null = null;
+const readDecision = () => (decided ??= decideMode(readDeviceInfo()));
+const noop = () => () => {};
+
+// Marco del edificio (lo usa el layout de /edificio/[id]): el interruptor 3D/Simple y, en 3D, el edificio al lado
+// de la página (edificio, piso o unidad). Al pasar de una página a otra el marco no se vuelve a montar: el 3D
+// sigue cargado. La página siempre va en el mismo lugar, así que no se reinicia al cambiar de modo.
+export function BuildingScreen({ building, children }: { building: BuildingView; children: ReactNode }) {
+  const decision = useSyncExternalStore(noop, readDecision, () => null);
+  const [chosen, setChosen] = useState<ViewMode | null>(null);
+  const [noticeClosed, setNoticeClosed] = useState(false);
+  const route = parseBuildingPath(usePathname(), useSearchParams().get("pestana"));
+  const mode = chosen ?? decision?.mode ?? "simple";
+  const notice = noticeClosed ? null : (decision?.notice ?? null);
+  const is3d = decision !== null && mode === "3d";
 
   const change = (next: ViewMode) => {
-    setMode(next);
+    setChosen(next);
     saveViewMode(next);
-    if (notice === "slow_device") setNotice(null);
+    if (notice === "slow_device") setNoticeClosed(true);
   };
-
-  const toggle = (
-    <ViewModeToggle
-      mode={mode}
-      onChange={change}
-      disable3d={decision.notice === "no_webgl" ? "Este navegador no puede mostrar 3D" : undefined}
-    />
-  );
 
   return (
     <>
+      <div className="flex min-h-11 flex-wrap items-center gap-3">
+        {decision ? (
+          <ViewModeToggle
+            mode={mode}
+            onChange={change}
+            disable3d={decision.notice === "no_webgl" ? "Este navegador no puede mostrar 3D" : undefined}
+          />
+        ) : null}
+      </div>
       {notice ? (
         <div
           role="status"
@@ -63,11 +82,18 @@ export function BuildingScreen({ building }: { building: BuildingView }) {
           ) : null}
         </div>
       ) : null}
-      {mode === "3d" ? (
-        <Building3DView building={building} toggle={toggle} />
-      ) : (
-        <BuildingEditor building={building} toggle={toggle} />
-      )}
+      <div
+        className={
+          is3d ? "grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]" : "flex flex-col gap-6"
+        }
+      >
+        {is3d ? (
+          <div className="lg:sticky lg:top-24">
+            <Building3DView building={building} route={route} />
+          </div>
+        ) : null}
+        <div className="flex min-w-0 flex-col gap-6">{children}</div>
+      </div>
     </>
   );
 }
