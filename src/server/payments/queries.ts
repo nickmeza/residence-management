@@ -182,6 +182,8 @@ export type CollectionsView = {
   }[];
   toReview: (PaymentRow & { residentId: string; residentName: string; balance: string; mismatch: boolean })[];
   residents: { id: string; name: string }[];
+  // Recibos vencidos de meses anteriores al que se ve: la tabla los marca bajo el nombre ("+ debe octubre").
+  earlierDebts: { residentId: string; period: string; balance: string }[];
 };
 
 const sum = (values: string[]) => values.reduce((t, v) => t + toCents(v), 0);
@@ -256,6 +258,10 @@ export async function getCollections(
       delinquent,
       toReview,
       residents: data.residents,
+      earlierDebts: overdue
+        .filter((r) => r.period < period)
+        .sort((a, b) => a.period.localeCompare(b.period))
+        .map((r) => ({ residentId: r.residentId, period: r.period, balance: r.balance })),
     };
   });
 }
@@ -300,6 +306,45 @@ export async function getReceipt(residentId: string, period: string): Promise<Re
       businessId: card.businessId,
       tradeName: card.tradeName,
       periods: all.map((r) => r.period).sort(),
+    };
+  });
+}
+
+export type ResidentReceipts = {
+  businessId: string;
+  // Todos sus recibos, del mes más reciente al más antiguo (pestaña Cobros del perfil).
+  receipts: Receipt[];
+  // Lo que debe de recibos ya vencidos.
+  overdue: { total: string; count: number };
+};
+
+// Todos los recibos de un residente, de todos los meses. null si no es de los negocios de quien inició sesión.
+export async function getResidentReceipts(residentId: string): Promise<ResidentReceipts | null> {
+  if (!isUuid(residentId)) return null;
+  const claims = await getSessionClaims();
+  const today = limaToday(new Date());
+  return withRls(claims, async (tx) => {
+    const [card] = await tx
+      .select({ businessId: resident.businessId, name: person.fullName })
+      .from(resident)
+      .innerJoin(person, eq(person.id, resident.personId))
+      .where(eq(resident.id, residentId))
+      .limit(1);
+    if (!card) return null;
+    // Crea lo que falte (meses nuevos de los contratos mes a mes), como al abrir Cobros.
+    await syncBusinessBilling(tx, card.businessId);
+    const data = await loadBusiness(tx, card.businessId, residentId);
+    const receipts = buildReceipts(
+      data.charges,
+      data.payments,
+      new Map([[residentId, card.name]]),
+      today,
+    ).sort((a, b) => b.period.localeCompare(a.period));
+    const overdue = receipts.filter((r) => r.status === "overdue");
+    return {
+      businessId: card.businessId,
+      receipts,
+      overdue: { total: cents(sum(overdue.map((r) => r.balance))), count: overdue.length },
     };
   });
 }
