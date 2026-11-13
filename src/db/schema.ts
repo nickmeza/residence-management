@@ -1013,7 +1013,7 @@ export const pensionBillingCycle = pgEnum("pension_billing_cycle", ["daily", "we
 // Negocios donde la persona con sesión tiene ficha (para que el comensal lea comidas, planes y menú).
 const myResidentBusinessIds = sql`(select r.business_id from public.resident r where r.person_id in ${myPersonIds})`;
 
-// Configuración › Pensión: hora límite de confirmación, cómo se sirve, capacidad, externos y dietas que atiende.
+// Configuración › Pensión: hora límite de cancelación (del día anterior), cómo se sirve, capacidad, externos y dietas.
 export const mealSettings = pgTable(
   "meal_settings",
   {
@@ -1215,8 +1215,8 @@ export const menuItem = pgTable(
   ],
 );
 
-// Asistencia de un comensal a una comida: si confirmó que viene y si comió (PN-05, PN-06, PN-07). Sin fila = no
-// respondió (no se le cocina).
+// Asistencia de un comensal a una comida: si la canceló y si comió (PN-05, PN-06, PN-07). Sin fila = viene (por
+// defecto se cocina para todos los afiliados; decisión del dueño, 2026-11-13).
 export const mealAttendance = pgTable(
   "meal_attendance",
   {
@@ -1249,9 +1249,9 @@ export const mealAttendance = pgTable(
   ],
 );
 
-// Pago de la pensiÃ³n, por adelantado: cuÃ¡nto pagÃ³ y quÃ© dÃ­as cubre ("S/ 85 Â· del 16 al 22 de noviembre"). No usa los
+// Pago de la pensión, por adelantado: cuánto pagó y qué días cubre ("S/ 85 · del 16 al 22 de noviembre"). No usa los
 // recibos de la residencia porque esos dependen de un contrato. Lo registra la cocina (el arrendador); el comensal lo
-// ve. Queda en la bitÃ¡cora money_log (trigger de la migraciÃ³n 0014).
+// ve. Queda en la bitácora money_log (trigger de la migración 0014).
 export const pensionPayment = pgTable(
   "pension_payment",
   {
