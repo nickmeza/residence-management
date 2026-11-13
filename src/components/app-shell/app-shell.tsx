@@ -46,6 +46,7 @@ const linksFor = (data: Awaited<ReturnType<typeof getShellData>>): NavLinks => {
   const property = current?.service === "residence" ? current.properties[0] : undefined;
   return {
     edificio: property ? `/edificio/${property.id}` : null,
+    pension: current?.service === "meal_plan" ? "/pension" : null,
     configuracion: current ? `/negocio/${current.id}` : null,
   };
 };

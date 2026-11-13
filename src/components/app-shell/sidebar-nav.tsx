@@ -17,7 +17,7 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-export type NavLinks = { edificio: string | null; configuracion: string | null };
+export type NavLinks = { edificio: string | null; pension: string | null; configuracion: string | null };
 
 type Item = { label: string; Icon: LucideIcon; href: string | null; match?: string; note?: string };
 
@@ -38,7 +38,13 @@ export function SidebarNav({ links, onNavigate }: { links: NavLinks; onNavigate?
     { label: "Contratos", Icon: FileText, href: "/contratos" },
     { label: "Cobros", Icon: Wallet, href: "/cobros" },
     { label: "Garantías", Icon: ShieldCheck, href: "/garantias" },
-    { label: "Pensión", Icon: Soup, href: null, note: "Pronto" },
+    {
+      label: "Pensión",
+      Icon: Soup,
+      href: links.pension,
+      match: "/pension",
+      note: links.pension ? undefined : "Solo Pensión",
+    },
     { label: "Mantenimiento", Icon: Wrench, href: null, note: "Pronto" },
     { label: "Configuración", Icon: Settings, href: links.configuracion, match: "/negocio/" },
   ];

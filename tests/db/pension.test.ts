@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { db } from "@/db";
+import { deletePlan, PensionError, savePensionSettings, savePlan } from "@/server/pension/mutations";
 
 // Pensión (Fase 6) contra la base real, con RLS activo: las funciones del comensal (confirmar y pausar) y quién
 // ve qué. Cada prueba deshace todo. Las fechas se calculan desde "hoy en Lima" para no depender del reloj.
@@ -231,6 +232,64 @@ describe("quién ve qué", () => {
             values (${c.residentId}, ${foreign.id}, current_date)`),
         ),
       ).rejects.toThrow();
+    });
+  });
+});
+
+describe("configuración de la pensión", () => {
+  const settings = {
+    cancelDeadline: "21:00",
+    serviceModes: ["takeaway" as const, "delivery" as const],
+    seatsPerTurn: null,
+    acceptsExternal: true,
+    diets: ["vegetariano", "vegetariano"],
+    meals: [
+      { type: "breakfast" as const, active: false, startTime: "07:00", endTime: "09:00", singlePrice: "5" },
+      { type: "lunch" as const, active: true, startTime: "13:00", endTime: "15:00", singlePrice: "12" },
+      { type: "dinner" as const, active: true, startTime: "19:00", endTime: "21:00", singlePrice: "8" },
+    ],
+  };
+
+  it("la dueña guarda sus comidas y su hora de cancelación; otro arrendador no puede", async () => {
+    await withPension(async (tx, c) => {
+      await actAs(tx, LANDLORD);
+      await savePensionSettings(tx, c.businessId, settings);
+      const s = await one<{ cancel_deadline: string; diets: string[] }>(
+        tx,
+        sql`select cancel_deadline::text, diets from public.meal_settings where business_id = ${c.businessId}`,
+      );
+      expect(s.cancel_deadline).toBe("21:00:00");
+      expect(s.diets).toEqual(["vegetariano"]);
+      const meals = await rows<{ type: string; active: boolean }>(
+        tx,
+        sql`select type, active from public.meal where business_id = ${c.businessId} order by type`,
+      );
+      expect(meals).toEqual([
+        { type: "breakfast", active: false },
+        { type: "lunch", active: true },
+        { type: "dinner", active: true },
+      ]);
+      await actAs(tx, OTHER);
+      await expect(savePensionSettings(tx, c.businessId, settings)).rejects.toThrow(PensionError);
+    });
+  });
+
+  it("un plan con comensales no se borra; uno sin comensales sí", async () => {
+    await withPension(async (tx, c) => {
+      await actAs(tx, LANDLORD);
+      await expect(deletePlan(tx, c.businessId, c.planId)).rejects.toThrow(/desactívalo/);
+      await savePlan(tx, c.businessId, null, {
+        name: "Solo almuerzo",
+        meals: ["lunch"],
+        dailyPrice: "11",
+        active: true,
+      });
+      const plan = await one<{ id: string }>(
+        tx,
+        sql`select id from public.pension_plan where name = 'Solo almuerzo'`,
+      );
+      await deletePlan(tx, c.businessId, plan.id);
+      expect((await rows(tx, sql`select 1 from public.pension_plan`)).length).toBe(1);
     });
   });
 });
