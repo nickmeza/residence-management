@@ -366,3 +366,22 @@ Bitácora (`money_log`): cada cambio en estas tablas y en las de garantía queda
 |---|---|---|
 | llave.unidad_id, entregadas, devueltas | → Unidad, entero, entero | Se compara en el check-out. |
 | contacto_landing.nombre, correo, telefono, mensaje | texto | Formulario de la landing. |
+
+## Fase 7 · Operación diaria
+
+| Campo | Tipo | Regla o descripción |
+|---|---|---|
+| notificacion.persona_id, negocio_id, tipo, titulo, detalle, enlace (`notification`) | → Persona, → Negocio, texto | La crean `notify_owner` / `notify_resident`. Enlace solo dentro de la app. |
+| notificacion.urgente, creada_en, leida_en | booleano, fecha-hora | Cada persona ve, marca y borra solo las suyas. |
+| pedido_mantenimiento.negocio_id, unidad_id, ficha_id (`maintenance_request`) | → Negocio, → Unidad (vacía = área común), → Ficha (vacía = lo creó el arrendador) | |
+| pedido_mantenimiento.titulo, detalle, tipo, prioridad, estado | texto, texto, agua \| luz \| muebles \| artefactos \| internet \| limpieza \| otro, baja \| normal \| alta \| urgente, pendiente \| en curso \| resuelto \| cancelado | |
+| pedido_mantenimiento.foto, responsable, costo, deja_fuera_de_servicio, cerrado_en | ruta, texto, S/, booleano, fecha-hora | |
+| mensaje_mantenimiento.pedido_id, autor_id, texto (`maintenance_comment`) | → Pedido, → Persona, texto | Lo escriben el arrendador y el residente del pedido. |
+| comunicado.negocio_id, para, edificio_id, piso_id, ficha_id (`announcement`) | → Negocio, todos \| edificio \| piso \| persona | Historial; cada destinatario recibe una notificación. |
+| comunicado.titulo, mensaje, urgente, destinatarios | texto, texto, booleano, entero | |
+| negocio.recibe_postulaciones (`accepts_applications`) | booleano | Apagado por defecto. |
+| postulacion.negocio_id, nombre, celular, correo (`application`) | → Negocio, texto | Sin cuenta ni DNI. |
+| postulacion.busca, desde, meses, presupuesto, ocupacion, mensaje | cuarto \| departamento, fecha, entero, S/, texto, texto | |
+| postulacion.estado, nota, ficha_id | nueva \| lista de espera \| aprobada \| rechazada, texto, → Ficha | Aprobar crea la ficha. |
+| ingreso_salida.contrato_id, tipo (`move_event`) | → Contrato, ingreso \| salida | Uno de cada tipo por contrato. |
+| ingreso_salida.cita, hecho_en, llaves, checklist, notas | fecha-hora, fecha-hora, entero, lista, texto | |

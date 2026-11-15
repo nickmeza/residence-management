@@ -41,7 +41,7 @@ dueño lo revise y le agregue filas (2026-11-15).
 | Te aprobaron o rechazaron un documento (con motivo) | 4 | No |
 | Tu contrato está listo para firmar | 4 | Sí |
 | Te confirmaron o rechazaron un pago (con motivo) | 5 | No |
-| Tienes un recibo nuevo | 5 | No |
+| ~~Tienes un recibo nuevo~~ → pasa a programados (Fase 8): los recibos se crean de golpe al confirmar el contrato | 5 | — |
 | Anularon un pago tuyo (con motivo) | 5 | Sí |
 | Tu liquidación de garantía está lista | 5 | Sí |
 | Se publicó el menú de la semana | 6 | No |
@@ -69,8 +69,23 @@ dueño lo revise y le agregue filas (2026-11-15).
 | Un contrato vence en X días | Arrendador y residente |
 | Aún tienes comprobantes sin revisar | Arrendador / cocina |
 
-## Por decidir
+## Agregados en la Fase 7 (con sus pantallas)
 
-- Si los avisos que no son urgentes se agrupan (por ejemplo, uno por día con "5 comensales cancelaron").
-- Cuánto tiempo se guardan las notificaciones leídas.
-- Qué avisos no se pueden apagar (regla actual: el de pago vencido no se apaga en la app).
+| Qué pasa | Quién lo recibe | Urgente |
+|---|---|---|
+| Un residente pidió mantenimiento | Arrendador | Si lo marcó urgente |
+| Escribieron en un pedido de mantenimiento | El otro (arrendador o residente) | No |
+| Cambió el estado de tu pedido | Residente | No |
+| Nueva postulación | Arrendador | No |
+| Un comunicado | Los destinatarios | Si se marcó urgente |
+| Se programó tu ingreso o tu salida | Residente | No |
+
+Pendientes agregados: pedidos de mantenimiento (los urgentes aparte), postulaciones nuevas, ingresos y salidas de
+los próximos 7 días, contratos esperando la firma; para el residente, liquidación por responder y contrato por firmar.
+
+## Decidido (Claude, 2026-11-15; el dueño puede cambiarlo)
+
+- **No se agrupan** los avisos: uno por evento. Si molesta, se agrupan después.
+- La campanita muestra las **últimas 8**; la página, las **últimas 100**. Borrar las viejas, con el programador (Fase 8).
+- **Ninguno se apaga** todavía; las preferencias por tipo y canal (ES-09) llegan con la Fase 8.
+- Mientras la migración 0020 no esté aplicada, la campanita queda vacía y los cambios se guardan igual.

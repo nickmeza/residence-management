@@ -128,6 +128,18 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 6.6 Menú y comensal | `/pension/menu` (borrador, publicar, copiar la semana anterior) y `/mi/pension` (cancelar, pausar, pagos) |
 | 6.7 Pruebas | `src/server/pension/rules.test.ts` y `tests/db/pension.test.ts` (cancelación, pausas, cocina, pagos, menú y RLS) |
 
+### Fase 7, paso a paso
+
+| Paso | Qué se hizo |
+| ---- | ----------- |
+| 7.1 Notificaciones | Migración 0020: tabla `notification` y funciones `notify_owner` / `notify_resident`. Campanita en la barra; `/notificaciones` y `/mi/avisos`. Avisos al instante de todo lo de las Fases 4–6 (catálogo en `docs/notificaciones.md`). "Pendientes" en el Panel y en el inicio del residente |
+| 7.2 Mantenimiento | Migración 0021: pedidos y mensajes. `/mantenimiento`, `/mantenimiento/[id]` y `/mi/mantenimiento` (pedir con foto). Un pedido que deja la unidad fuera de servicio la muestra en "Mantenimiento" |
+| 7.3 Comunicados | Migración 0022: `/comunicados` para todos, un edificio, un piso o una persona; llegan como notificación |
+| 7.4 Postulantes | Migración 0023: enlace público `/postular/[negocio]` (se prende en `/postulantes`), lista de espera, aprobar crea la ficha del residente |
+| 7.5 Ingresos y salidas | Migración 0024: `/ingresos` (próximos 30 días y atrasados, salen de las fechas de los contratos) con cita, llaves y checklist |
+| 7.6 Reportes | `/reportes`: ocupación por piso y por mes, facturado, cobrado, por cobrar, mantenimiento, deuda vencida y pensión; descarga CSV para Excel |
+| 7.7 Pruebas | Reglas puras en `src/server/{notifications,maintenance,announcements,applications,moves,reports}` y `tests/db/fase7.test.ts` |
+
 ### Pantallas de la app (después de iniciar sesión)
 
 | Dirección | Qué es |
@@ -293,3 +305,11 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-15 | Garantía **movible a otro mes o en cuotas** (hasta 6), mientras no haya cuota pagada | Decisión del dueño. Sin migración: un contrato ya podía tener varios cargos de garantía. |
 | 2026-11-15 | Pensión: **cancela la cocina** (no se cobra; a uno o a todos) vs **avisó tarde el comensal** (se cobra) (migración 0018) | Decisión del dueño. Los mensajes llegan con la campanita. |
 | 2026-11-15 | "Copiar la semana anterior" **pregunta**: reemplazar todo o solo llenar lo vacío | Decisión del dueño. |
+| 2026-11-15 | **Notificaciones** solo dentro de un mismo negocio, creadas por funciones de la base (`notify_owner`, `notify_resident`), nunca insertadas directo (migración 0020) | Nadie puede mandarle avisos a quien no es su arrendador o su residente. Si un aviso falla, el cambio (un pago, un documento) se guarda igual. |
+| 2026-11-15 | Avisos **sin agrupar**, se muestran los últimos 100, **ninguno se apaga** todavía | Decisión de Claude (Fase 7, sin el dueño): lo simple primero. Preferencias y canales (correo, WhatsApp) en la Fase 8. |
+| 2026-11-15 | "Pendientes" se **calculan al abrir**, no se guardan | Desaparecen solos cuando ya no hay nada pendiente. Los recordatorios a una hora llegan en la Fase 8 (programador de tareas). |
+| 2026-11-15 | Mantenimiento: el responsable es **texto libre** ("gasfitero Juan"); el residente solo elige "urgente o no" | Decisión de Claude. Los usuarios con rol (mantenimiento, cocina…) quedan para después. |
+| 2026-11-15 | Comunicados: a quienes **viven hoy** en lo elegido; en una pensión, a los comensales con plan vigente | Decisión de Claude. A una persona le llega aunque no tenga contrato vigente. |
+| 2026-11-15 | Postulantes: enlace público **apagado por defecto**; sin DNI ni documentos; un celular no postula dos veces en 24 h; aprobar **crea la ficha** del residente | Decisión de Claude. La unidad se asigna después con un contrato, como siempre. |
+| 2026-11-15 | Ingresos y salidas salen de las **fechas de los contratos**; solo se guarda la cita y el checklist | Decisión de Claude. Las fallas siguen yendo por el reporte de ingreso y la liquidación. |
+| 2026-11-15 | Reportes en **tablas** con descarga CSV (sin gráficos ni paquetes nuevos) | Decisión de Claude. Los gráficos se pueden sumar en la Fase 9. |
