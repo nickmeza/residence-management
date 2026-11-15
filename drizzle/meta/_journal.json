@@ -120,6 +120,27 @@
       "when": 1794593259772,
       "tag": "0016_pension_comprobantes",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794764884732,
+      "tag": "0017_dias_habiles_reporte_ingreso",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794764955748,
+      "tag": "0018_pension_cancela_la_cocina",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794765398557,
+      "tag": "0019_comprobante_se_confirma_solo",
+      "breakpoints": true
     }
   ]
 }

@@ -208,3 +208,19 @@ export function coveredChargeIds(
   }
   return covered;
 }
+
+// Pagos anulados o rechazados (decisión del dueño, 2026-11-15): siguen en la base y en la bitácora, pero no se
+// muestran por defecto para no confundir; la pantalla ofrece "Mostrar anulados".
+export function splitVoided<T extends { status: "in_review" | "confirmed" | "rejected" }>(payments: T[]) {
+  return {
+    active: payments.filter((p) => p.status !== "rejected"),
+    voided: payments.filter((p) => p.status === "rejected"),
+  };
+}
+
+// ¿El comprobante del residente se confirma solo? (decisión del dueño, 2026-11-15): solo si es EXACTAMENTE lo que
+// falta del recibo (y falta algo). Igual que la función auto_confirm_my_payment de la base, que es la que decide.
+export function proofMatchesBalance(input: { amount: string; balance: string }) {
+  const balance = toCents(input.balance);
+  return balance > 0 && toCents(input.amount) === balance;
+}

@@ -13,6 +13,7 @@ import * as m from "./mutations";
 import {
   attendanceSchema,
   dinerContactSchema,
+  kitchenCancelAllSchema,
   kitchenChangeSchema,
   newDinerSchema,
   pauseSchema,
@@ -141,6 +142,16 @@ export async function kitchenChangeAction(businessId: string, input: unknown): P
   return run((tx) => m.kitchenChange(tx, businessId, parsed.data));
 }
 
+// "Cancelar esta comida para todos" (emergencia de la cocina; no se cobra).
+export async function kitchenCancelAllAction(businessId: string, input: unknown): Promise<PensionResult> {
+  if (!isUuid(businessId)) return { ok: false, message: NOT_FOUND };
+  const parsed = kitchenCancelAllSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "No pudimos guardar el cambio. Recarga la página." };
+  return run(async (tx) => {
+    await m.kitchenCancelAll(tx, businessId, parsed.data);
+  });
+}
+
 export async function saveWeekMenuAction(businessId: string, input: unknown): Promise<PensionResult> {
   if (!isUuid(businessId)) return { ok: false, message: NOT_FOUND };
   const parsed = weekMenuSchema.safeParse(input);
@@ -148,9 +159,15 @@ export async function saveWeekMenuAction(businessId: string, input: unknown): Pr
   return run((tx) => m.saveWeekMenu(tx, businessId, parsed.data.entries, parsed.data.publish));
 }
 
-export async function copyPreviousWeekAction(businessId: string, monday: string): Promise<PensionResult> {
+// mode: "fill" = solo llena los días vacíos; "replace" = reemplaza lo escrito (desde hoy).
+export async function copyPreviousWeekAction(
+  businessId: string,
+  monday: string,
+  mode: "fill" | "replace" = "fill",
+): Promise<PensionResult> {
   if (!isUuid(businessId) || !isDate(monday)) return { ok: false, message: NOT_FOUND };
-  return run((tx) => m.copyPreviousWeek(tx, businessId, monday));
+  if (mode !== "fill" && mode !== "replace") return { ok: false, message: NOT_FOUND };
+  return run((tx) => m.copyPreviousWeek(tx, businessId, monday, mode));
 }
 
 export async function registerPensionPaymentAction(input: unknown): Promise<PensionResult> {
@@ -188,6 +205,7 @@ const DINER_MESSAGE: Record<string, string> = {
   no_plan: "Tu plan no incluye esa comida ese día.",
   paused: "Ese día tienes la pensión en pausa.",
   no_service: "Ese día la pensión no cocina.",
+  kitchen_cancelled: "Esa comida la canceló la cocina: no se te cobra.",
   closed: "Ya pasó la hora para cancelar. Si necesitas cambiarlo, avísale a la cocina.",
   invalid: "Revisa las fechas: desde hoy y dentro de tu plan.",
   served: "Ya comiste algún día de esas fechas: no se puede pausar.",

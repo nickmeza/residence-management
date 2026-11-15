@@ -26,6 +26,7 @@ import { coveredCharges, loadBusiness } from "@/server/payments/queries";
 import { periodOf } from "@/server/payments/rules";
 
 import {
+  depositChargesPaid,
   depositPhase,
   settlement as settle,
   type DepositPhase,
@@ -119,7 +120,7 @@ export async function listDeposits(businessId: string): Promise<DepositsView | n
         id: deposit.id,
         amount: deposit.amount,
         status: deposit.status,
-        chargeId: deposit.chargeId,
+        contractId: deposit.contractId,
         residentId: resident.id,
         residentName: person.fullName,
         unitName: unit.name,
@@ -157,7 +158,7 @@ export async function listDeposits(businessId: string): Promise<DepositsView | n
         amount: r.amount,
         phase: depositPhase({
           status: r.status,
-          chargePaid: r.chargeId !== null && covered.has(r.chargeId),
+          chargePaid: depositChargesPaid({ contractId: r.contractId, charges: billing.charges, covered }),
           hasDisputes: own.some((x) => x.status === "disputed"),
         }),
         contractPhase: phase,
@@ -224,6 +225,8 @@ export type DepositDetail = {
   amount: string;
   rule: DepositRule;
   phase: DepositPhase;
+  // Las cuotas de la garantía (una o varias; decisión del dueño, 2026-11-15) y si cada una está pagada.
+  installments: { period: string; dueDate: string; amount: string; paid: boolean }[];
   refundDays: number;
   refundMethods: ("yape" | "plin" | "transfer" | "cash" | "card")[];
   entryReports: EntryReportRow[];
@@ -255,7 +258,6 @@ export async function getDepositDetail(depositId: string): Promise<DepositDetail
         amount: deposit.amount,
         rule: deposit.rule,
         status: deposit.status,
-        chargeId: deposit.chargeId,
         contractId: contract.id,
         startDate: contract.startDate,
         endDate: contract.endDate,
@@ -329,9 +331,13 @@ export async function getDepositDetail(depositId: string): Promise<DepositDetail
       rule: d.rule,
       phase: depositPhase({
         status: d.status,
-        chargePaid: d.chargeId !== null && covered.has(d.chargeId),
+        chargePaid: depositChargesPaid({ contractId: d.contractId, charges: billing.charges, covered }),
         hasDisputes: summary.hasDisputes,
       }),
+      installments: billing.charges
+        .filter((x) => x.contractId === d.contractId && x.concept === "deposit")
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+        .map((x) => ({ period: x.period, dueDate: x.dueDate, amount: x.amount, paid: covered.has(x.id) })),
       refundDays: settings?.refundDays ?? 7,
       refundMethods: settings?.refundMethods ?? ["yape", "plin", "transfer"],
       entryReports: reports,

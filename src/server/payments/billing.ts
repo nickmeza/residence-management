@@ -14,7 +14,12 @@ import {
   unit,
 } from "@/db/schema";
 import { limaToday } from "@/server/contracts/dates";
-import { depositAmount, effectivePolicy, type DepositPolicy } from "@/server/deposits/rules";
+import {
+  businessDepositPolicy,
+  depositAmount,
+  effectivePolicy,
+  type DepositPolicy,
+} from "@/server/deposits/rules";
 
 import { chargeChanges, daysInPeriod, periodOf, rentCharges } from "./rules";
 
@@ -65,13 +70,9 @@ export async function contractDepositPolicy(tx: Tx, c: LoadedContract): Promise<
     .from(depositUnitException)
     .where(eq(depositUnitException.unitId, c.unitId))
     .limit(1);
-  const businessPolicy = settings
-    ? c.unitType === "room"
-      ? { rule: settings.roomRule, fixedAmount: settings.roomFixedAmount }
-      : { rule: settings.apartmentRule, fixedAmount: settings.apartmentFixedAmount }
-    : null;
   return effectivePolicy({
-    business: businessPolicy,
+    // Sin configuración guardada: departamento 1 mes, cuarto sin garantía.
+    business: businessDepositPolicy(settings, c.unitType),
     unit: exception ? { rule: exception.rule, fixedAmount: exception.fixedAmount } : null,
     contract: c.depositRule ? { rule: c.depositRule, fixedAmount: c.depositFixedAmount } : null,
   });

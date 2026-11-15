@@ -8,6 +8,7 @@ import {
   copyPreviousWeek,
   deletePensionPayment,
   deletePlan,
+  kitchenCancelAll,
   kitchenChange,
   PensionError,
   registerPensionPayment,
@@ -503,7 +504,9 @@ describe("pagos y menú desde las pantallas", () => {
         (${c.businessId}, ${yesterday}, 'lunch', 'Lomo saltado', 'draft')`);
       const past = { date: yesterday, meal: "lunch" as const, dish: "Lomo saltado", hasVegetarian: false };
       await actAs(tx, LANDLORD);
-      await expect(saveWeekMenu(tx, c.businessId, [{ ...past, dish: "Otro" }], false)).rejects.toThrow(/ya pasó/);
+      await expect(saveWeekMenu(tx, c.businessId, [{ ...past, dish: "Otro" }], false)).rejects.toThrow(
+        /ya pasó/,
+      );
       await expect(saveWeekMenu(tx, c.businessId, [{ ...past, dish: "" }], false)).rejects.toThrow(/ya pasó/);
       // Igual que lo guardado + un día que no pasó: se guarda el futuro y lo pasado queda como estaba.
       await saveWeekMenu(tx, c.businessId, [past, { ...past, date: tomorrow, dish: "Lomo saltado" }], true);
@@ -537,10 +540,12 @@ describe("comprobantes del comensal (decisión del dueño, 2026-11-13)", () => {
       await expect(submitPensionProof(tx, proof)).rejects.toThrow(/no recibe comprobantes/);
       // Ni saltándose el servidor: el RLS tampoco deja insertar con la opción apagada.
       await expect(
-        tx.transaction((s) => s.execute(sql`insert into public.pension_payment
+        tx.transaction((s) =>
+          s.execute(sql`insert into public.pension_payment
           (subscription_id, amount, method, paid_on, covers_from, covers_to, proof_path, status, registered_by)
           select ${c.subId}, 40, 'yape', ${today}, ${today}, ${today}, 'x', 'in_review', id
-          from public.person where user_id = ${DINER}`)),
+          from public.person where user_id = ${DINER}`),
+        ),
       ).rejects.toThrow();
     });
   });
@@ -566,11 +571,13 @@ describe("comprobantes del comensal (decisión del dueño, 2026-11-13)", () => {
       await submitPensionProof(tx, proof(2));
       // El comensal no puede marcarse confirmado a sí mismo.
       await expect(
-        tx.transaction((s) => s.execute(sql`insert into public.pension_payment
+        tx.transaction((s) =>
+          s.execute(sql`insert into public.pension_payment
           (subscription_id, amount, method, paid_on, covers_from, covers_to, proof_path, status, registered_by)
           select ${c.subId}, 40, 'yape', ${today}, ${today}, ${today},
             ${`${c.businessId}/${c.residentId}/comprobantes/0f0f0f0f-0000-4000-8000-000000000009.jpg`},
-            'confirmed', id from public.person where user_id = ${DINER}`)),
+            'confirmed', id from public.person where user_id = ${DINER}`),
+        ),
       ).rejects.toThrow();
       const sent = await rows<{ id: string; status: string }>(
         tx,
@@ -578,11 +585,15 @@ describe("comprobantes del comensal (decisión del dueño, 2026-11-13)", () => {
       );
       expect(sent.map((s) => s.status)).toEqual(["in_review", "in_review"]);
       // El comensal no revisa sus propios pagos.
-      await expect(reviewPensionPayment(tx, sent[0].id, { status: "confirmed" })).rejects.toThrow(PensionError);
+      await expect(reviewPensionPayment(tx, sent[0].id, { status: "confirmed" })).rejects.toThrow(
+        PensionError,
+      );
       await actAs(tx, LANDLORD);
       await reviewPensionPayment(tx, sent[0].id, { status: "confirmed" });
       await reviewPensionPayment(tx, sent[1].id, { status: "rejected", reason: "No llegó el Yape" });
-      await expect(reviewPensionPayment(tx, sent[0].id, { status: "confirmed" })).rejects.toThrow(/ya fue revisado/);
+      await expect(reviewPensionPayment(tx, sent[0].id, { status: "confirmed" })).rejects.toThrow(
+        /ya fue revisado/,
+      );
       const after = await rows<{ status: string; rejection_reason: string | null }>(
         tx,
         sql`select status::text, rejection_reason from public.pension_payment order by proof_path`,
@@ -591,6 +602,86 @@ describe("comprobantes del comensal (decisión del dueño, 2026-11-13)", () => {
         { status: "confirmed", rejection_reason: null },
         { status: "rejected", rejection_reason: "No llegó el Yape" },
       ]);
+    });
+  });
+});
+
+describe("copiar la semana anterior (decisión del dueño, 2026-11-15)", () => {
+  it("'solo vacíos' respeta lo escrito; 'reemplazar' deja la semana igual a la anterior", async () => {
+    await withPension(async (tx, c) => {
+      // La semana que viene y la siguiente, para no depender del día de hoy.
+      const prev = await one<{ d: string }>(
+        tx,
+        sql`select (date_trunc('week', (now() at time zone 'America/Lima')::date + 7))::date::text as d`,
+      );
+      const week = await one<{ mon: string; tue: string }>(
+        tx,
+        sql`select (${prev.d}::date + 7)::text as mon, (${prev.d}::date + 8)::text as tue`,
+      );
+      await actAs(tx, LANDLORD);
+      await saveWeekMenu(
+        tx,
+        c.businessId,
+        [{ date: prev.d, meal: "lunch", dish: "Lomo saltado", hasVegetarian: false }],
+        true,
+      );
+      const mine = [
+        { date: week.mon, meal: "lunch" as const, dish: "Ají de gallina", hasVegetarian: false },
+        { date: week.tue, meal: "dinner" as const, dish: "Sopa", hasVegetarian: false },
+      ];
+      const menu = () =>
+        rows<{ date: string; meal: string; dish: string }>(
+          tx,
+          sql`select date::text, meal::text, dish from public.menu_item where date >= ${week.mon}::date order by date, meal`,
+        );
+
+      await saveWeekMenu(tx, c.businessId, mine, false);
+      await copyPreviousWeek(tx, c.businessId, week.mon, "fill");
+      expect(await menu()).toEqual([
+        { date: week.mon, meal: "lunch", dish: "Ají de gallina" },
+        { date: week.tue, meal: "dinner", dish: "Sopa" },
+      ]);
+
+      await copyPreviousWeek(tx, c.businessId, week.mon, "replace");
+      expect(await menu()).toEqual([{ date: week.mon, meal: "lunch", dish: "Lomo saltado" }]);
+    });
+  });
+});
+
+describe("la cocina cancela por su lado (decisión del dueño, 2026-11-15)", () => {
+  it("'cancelar para todos' marca a todos como cancelados por la cocina; el comensal no puede volver a pedirla", async () => {
+    await withPension(async (tx, c) => {
+      const date = await day(tx, 2);
+      await actAs(tx, LANDLORD);
+      expect(await kitchenCancelAll(tx, c.businessId, { date, meal: "lunch" })).toBe(1);
+      const row = await one<{ cancelled: boolean; kitchen_cancelled: boolean }>(
+        tx,
+        sql`select cancelled, kitchen_cancelled from public.meal_attendance
+          where resident_id = ${c.residentId} and date = ${date} and meal = 'lunch'`,
+      );
+      expect(row).toEqual({ cancelled: true, kitchen_cancelled: true });
+      await actAs(tx, DINER);
+      expect(await cancel(tx, c.residentId, date, "lunch", false)).toBe("kitchen_cancelled");
+    });
+  });
+
+  it("al cancelar uno, la cocina elige: 'avisó el comensal' o 'cancelamos nosotros'", async () => {
+    await withPension(async (tx, c) => {
+      const date = await day(tx, 2);
+      await actAs(tx, LANDLORD);
+      const base = { residentId: c.residentId, date, meal: "dinner" as const };
+      await kitchenChange(tx, c.businessId, { ...base, change: "kitchen_cancel" });
+      const kitchen = await one<{ kitchen_cancelled: boolean }>(
+        tx,
+        sql`select kitchen_cancelled from public.meal_attendance where resident_id = ${c.residentId} and meal = 'dinner'`,
+      );
+      expect(kitchen.kitchen_cancelled).toBe(true);
+      await kitchenChange(tx, c.businessId, { ...base, change: "cancel" });
+      const diner = await one<{ kitchen_cancelled: boolean }>(
+        tx,
+        sql`select kitchen_cancelled from public.meal_attendance where resident_id = ${c.residentId} and meal = 'dinner'`,
+      );
+      expect(diner.kitchen_cancelled).toBe(false);
     });
   });
 });

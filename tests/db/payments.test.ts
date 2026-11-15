@@ -268,7 +268,8 @@ describe("RLS de cobros con dos arrendadores y un residente", () => {
         {
           residentId,
           period: "2026-03",
-          amount: "929.03",
+          // Un pago parcial: no coincide con lo que falta, así que queda en revisión (no se confirma solo).
+          amount: "500.00",
           method: "yape",
           paidOn: "2026-03-15",
           operationCode: null,
@@ -465,6 +466,86 @@ describe("contratos de antes de la Fase 5", () => {
       expect((await chargesOf(tx, id)).map((c) => c.concept)).toEqual(["rent", "rent", "rent"]);
       const [n] = await rows<{ n: number }>(tx, sql`select count(*)::int as n from public.deposit`);
       expect(n.n).toBe(0);
+    });
+  });
+});
+
+describe("comprobante que coincide se confirma solo (decisión del dueño, 2026-11-15)", () => {
+  it("exactamente lo que falta: confirmado y marcado; un monto distinto: en revisión", async () => {
+    await scenario(async (tx, { residentId, unitId, businessId }) => {
+      await contracts.createContract(tx, contractData({ residentId, unitId }), false);
+      const [due] = await rows<{ amount: string }>(
+        tx,
+        sql`select sum(c.amount)::text as amount from public.charge c
+          join public.contract k on k.id = c.contract_id
+          where k.resident_id = ${residentId} and c.period = '2026-04'`,
+      );
+      const proof = (amount: string, n: number) =>
+        payments.submitProof(
+          tx,
+          {
+            residentId,
+            period: "2026-04",
+            amount,
+            method: "yape",
+            paidOn: "2026-04-05",
+            operationCode: null,
+            proofPath: `${businessId}/${residentId}/comprobantes/22222222-2222-4222-8222-00000000000${n}.jpg`,
+          },
+          R,
+        );
+      await actAs(tx, R);
+      const less = await proof("1.00", 1);
+      expect(less.autoConfirmed).toBe(false);
+      // Falta lo de abril menos nada (el S/ 1 está en revisión: no cuenta).
+      const exact = await proof(due.amount, 2);
+      expect(exact.autoConfirmed).toBe(true);
+      const saved = await rows<{ id: string; status: string; auto_confirmed: boolean }>(
+        tx,
+        sql`select id, status::text, auto_confirmed from public.payment order by amount`,
+      );
+      expect(saved.map((p) => [p.status, p.auto_confirmed])).toEqual([
+        ["in_review", false],
+        ["confirmed", true],
+      ]);
+    });
+  });
+});
+
+describe("garantía en otro mes o en cuotas (decisión del dueño, 2026-11-15)", () => {
+  it("se parte en cuotas mientras no se haya pagado nada; después ya no se puede cambiar", async () => {
+    await scenario(async (tx, { residentId, unitId }) => {
+      const id = await contracts.createContract(tx, contractData({ residentId, unitId }), false);
+      const [d] = await rows<{ id: string; amount: string }>(
+        tx,
+        sql`select id, amount::text from public.deposit where contract_id = ${id}`,
+      );
+      await deposits.rescheduleDeposit(tx, d.id, { firstDue: "2026-04-05", installments: 2 });
+      const parts = (await chargesOf(tx, id)).filter((c) => c.concept === "deposit");
+      expect(parts.map((c) => c.period).sort()).toEqual(["2026-04", "2026-05"]);
+      expect(parts.reduce((t, c) => t + Number(c.amount), 0)).toBe(Number(d.amount));
+
+      // Paga todo abril (incluida la primera cuota): ya no se puede cambiar.
+      const [april] = await rows<{ amount: string }>(
+        tx,
+        sql`select sum(c.amount)::text as amount from public.charge c where c.contract_id = ${id} and c.period = '2026-04'`,
+      );
+      await payments.registerPayment(
+        tx,
+        {
+          residentId,
+          period: "2026-04",
+          amount: april.amount,
+          method: "cash",
+          paidOn: "2026-04-05",
+          operationCode: null,
+          proofPath: null,
+        },
+        A,
+      );
+      await expect(
+        deposits.rescheduleDeposit(tx, d.id, { firstDue: "2026-06-05", installments: 1 }),
+      ).rejects.toThrow(/Ya pagó parte/);
     });
   });
 });

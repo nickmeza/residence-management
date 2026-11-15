@@ -3,8 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   canReportEntry,
   depositAmount,
+  depositChargesPaid,
+  depositInstallments,
   depositPhase,
   discountProblems,
+  entryReportDeadline,
+  businessDepositPolicy,
   effectivePolicy,
   settlement,
 } from "./rules";
@@ -27,7 +31,18 @@ describe("regla 5: monto de la garantía", () => {
     expect(effectivePolicy({ business, unit, contract: nephew })).toBe(nephew);
   });
 
-  it("si el negocio no configuró nada, no se pide garantía", () => {
+  it("si el negocio no configuró nada: departamento 1 mes, cuarto sin garantía (decisión del dueño, 2026-11-15)", () => {
+    expect(businessDepositPolicy(null, "apartment")).toEqual({ rule: "one_month", fixedAmount: null });
+    expect(businessDepositPolicy(null, "room")).toEqual({ rule: "none", fixedAmount: null });
+    const saved = {
+      roomRule: "fixed",
+      roomFixedAmount: "200.00",
+      apartmentRule: "two_months",
+      apartmentFixedAmount: null,
+    } as const;
+    expect(businessDepositPolicy(saved, "room")).toEqual({ rule: "fixed", fixedAmount: "200.00" });
+    expect(businessDepositPolicy(saved, "apartment")).toEqual({ rule: "two_months", fixedAmount: null });
+    // Sin nada en ningún nivel (no debería pasar), no se pide garantía.
     expect(effectivePolicy({ business: null, unit: null, contract: null }).rule).toBe("none");
   });
 });
@@ -107,10 +122,15 @@ describe("regla 8: lo reportado al ingresar es la base", () => {
     expect(discountProblems({ ...base, worseThanEntry: true, hasPhoto: true })).toEqual([]);
   });
 
-  it("el residente reporta solo en los primeros días del contrato", () => {
+  it("el residente reporta solo en los primeros 7 días hábiles (lunes a viernes) del contrato", () => {
+    // 2026-03-01 es domingo: los 7 días hábiles son lun 2 … vie 6, lun 9 y mar 10.
+    expect(entryReportDeadline("2026-03-01", 7)).toBe("2026-03-10");
+    // Empieza un viernes: lun 9 … vie 13 y lun 16, mar 17 (no cuentan sábado ni domingo).
+    expect(entryReportDeadline("2026-03-06", 7)).toBe("2026-03-17");
+    expect(entryReportDeadline("2026-03-02", 0)).toBe("2026-03-02");
     expect(canReportEntry({ startDate: "2026-03-01", today: "2026-02-25", windowDays: 7 })).toBe(true);
-    expect(canReportEntry({ startDate: "2026-03-01", today: "2026-03-08", windowDays: 7 })).toBe(true);
-    expect(canReportEntry({ startDate: "2026-03-01", today: "2026-03-09", windowDays: 7 })).toBe(false);
+    expect(canReportEntry({ startDate: "2026-03-01", today: "2026-03-10", windowDays: 7 })).toBe(true);
+    expect(canReportEntry({ startDate: "2026-03-01", today: "2026-03-11", windowDays: 7 })).toBe(false);
   });
 });
 
@@ -120,5 +140,32 @@ describe("estado de la garantía", () => {
     expect(depositPhase({ status: "held", chargePaid: true, hasDisputes: false })).toBe("held");
     expect(depositPhase({ status: "settling", chargePaid: true, hasDisputes: true })).toBe("disputed");
     expect(depositPhase({ status: "none", chargePaid: false, hasDisputes: false })).toBe("none");
+  });
+});
+
+describe("garantía en otro mes o en cuotas (decisión del dueño, 2026-11-15)", () => {
+  it("una sola cuota: entera en el mes elegido", () => {
+    expect(depositInstallments({ amount: "800", firstDue: "2026-05-05", count: 1 })).toEqual([
+      { period: "2026-05", dueDate: "2026-05-05", amount: "800.00" },
+    ]);
+  });
+
+  it("en cuotas mensuales; los céntimos que sobran van en la última; meses cortos usan su último día", () => {
+    expect(depositInstallments({ amount: "1000", firstDue: "2026-12-31", count: 3 })).toEqual([
+      { period: "2026-12", dueDate: "2026-12-31", amount: "333.33" },
+      { period: "2027-01", dueDate: "2027-01-31", amount: "333.33" },
+      { period: "2027-02", dueDate: "2027-02-28", amount: "333.34" },
+    ]);
+  });
+
+  it("pagada solo cuando todas sus cuotas están cubiertas", () => {
+    const charges = [
+      { id: "a", contractId: "k", concept: "deposit" },
+      { id: "b", contractId: "k", concept: "deposit" },
+      { id: "r", contractId: "k", concept: "rent" },
+    ];
+    expect(depositChargesPaid({ contractId: "k", charges, covered: new Set(["a"]) })).toBe(false);
+    expect(depositChargesPaid({ contractId: "k", charges, covered: new Set(["a", "b"]) })).toBe(true);
+    expect(depositChargesPaid({ contractId: "otro", charges, covered: new Set(["a", "b"]) })).toBe(false);
   });
 });

@@ -20,7 +20,9 @@ import { getSessionClaims } from "@/server/auth/session";
 import { limaToday } from "@/server/contracts/dates";
 import {
   canReportEntry,
+  depositChargesPaid,
   depositPhase,
+  entryReportDeadline,
   settlement as settle,
   type DepositPhase,
   type DepositRule,
@@ -109,6 +111,7 @@ export async function getMyBilling(): Promise<MyBilling[]> {
           operationCode: payment.operationCode,
           proofPath: payment.proofPath,
           status: payment.status,
+          autoConfirmed: payment.autoConfirmed,
           rejectionReason: payment.rejectionReason,
           createdAt: payment.createdAt,
           submittedBy: payment.submittedBy,
@@ -136,6 +139,7 @@ export async function getMyBilling(): Promise<MyBilling[]> {
             operationCode: p.operationCode,
             hasProof: p.proofPath !== null,
             status: p.status,
+            autoConfirmed: p.autoConfirmed,
             rejectionReason: p.rejectionReason,
             createdAt: p.createdAt,
             fromResident: true,
@@ -276,6 +280,8 @@ export async function getMyDeposits(): Promise<{ businessName: string; deposit: 
               period: charge.period,
               amount: charge.amount,
               dueDate: charge.dueDate,
+              contractId: charge.contractId,
+              concept: charge.concept,
               residentId: contract.residentId,
             })
             .from(charge)
@@ -323,17 +329,22 @@ export async function getMyDeposits(): Promise<{ businessName: string; deposit: 
       });
       const cfg = settings.find((x) => x.businessId === card.businessId);
       const windowDays = cfg?.entryReportDays ?? 7;
-      // ¿Ya se pagó el cargo de la garantía? Se mira su recibo, aplicando los pagos en orden de vencimiento.
-      const depositCharge = charges.find((x) => x.id === d.chargeId);
-      const chargePaid = depositCharge
-        ? coveredChargeIds(
-            charges.filter((x) => x.residentId === card.id && x.period === depositCharge.period),
-            confirmed.filter((p) => p.residentId === card.id && p.period === depositCharge.period),
-          ).has(depositCharge.id)
-        : false;
-      const until = new Date(Date.parse(`${c.startDate}T00:00:00Z`) + windowDays * 86_400_000)
-        .toISOString()
-        .slice(0, 10);
+      // ¿Ya se pagó la garantía? Todas sus cuotas (puede estar en otro mes o partida; decisión del dueño,
+      // 2026-11-15). Cada cuota se mira en su recibo, aplicando los pagos en orden de vencimiento.
+      const covered = new Set<string>();
+      for (const period of new Set(
+        charges.filter((x) => x.contractId === d.contractId && x.concept === "deposit").map((x) => x.period),
+      )) {
+        for (const id of coveredChargeIds(
+          charges.filter((x) => x.residentId === card.id && x.period === period),
+          confirmed.filter((p) => p.residentId === card.id && p.period === period),
+        )) {
+          covered.add(id);
+        }
+      }
+      const chargePaid = depositChargesPaid({ contractId: d.contractId, charges, covered });
+      // Hasta cuándo puede reportar lo que ya estaba mal: días hábiles (decisión del dueño, 2026-11-15).
+      const until = entryReportDeadline(c.startDate, windowDays);
       return {
         businessName,
         deposit: {

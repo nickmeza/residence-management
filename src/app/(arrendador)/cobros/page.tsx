@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { AutoConfirmedList } from "@/components/payments/auto-confirmed-list";
 import { CollectionsTable } from "@/components/payments/collections-table";
 import { MonthPicker } from "@/components/payments/month-picker";
 import { getShellData } from "@/server/business/current";
@@ -23,6 +24,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/cobros">["s
         <h1 className="text-[34px] font-bold tracking-tight">Cobros</h1>
         <MonthPicker key={view.period} period={view.period} currentPeriod={view.currentPeriod} />
       </div>
+      <AutoConfirmedList receipts={view.receipts} />
       <CollectionsTable key={view.period} view={view} today={limaToday(new Date())} />
     </>
   );

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { DepositBadge } from "@/components/deposits/deposit-badge";
+import { DepositSchedule } from "@/components/deposits/deposit-schedule";
 import { SettlementPanel } from "@/components/deposits/settlement-panel";
 import { ContractPhaseBadge } from "@/components/residents/badges";
 import { buttonVariants } from "@/components/ui/button";
@@ -61,6 +62,13 @@ async function Content({ params }: { params: PageProps<"/garantias/[id]">["param
           La garantía todavía no está pagada: está en el recibo del residente, en Cobros.
         </p>
       ) : null}
+      <DepositSchedule
+        depositId={d.id}
+        amount={d.amount}
+        startDate={d.startDate}
+        installments={d.installments}
+        canChange={d.phase === "unpaid" && !d.settlement && !d.installments.some((x) => x.paid)}
+      />
       <SettlementPanel detail={d} />
     </>
   );

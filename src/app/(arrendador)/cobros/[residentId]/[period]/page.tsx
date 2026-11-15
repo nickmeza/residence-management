@@ -6,6 +6,7 @@ import { Suspense, type ReactNode } from "react";
 import { PaymentReviewButtons } from "@/components/payments/payment-review-buttons";
 import { ReceiptBadge } from "@/components/payments/receipt-badge";
 import { RegisterPaymentButton } from "@/components/payments/register-payment-button";
+import { VoidedPayments } from "@/components/payments/voided-payments";
 import { StatusBadge } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { formatSoles } from "@/lib/format";
@@ -13,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { formatLongDate } from "@/server/contracts/dates";
 import { toCents } from "@/server/payments/money";
 import { getReceipt } from "@/server/payments/queries";
-import { CONCEPT_LABEL, periodLabel } from "@/server/payments/rules";
+import { CONCEPT_LABEL, periodLabel, splitVoided } from "@/server/payments/rules";
 import { METHOD_LABEL } from "@/server/payments/schemas";
 
 export const metadata: Metadata = { title: "Recibo · Gestión de residencias" };
@@ -45,8 +46,46 @@ async function Content({ params }: { params: PageProps<"/cobros/[residentId]/[pe
   const total = toCents(r.total);
   const percent = total > 0 ? Math.min(100, Math.round((toCents(r.paid) / total) * 100)) : 0;
   const owes = toCents(r.balance) > 0;
-  // Numerados del más antiguo al más reciente: "pago 1, pago 2…".
-  const payments = [...r.payments].reverse();
+  // Numerados del más antiguo al más reciente: "pago 1, pago 2…". Los anulados o rechazados van aparte, ocultos
+  // por defecto (decisión del dueño, 2026-11-15).
+  const { active: payments, voided } = splitVoided([...r.payments].reverse());
+  type Row = (typeof payments)[number];
+  const paymentRow = (p: Row, n: number | null) => (
+    <li key={p.id} className="flex flex-wrap items-center gap-3 border-t px-5 py-4 sm:px-6">
+      <span
+        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-chip text-sm font-bold text-chip-foreground"
+        aria-label={n ? `Pago ${n}` : "Pago anulado"}
+      >
+        {n ?? "—"}
+      </span>
+      <span className="min-w-52 flex-1 text-sm">
+        <b className="block text-base tabular-nums">{formatSoles(p.amount)}</b>
+        <span className="text-muted-foreground">
+          {METHOD_LABEL[p.method]} · {formatLongDate(p.paidOn)}
+          {p.operationCode ? ` · Op. ${p.operationCode}` : ""} ·{" "}
+          {p.fromResident ? "Lo mandó el residente" : "Registrado por ti"}
+          {p.status === "in_review" ? " · todavía no suma" : ""}
+        </span>
+        {p.rejectionReason ? <span className="block text-danger">Motivo: {p.rejectionReason}</span> : null}
+      </span>
+      <StatusBadge tone={PAYMENT_STATUS[p.status].tone}>{PAYMENT_STATUS[p.status].label}</StatusBadge>
+      {p.autoConfirmed && p.status === "confirmed" ? (
+        <StatusBadge tone="warn">Se confirmó solo</StatusBadge>
+      ) : null}
+      {p.hasProof ? (
+        <a
+          href={`/archivos/comprobante/${p.id}`}
+          target="_blank"
+          rel="noreferrer"
+          className={buttonVariants({ variant: "outline", className: "h-10" })}
+        >
+          Ver comprobante
+        </a>
+      ) : null}
+      {p.status === "in_review" ? <PaymentReviewButtons paymentId={p.id} /> : null}
+      {p.status === "confirmed" ? <PaymentReviewButtons paymentId={p.id} confirmed /> : null}
+    </li>
+  );
 
   return (
     <>
@@ -158,50 +197,19 @@ async function Content({ params }: { params: PageProps<"/cobros/[residentId]/[pe
           </p>
         </div>
         {payments.length ? (
-          <ol>
-            {payments.map((p, i) => (
-              <li key={p.id} className="flex flex-wrap items-center gap-3 border-t px-5 py-4 sm:px-6">
-                <span
-                  className="flex size-8 shrink-0 items-center justify-center rounded-full bg-chip text-sm font-bold text-chip-foreground"
-                  aria-label={`Pago ${i + 1}`}
-                >
-                  {i + 1}
-                </span>
-                <span className="min-w-52 flex-1 text-sm">
-                  <b className="block text-base tabular-nums">{formatSoles(p.amount)}</b>
-                  <span className="text-muted-foreground">
-                    {METHOD_LABEL[p.method]} · {formatLongDate(p.paidOn)}
-                    {p.operationCode ? ` · Op. ${p.operationCode}` : ""} ·{" "}
-                    {p.fromResident ? "Lo mandó el residente" : "Registrado por ti"}
-                    {p.status === "in_review" ? " · todavía no suma" : ""}
-                  </span>
-                  {p.rejectionReason ? (
-                    <span className="block text-danger">Motivo: {p.rejectionReason}</span>
-                  ) : null}
-                </span>
-                <StatusBadge tone={PAYMENT_STATUS[p.status].tone}>
-                  {PAYMENT_STATUS[p.status].label}
-                </StatusBadge>
-                {p.hasProof ? (
-                  <a
-                    href={`/archivos/comprobante/${p.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={buttonVariants({ variant: "outline", className: "h-10" })}
-                  >
-                    Ver comprobante
-                  </a>
-                ) : null}
-                {p.status === "in_review" ? <PaymentReviewButtons paymentId={p.id} /> : null}
-                {p.status === "confirmed" ? <PaymentReviewButtons paymentId={p.id} confirmed /> : null}
-              </li>
-            ))}
-          </ol>
+          <ol>{payments.map((p, i) => paymentRow(p, i + 1))}</ol>
         ) : (
           <p className="border-t px-5 py-6 text-sm text-muted-foreground sm:px-6">
-            Todavía no hay pagos en este recibo.
+            {voided.length ? "No hay pagos vigentes en este recibo." : "Todavía no hay pagos en este recibo."}
           </p>
         )}
+        {voided.length ? (
+          <div className="border-t px-4 py-1 sm:px-5">
+            <VoidedPayments count={voided.length}>
+              <ul className="-mx-4 sm:-mx-5">{voided.map((p) => paymentRow(p, null))}</ul>
+            </VoidedPayments>
+          </div>
+        ) : null}
       </section>
     </>
   );

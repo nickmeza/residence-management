@@ -37,6 +37,8 @@ export type PaymentRow = {
   operationCode: string | null;
   hasProof: boolean;
   status: "in_review" | "confirmed" | "rejected";
+  // true = se confirmó solo (coincidía con lo que faltaba).
+  autoConfirmed: boolean;
   rejectionReason: string | null;
   createdAt: Date;
   // true si lo mandó el residente (no el arrendador).
@@ -63,6 +65,7 @@ const paymentColumns = {
   operationCode: payment.operationCode,
   proofPath: payment.proofPath,
   status: payment.status,
+  autoConfirmed: payment.autoConfirmed,
   rejectionReason: payment.rejectionReason,
   createdAt: payment.createdAt,
   submittedBy: payment.submittedBy,
@@ -84,6 +87,7 @@ const toPaymentRow = (p: RawPayment): PaymentRow => ({
   operationCode: p.operationCode,
   hasProof: p.proofPath !== null,
   status: p.status,
+  autoConfirmed: p.autoConfirmed,
   rejectionReason: p.rejectionReason,
   createdAt: p.createdAt,
   fromResident: p.submittedBy === p.residentPersonId,

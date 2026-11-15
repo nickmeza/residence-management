@@ -755,6 +755,10 @@ export const payment = pgTable(
     // Comprobante en el espacio privado "documents": <negocio>/<ficha>/comprobantes/<id>.<ext>
     proofPath: text().unique(),
     status: paymentStatus().notNull().default("in_review"),
+    // true = el comprobante del residente coincidía con lo que faltaba del recibo y se confirmó solo, sin que nadie
+    // lo revisara (decisión del dueño, 2026-11-15). El arrendador los ve en "Confirmados solos" y puede anularlos.
+    // Lo decide la función auto_confirm_my_payment de la base (migración 0019), no el navegador.
+    autoConfirmed: boolean().notNull().default(false),
     submittedBy: uuid()
       .notNull()
       .references(() => person.id, { onDelete: "restrict" }),
@@ -1240,6 +1244,10 @@ export const mealAttendance = pgTable(
     meal: mealType().notNull(),
     // true = canceló esa comida (no se cocina ni se cobra si fue a tiempo). Sin fila = viene.
     cancelled: boolean().notNull().default(false),
+    // true = canceló la cocina por su lado (una emergencia): NO se cobra nunca y el comensal no puede volver a
+    // pedirla. false = canceló el comensal (o la cocina lo anotó por él): se cobra si fue después de la hora límite
+    // (decisión del dueño, 2026-11-15).
+    kitchenCancelled: boolean().notNull().default(false),
     served: boolean().notNull().default(false),
     updatedBy: uuid().references(() => person.id, { onDelete: "set null" }),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

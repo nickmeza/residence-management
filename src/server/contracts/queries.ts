@@ -20,7 +20,7 @@ import {
 import { getSessionClaims } from "@/server/auth/session";
 import { isRentable, type UnitInput } from "@/server/building/rules";
 import { isUuid } from "@/server/business/queries";
-import { effectivePolicy, type DepositPolicy } from "@/server/deposits/rules";
+import { businessDepositPolicy, effectivePolicy, type DepositPolicy } from "@/server/deposits/rules";
 
 import { endsInLabel, limaToday } from "./dates";
 import { contractPhase, type ContractPaperwork, type ContractPhase, type ContractStatus } from "./rules";
@@ -138,11 +138,7 @@ export async function getContractFormOptions(businessId: string): Promise<Contra
     const depositOf = (u: { id: string; type: "room" | "apartment" }): DepositPolicy => {
       const e = exceptions.find((x) => x.unitId === u.id);
       return effectivePolicy({
-        business: settings
-          ? u.type === "room"
-            ? { rule: settings.roomRule, fixedAmount: settings.roomFixedAmount }
-            : { rule: settings.apartmentRule, fixedAmount: settings.apartmentFixedAmount }
-          : null,
+        business: businessDepositPolicy(settings, u.type),
         unit: e ? { rule: e.rule, fixedAmount: e.fixedAmount } : null,
         contract: null,
       });
