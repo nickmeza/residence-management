@@ -24,6 +24,32 @@ export function effectivePolicy(input: {
   return input.contract ?? input.unit ?? input.business ?? { rule: "none", fixedAmount: null };
 }
 
+// Lo que se pide si el negocio todavía no guardó su configuración (decisión del dueño, 2026-11-15): un departamento,
+// 1 mes de renta; un cuarto, sin garantía. Si quiere otra cosa, la cambia en Configuración › Garantía.
+export const DEFAULT_DEPOSIT_POLICY: Record<"room" | "apartment", DepositPolicy> = {
+  room: { rule: "none", fixedAmount: null },
+  apartment: { rule: "one_month", fixedAmount: null },
+};
+
+// La política del negocio para un tipo de unidad: la que guardó o, si no guardó nada, la de por defecto.
+export function businessDepositPolicy(
+  settings:
+    | {
+        roomRule: DepositRule;
+        roomFixedAmount: string | null;
+        apartmentRule: DepositRule;
+        apartmentFixedAmount: string | null;
+      }
+    | null
+    | undefined,
+  type: "room" | "apartment",
+): DepositPolicy {
+  if (!settings) return DEFAULT_DEPOSIT_POLICY[type];
+  return type === "room"
+    ? { rule: settings.roomRule, fixedAmount: settings.roomFixedAmount }
+    : { rule: settings.apartmentRule, fixedAmount: settings.apartmentFixedAmount };
+}
+
 // Monto de la garantía con la renta del contrato.
 export function depositAmount(policy: DepositPolicy, monthlyRent: string): string {
   switch (policy.rule) {
@@ -114,12 +140,24 @@ export function discountProblems(input: {
 
 // Pregunta 10: el residente reporta lo que ya estaba mal (con foto) cuando lo nota, sin revisar todo el cuarto.
 // Solo durante los primeros días del contrato: reportarlo al salir no serviría como base.
+// El plazo se cuenta en DÍAS HÁBILES, de lunes a viernes (decisión del dueño, 2026-11-15); los feriados vendrán
+// después. Igual que la función entry_report_open de la base (migración 0017).
 export function canReportEntry(input: { startDate: string; today: string; windowDays: number }) {
   if (input.today < input.startDate) return true;
-  const days = Math.round(
-    (Date.parse(`${input.today}T00:00:00Z`) - Date.parse(`${input.startDate}T00:00:00Z`)) / 86_400_000,
-  );
-  return days <= input.windowDays;
+  return input.today <= entryReportDeadline(input.startDate, input.windowDays);
+}
+
+// Último día para reportar: el N.º día hábil después del inicio (0 = solo el mismo día de inicio).
+export function entryReportDeadline(startDate: string, windowDays: number): string {
+  let date = startDate;
+  for (let left = windowDays; left > 0;) {
+    const d = new Date(`${date}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 1);
+    date = d.toISOString().slice(0, 10);
+    const weekday = d.getUTCDay(); // 0 = domingo, 6 = sábado
+    if (weekday !== 0 && weekday !== 6) left--;
+  }
+  return date;
 }
 
 export type DepositStatus = "none" | "held" | "settling" | "returned";
@@ -145,4 +183,37 @@ export function depositPhase(input: {
   if (input.status === "returned") return "returned";
   if (input.status === "settling") return input.hasDisputes ? "disputed" : "settling";
   return input.chargePaid ? "held" : "unpaid";
+}
+
+// Garantía en otro mes o en cuotas (decisión del dueño, 2026-11-15): por defecto va entera en el recibo del mes en
+// que empieza el contrato; el arrendador puede moverla a otro mes o partirla en cuotas mensuales (hasta 6). Cada
+// cuota vence el mismo día del mes siguiente (o el último día, si ese mes es más corto). Los céntimos que no se
+// pueden repartir parejo van en la última cuota.
+export const MAX_DEPOSIT_INSTALLMENTS = 6;
+
+export function depositInstallments(input: { amount: string; firstDue: string; count: number }) {
+  const count = Math.max(1, Math.min(MAX_DEPOSIT_INSTALLMENTS, Math.floor(input.count)));
+  const total = toCents(input.amount);
+  const base = Math.floor(total / count);
+  const [y, m, d] = input.firstDue.split("-").map(Number);
+  return Array.from({ length: count }, (_, i) => {
+    const monthIndex = m - 1 + i;
+    const year = y + Math.floor(monthIndex / 12);
+    const month = (monthIndex % 12) + 1;
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const dueDate = `${year}-${String(month).padStart(2, "0")}-${String(Math.min(d, lastDay)).padStart(2, "0")}`;
+    const amount = i === count - 1 ? total - base * (count - 1) : base;
+    return { period: dueDate.slice(0, 7), dueDate, amount: fromCents(amount) };
+  });
+}
+
+// ¿Ya se pagó la garantía? Sí, cuando TODAS sus cuotas (cargos "deposit" del contrato) están cubiertas por pagos
+// confirmados. Sin cuotas (sin garantía), no.
+export function depositChargesPaid(input: {
+  contractId: string;
+  charges: { id: string; contractId: string; concept: string }[];
+  covered: Set<string>;
+}) {
+  const own = input.charges.filter((c) => c.contractId === input.contractId && c.concept === "deposit");
+  return own.length > 0 && own.every((c) => input.covered.has(c.id));
 }

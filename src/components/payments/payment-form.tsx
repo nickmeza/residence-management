@@ -53,6 +53,8 @@ export function PaymentForm({
   const [file, setFile] = useState<{ path: string; name: string } | null>(null);
   const [error, setError] = useState<{ message: string; fields: Record<string, string> }>();
   const [done, setDone] = useState(false);
+  // true = el comprobante coincidía con lo que faltaba y se confirmó solo.
+  const [autoConfirmed, setAutoConfirmed] = useState(false);
   const [pending, startTransition] = useTransition();
   const set = (patch: Partial<PaymentInput>) => {
     setDone(false);
@@ -71,6 +73,7 @@ export function PaymentForm({
       if (!result.ok) return setError({ message: result.message, fields: result.fieldErrors ?? {} });
       setValues(blank());
       setFile(null);
+      setAutoConfirmed(Boolean(result.autoConfirmed));
       setDone(true);
       onDone?.();
       router.refresh();
@@ -177,7 +180,9 @@ export function PaymentForm({
         <p role="status" className="rounded-lg bg-ok-soft px-3 py-2 text-sm text-ok">
           {mode === "landlord"
             ? "Pago registrado."
-            : "Comprobante enviado. Tu residencia lo revisará y verás aquí cuando lo confirme."}
+            : autoConfirmed
+              ? "¡Listo! Tu pago coincide con lo que debías y quedó confirmado."
+              : "Comprobante enviado. Tu residencia lo revisará y verás aquí cuando lo confirme."}
         </p>
       ) : null}
       <Button type="submit" className="h-11 w-full" disabled={pending}>

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 
 import type { withRls } from "@/db/rls";
 import {
@@ -16,10 +16,11 @@ import {
 import { limaToday } from "@/server/contracts/dates";
 import { isFolderPathOf } from "@/server/documents/files";
 import { myPersonId } from "@/server/payments/mutations";
+import { coveredCharges, loadBusiness } from "@/server/payments/queries";
 import { periodOf } from "@/server/payments/rules";
 import type { EntryReportInput } from "@/server/payments/schemas";
 
-import { discountProblems, settlement as settle, type InspectionArea } from "./rules";
+import { depositInstallments, discountProblems, settlement as settle, type InspectionArea } from "./rules";
 
 // Liquidación de la garantía (GA-08 a GA-15) y reportes de ingreso, dentro de una transacción con la sesión (RLS).
 
@@ -320,4 +321,59 @@ export async function disputeDiscount(tx: Tx, discountId: string, reason: string
     sql`select public.dispute_discount(${discountId}, ${reason}) as ok`,
   )) as unknown as { ok: boolean }[];
   if (!row?.ok) throw new DepositError("Ese descuento ya no se puede disputar. Recarga la página.");
+}
+
+// Garantía en otro mes o en cuotas (decisión del dueño, 2026-11-15): reemplaza sus cargos por las cuotas nuevas.
+// Solo mientras no se haya pagado ninguna cuota (si no, el dinero ya aplicado quedaría sin cargo) y antes de liquidar.
+export async function rescheduleDeposit(
+  tx: Tx,
+  depositId: string,
+  data: { firstDue: string; installments: number },
+) {
+  const d = await findDeposit(tx, depositId);
+  if (d.status === "none") throw new DepositError("Este contrato no tiene garantía.");
+  if (d.status !== "held" || d.settlementId) {
+    throw new DepositError("La garantía ya está en liquidación: no se puede cambiar cuándo se cobra.");
+  }
+  const [c] = await tx
+    .select({ startDate: contract.startDate })
+    .from(contract)
+    .where(eq(contract.id, d.contractId))
+    .limit(1);
+  if (!c) throw new DepositError(NOT_FOUND);
+  if (data.firstDue < c.startDate) {
+    throw new DepositError("La primera cuota no puede vencer antes de que empiece el contrato.");
+  }
+  const billing = await loadBusiness(tx, d.businessId, d.residentId);
+  const covered = coveredCharges(billing);
+  const current = billing.charges.filter((x) => x.contractId === d.contractId && x.concept === "deposit");
+  if (current.some((x) => covered.has(x.id))) {
+    throw new DepositError("Ya pagó parte de la garantía: no se puede cambiar cuándo se cobra.");
+  }
+  const parts = depositInstallments({ amount: d.amount, firstDue: data.firstDue, count: data.installments });
+  await tx.update(deposit).set({ chargeId: null }).where(eq(deposit.id, depositId));
+  if (current.length) {
+    await tx.delete(charge).where(
+      inArray(
+        charge.id,
+        current.map((x) => x.id),
+      ),
+    );
+  }
+  const inserted = await tx
+    .insert(charge)
+    .values(
+      parts.map((p, i) => ({
+        contractId: d.contractId,
+        concept: "deposit" as const,
+        period: p.period,
+        amount: p.amount,
+        dueDate: p.dueDate,
+        note: parts.length > 1 ? `Cuota ${i + 1} de ${parts.length}` : null,
+      })),
+    )
+    .returning({ id: charge.id, dueDate: charge.dueDate });
+  const first = [...inserted].sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+  await tx.update(deposit).set({ chargeId: first.id }).where(eq(deposit.id, depositId));
+  return d;
 }

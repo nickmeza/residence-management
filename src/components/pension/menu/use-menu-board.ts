@@ -185,10 +185,14 @@ export function useMenuBoard(view: WeekMenuView) {
         }),
       publish ? "Menú publicado: tus comensales ya lo ven." : "Borrador guardado.",
     );
-  const copyPreviousWeek = () =>
+  // ¿Ya hay algo escrito en los días que todavía se pueden cambiar? Entonces se pregunta antes de copiar.
+  const hasEditableMenu = view.days.some((d) => isEditableDay(d, ctx) && dayHasMenu(d));
+  const copyPreviousWeek = (mode: "fill" | "replace" = "fill") =>
     run(
-      () => copyPreviousWeekAction(view.businessId, view.weekStart),
-      "Copiamos la semana anterior como borrador en los días que faltaban. Revísala y publícala.",
+      () => copyPreviousWeekAction(view.businessId, view.weekStart, mode),
+      mode === "replace"
+        ? "Copiamos la semana anterior como borrador y reemplazamos lo escrito. Revísala y publícala."
+        : "Copiamos la semana anterior como borrador en los días que faltaban. Revísala y publícala.",
     );
 
   // Estado del menú de los días que todavía se pueden cambiar.
@@ -230,6 +234,7 @@ export function useMenuBoard(view: WeekMenuView) {
     clearDay,
     save,
     copyPreviousWeek,
+    hasEditableMenu,
   };
 }
 

@@ -7,6 +7,7 @@ import { getSessionClaims } from "@/server/auth/session";
 import { isUuid } from "@/server/business/queries";
 import { issuesByPath } from "@/server/onboarding/schema";
 import {
+  depositScheduleSchema,
   discountSchema,
   disputeAnswerSchema,
   disputeSchema,
@@ -141,4 +142,12 @@ export async function disputeDiscountAction(discountId: string, input: unknown):
   const parsed = disputeSchema.safeParse(input);
   if (!parsed.success) return invalid(parsed.error);
   return run((tx) => m.disputeDiscount(tx, discountId, parsed.data.reason));
+}
+
+// Garantía en otro mes o en cuotas (arrendador).
+export async function rescheduleDepositAction(depositId: string, input: unknown): Promise<DepositResult> {
+  if (!isUuid(depositId)) return { ok: false, message: NOT_FOUND };
+  const parsed = depositScheduleSchema.safeParse(input);
+  if (!parsed.success) return invalid(parsed.error);
+  return run((tx) => m.rescheduleDeposit(tx, depositId, parsed.data), depositId);
 }

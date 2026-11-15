@@ -4,28 +4,53 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
+import { ConfirmButton } from "@/components/confirm-button";
 import { StatusBadge, type BadgeTone } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { initials } from "@/lib/greeting";
 import { cn } from "@/lib/utils";
-import { kitchenChangeAction } from "@/server/pension/actions";
+import { kitchenCancelAllAction, kitchenChangeAction } from "@/server/pension/actions";
 import type { KitchenView } from "@/server/pension/queries";
-import { ATTENDANCE_LABEL, MEAL_LABEL, type AttendanceState, type MealType } from "@/server/pension/rules";
+import {
+  ATTENDANCE_LABEL,
+  cancellationOpen,
+  limaNow,
+  MEAL_LABEL,
+  type AttendanceState,
+  type MealType,
+} from "@/server/pension/rules";
+
+import { CancelChoice } from "./cancel-choice";
 
 const TONE: Record<AttendanceState, BadgeTone> = { coming: "ok", cancelled: "neutral", paused: "warn" };
 
 const GRID = "grid grid-cols-[1.6fr_1fr_.9fr_.6fr_auto] items-center gap-3 px-5";
 
 // Panel de cocina de un día (PN-06, PN-07, PN-08): porciones por comida, quién canceló o pausó, su dieta y la casilla
-// "Comió". La cocina puede cancelar o volver a pedir aunque haya pasado la hora límite (la cancelación tardía se cobra).
+// "Comió". La cocina puede cancelar o volver a pedir aunque haya pasado la hora límite. Al cancelar elige quién
+// cancela (decisión del dueño, 2026-11-15): el comensal (se cobra si avisó tarde) o la cocina por su lado (no se
+// cobra). También puede cancelar la comida para todos (una emergencia).
 export function KitchenBoard({ view, meal }: { view: KitchenView; meal: MealType }) {
   const [message, setMessage] = useState<string>();
   const [pending, startTransition] = useTransition();
   const current = view.meals.find((m) => m.type === meal) ?? view.meals[0];
   const isFuture = view.date > view.today;
+  // ¿Ya pasó la hora límite? Entonces, si el que cancela es el comensal, se cobra.
+  const late = current ? !cancellationOpen(limaNow(new Date()), current.deadline) : false;
+  const canCancelAll =
+    !!current && view.date >= view.today && current.diners.some((d) => d.state === "coming" && !d.served);
 
-  const change = (residentId: string, kind: "cancel" | "restore" | "served" | "not_served") =>
+  const cancelAll = () =>
+    startTransition(async () => {
+      const result = await kitchenCancelAllAction(view.businessId, { date: view.date, meal: current.type });
+      setMessage(result.ok ? undefined : result.message);
+    });
+
+  const change = (
+    residentId: string,
+    kind: "cancel" | "kitchen_cancel" | "restore" | "served" | "not_served",
+  ) =>
     startTransition(async () => {
       const result = await kitchenChangeAction(view.businessId, {
         residentId,
@@ -110,7 +135,9 @@ export function KitchenBoard({ view, meal }: { view: KitchenView; meal: MealType
                         </span>
                         <span>{d.dietNote ?? <span className="text-muted-foreground">—</span>}</span>
                         <span>
-                          <StatusBadge tone={TONE[d.state]}>{ATTENDANCE_LABEL[d.state]}</StatusBadge>
+                          <StatusBadge tone={TONE[d.state]}>
+                            {d.kitchenCancelled ? "Cancelamos nosotros" : ATTENDANCE_LABEL[d.state]}
+                          </StatusBadge>
                         </span>
                         <span>
                           {d.state === "coming" && !isFuture ? (
@@ -126,15 +153,12 @@ export function KitchenBoard({ view, meal }: { view: KitchenView; meal: MealType
                         </span>
                         <span>
                           {d.state === "coming" && !d.served ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              className="h-11"
+                            <CancelChoice
+                              name={d.name}
+                              late={late}
                               disabled={pending}
-                              onClick={() => change(d.residentId, "cancel")}
-                            >
-                              Cancelar
-                            </Button>
+                              onChoose={(kind) => change(d.residentId, kind)}
+                            />
                           ) : d.state === "cancelled" ? (
                             <Button
                               type="button"
@@ -182,8 +206,27 @@ export function KitchenBoard({ view, meal }: { view: KitchenView; meal: MealType
               </dl>
               <p className="mt-2 text-xs text-muted-foreground">
                 Se podía cancelar hasta el {current.deadline.slice(8, 10)}/{current.deadline.slice(5, 7)} a
-                las {current.deadline.slice(11)}. Si cancelas tú después de esa hora, se cobra.
+                las {current.deadline.slice(11)}. Si el comensal avisa después, se cobra; si cancelas tú por
+                tu lado, no.
               </p>
+              {canCancelAll ? (
+                <ConfirmButton
+                  trigger={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="mt-3 h-11 w-full text-danger"
+                      disabled={pending}
+                    >
+                      Cancelar {MEAL_LABEL[current.type].toLowerCase()} para todos
+                    </Button>
+                  }
+                  title={`¿Cancelar el ${MEAL_LABEL[current.type].toLowerCase()} para todos?`}
+                  description="Es una emergencia de la cocina: a nadie se le cobra. Quien ya comió no cambia. Después puedes volver a pedirla para cada uno."
+                  confirmLabel="Cancelar para todos"
+                  onConfirm={cancelAll}
+                />
+              ) : null}
             </section>
             {!isFuture ? (
               <section className="rounded-xl border bg-card p-5 shadow-card">

@@ -3,10 +3,11 @@ import { Suspense } from "react";
 
 import { PaymentForm } from "@/components/payments/payment-form";
 import { ReceiptBadge } from "@/components/payments/receipt-badge";
+import { VoidedPayments } from "@/components/payments/voided-payments";
 import { StatusBadge } from "@/components/status-badge";
 import { formatSoles } from "@/lib/format";
 import { formatLongDate, limaToday } from "@/server/contracts/dates";
-import { CONCEPT_LABEL, periodLabel, periodOf } from "@/server/payments/rules";
+import { CONCEPT_LABEL, periodLabel, periodOf, splitVoided } from "@/server/payments/rules";
 import { METHOD_LABEL } from "@/server/payments/schemas";
 import { getMyBilling, type MyBilling } from "@/server/payments/self";
 
@@ -25,6 +26,17 @@ function Business({ b, thisPeriod }: { b: MyBilling; thisPeriod: string }) {
   const history = b.receipts.filter((x) => x.period <= thisPeriod && x !== r);
   const upcoming = b.receipts.filter((x) => x.period > thisPeriod && x !== r).reverse();
   const methods = b.methods.filter((m) => m !== "card");
+  // Los anulados o rechazados se ocultan por defecto (decisión del dueño, 2026-11-15).
+  const { active, voided } = splitVoided(r?.payments ?? []);
+  const paymentRow = (p: (typeof active)[number]) => (
+    <li key={p.id} className="flex flex-wrap items-center gap-2">
+      <span className="flex-1">
+        {formatSoles(p.amount)} · {METHOD_LABEL[p.method]} · {formatLongDate(p.paidOn)}
+        {p.rejectionReason ? <span className="block text-danger">Motivo: {p.rejectionReason}</span> : null}
+      </span>
+      <StatusBadge tone={PAYMENT_STATUS[p.status].tone}>{PAYMENT_STATUS[p.status].label}</StatusBadge>
+    </li>
+  );
 
   return (
     <>
@@ -56,23 +68,10 @@ function Business({ b, thisPeriod }: { b: MyBilling; thisPeriod: string }) {
               Venció hace {r.daysLate} {r.daysLate === 1 ? "día" : "días"}.
             </p>
           ) : null}
-          {r.payments.length ? (
-            <ul className="flex flex-col gap-2 text-sm">
-              {r.payments.map((p) => (
-                <li key={p.id} className="flex flex-wrap items-center gap-2">
-                  <span className="flex-1">
-                    {formatSoles(p.amount)} · {METHOD_LABEL[p.method]} · {formatLongDate(p.paidOn)}
-                    {p.rejectionReason ? (
-                      <span className="block text-danger">Motivo: {p.rejectionReason}</span>
-                    ) : null}
-                  </span>
-                  <StatusBadge tone={PAYMENT_STATUS[p.status].tone}>
-                    {PAYMENT_STATUS[p.status].label}
-                  </StatusBadge>
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          {active.length ? <ul className="flex flex-col gap-2 text-sm">{active.map(paymentRow)}</ul> : null}
+          <VoidedPayments count={voided.length}>
+            <ul className="flex flex-col gap-2 text-sm">{voided.map(paymentRow)}</ul>
+          </VoidedPayments>
         </section>
       ) : (
         <section className={card}>

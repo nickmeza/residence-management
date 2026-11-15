@@ -161,3 +161,15 @@ export const disputeSchema = z.object({
     .min(5, "Cuéntale al arrendador por qué no estás de acuerdo.")
     .max(300, "Es demasiado largo."),
 });
+
+// Garantía en otro mes o en cuotas (decisión del dueño, 2026-11-15): cuándo vence la primera cuota y cuántas son.
+export const depositScheduleSchema = z.object({
+  firstDue: isoDate,
+  installments: z.coerce
+    .number()
+    .int("Elige cuántas cuotas.")
+    .min(1, "Al menos 1 cuota.")
+    .max(6, "Máximo 6 cuotas."),
+});
+
+export type DepositScheduleInput = z.input<typeof depositScheduleSchema>;

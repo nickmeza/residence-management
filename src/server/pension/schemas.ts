@@ -211,7 +211,8 @@ export const kitchenChangeSchema = z.object({
   residentId: z.uuid(),
   date: isoDate,
   meal: z.enum(MEAL_TYPE_VALUES),
-  change: z.enum(["cancel", "restore", "served", "not_served"]),
+  // cancel = la cocina anota que canceló el comensal (se cobra si es tarde); kitchen_cancel = cancela la cocina (no se cobra).
+  change: z.enum(["cancel", "kitchen_cancel", "restore", "served", "not_served"]),
 });
 
 // El comensal avisa su pago con comprobante (decisión del dueño, 2026-11-13). La foto o el PDF es obligatorio.
@@ -243,6 +244,13 @@ export const pensionReviewSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("confirmed") }),
   z.object({
     status: z.literal("rejected"),
-    reason: z.string().trim().min(3, "Escribe el motivo: tu comensal lo verá.").max(200, "Es demasiado largo."),
+    reason: z
+      .string()
+      .trim()
+      .min(3, "Escribe el motivo: tu comensal lo verá.")
+      .max(200, "Es demasiado largo."),
   }),
 ]);
+
+// "Cancelar esta comida para todos" (emergencia de la cocina).
+export const kitchenCancelAllSchema = z.object({ date: isoDate, meal: z.enum(MEAL_TYPE_VALUES) });

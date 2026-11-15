@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import type { withRls } from "@/db/rls";
 import { payment, person, resident } from "@/db/schema";
@@ -56,7 +56,11 @@ export async function submitProof(tx: Tx, data: PaymentData, userId: string) {
     .insert(payment)
     .values({ ...data, status: "in_review", submittedBy: me })
     .returning({ id: payment.id });
-  return { id: row.id, businessId };
+  // Si es exactamente lo que falta del recibo, la base lo confirma sola (decisión del dueño, 2026-11-15).
+  const [check] = (await tx.execute(
+    sql`select public.auto_confirm_my_payment(${row.id}::uuid) as confirmed`,
+  )) as unknown as { confirmed: boolean }[];
+  return { id: row.id, businessId, autoConfirmed: Boolean(check?.confirmed) };
 }
 
 // El arrendador confirma o rechaza un comprobante (PG-09). Uno ya revisado no se vuelve a revisar; un pago

@@ -299,3 +299,10 @@ export function kitchenProblem(input: {
 
 // Una pausa que todavía no empezó se puede quitar; la que ya empezó, no (esos días ya no se cocinaron).
 export const pauseRemovable = (pause: { fromDate: IsoDate }, today: IsoDate) => pause.fromDate > today;
+
+// ¿Una comida cancelada se deja de cobrar? (decisión del dueño, 2026-11-15)
+// - Si la canceló la cocina por su lado (una emergencia): nunca se cobra.
+// - Si la canceló el comensal (o la cocina lo anotó por él): no se cobra solo si fue antes de la hora límite.
+export function notCharged(input: { kitchenCancelled: boolean; updatedAt: Date; deadline: string }) {
+  return input.kitchenCancelled || limaNow(input.updatedAt) < input.deadline;
+}

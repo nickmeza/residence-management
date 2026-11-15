@@ -30,7 +30,7 @@ import {
   isServiceDay,
   kitchenCounts,
   cancelDeadline,
-  limaNow,
+  notCharged,
   MEAL_TYPES,
   pensionAccount,
   planPriceWarning,
@@ -131,7 +131,11 @@ async function loadAccount(
       .where(eq(pensionPayment.subscriptionId, sub.id))
       .orderBy(desc(pensionPayment.createdAt)),
     tx
-      .select({ date: mealAttendance.date, updatedAt: mealAttendance.updatedAt })
+      .select({
+        date: mealAttendance.date,
+        updatedAt: mealAttendance.updatedAt,
+        kitchenCancelled: mealAttendance.kitchenCancelled,
+      })
       .from(mealAttendance)
       .where(
         and(
@@ -141,8 +145,10 @@ async function loadAccount(
         ),
       ),
   ]);
+  // No se cobran: lo que el comensal canceló a tiempo y todo lo que canceló la cocina por su lado (decisión del
+  // dueño, 2026-11-15). Lo que se anotó tarde por el comensal sí se cobra.
   const cancelledOnTime = cancelled
-    .filter((c) => limaNow(c.updatedAt) < cancelDeadline(c.date, settings.cancelDeadline))
+    .filter((c) => notCharged({ ...c, deadline: cancelDeadline(c.date, settings.cancelDeadline) }))
     .map((c) => c.date);
   return {
     payments,
@@ -303,6 +309,8 @@ export type KitchenDiner = {
   name: string;
   dietNote: string | null;
   state: AttendanceState;
+  // true = la canceló la cocina por su lado (no se cobra).
+  kitchenCancelled: boolean;
   served: boolean;
 };
 
@@ -343,6 +351,7 @@ export async function getKitchenDay(businessId: string, date: IsoDate): Promise<
           residentId: mealAttendance.residentId,
           meal: mealAttendance.meal,
           cancelled: mealAttendance.cancelled,
+          kitchenCancelled: mealAttendance.kitchenCancelled,
           served: mealAttendance.served,
         })
         .from(mealAttendance)
@@ -386,6 +395,7 @@ export async function getKitchenDay(businessId: string, date: IsoDate): Promise<
                 dietNote: s.dietNote,
                 state: attendanceState({ paused: isPaused(date, s.pauses), attendance: a }),
                 served: a?.served ?? false,
+                kitchenCancelled: (a?.cancelled && a.kitchenCancelled) ?? false,
               };
             });
           const item = menu.find((x) => x.meal === m.type);
@@ -461,6 +471,8 @@ export type MyPensionDay = {
     deadline: string;
     // true = canceló; false = viene (por defecto).
     cancelled: boolean;
+    // true = la canceló la cocina (no se cobra y no se puede volver a pedir).
+    kitchenCancelled: boolean;
     served: boolean;
     menu: { dish: string; hasVegetarian: boolean } | null;
   }[];
@@ -558,6 +570,7 @@ export async function getMyPension(): Promise<MyPension[]> {
             date: mealAttendance.date,
             meal: mealAttendance.meal,
             cancelled: mealAttendance.cancelled,
+            kitchenCancelled: mealAttendance.kitchenCancelled,
             served: mealAttendance.served,
           })
           .from(mealAttendance)
@@ -604,6 +617,7 @@ export async function getMyPension(): Promise<MyPension[]> {
                 type: m.type,
                 deadline: cancelDeadline(d, settings.cancelDeadline),
                 cancelled: a?.cancelled ?? false,
+                kitchenCancelled: a?.kitchenCancelled ?? false,
                 served: a?.served ?? false,
                 menu: item ? { dish: item.dish, hasVegetarian: item.hasVegetarian } : null,
               };

@@ -103,12 +103,14 @@ function Pension({ p, today }: { p: MyPension; today: string }) {
                           </span>
                           {m.served ? (
                             <StatusBadge tone="ok">Comiste</StatusBadge>
+                          ) : m.cancelled && m.kitchenCancelled ? (
+                            <StatusBadge tone="warn">La cocina la canceló · no se cobra</StatusBadge>
                           ) : m.cancelled ? (
                             <StatusBadge tone="neutral">Cancelada</StatusBadge>
                           ) : (
                             <StatusBadge tone="primary">Te cocinamos</StatusBadge>
                           )}
-                          {open && !m.served ? (
+                          {open && !m.served && !m.kitchenCancelled ? (
                             <Button
                               type="button"
                               variant={m.cancelled ? "outline" : "ghost"}

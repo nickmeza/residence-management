@@ -9,7 +9,7 @@ import { isRentable, type UnitInput } from "@/server/building/rules";
 import { isUuid } from "@/server/business/queries";
 import type { DepositSettingsData } from "@/server/payments/schemas";
 
-import type { DepositRule, InspectionArea } from "./rules";
+import { DEFAULT_DEPOSIT_POLICY, type DepositRule, type InspectionArea } from "./rules";
 
 // Configuración › Garantía (GA-01, GA-02, GA-03) y el cobro del mes incompleto.
 
@@ -89,9 +89,10 @@ export async function getDepositSettings(businessId: string): Promise<DepositSet
       tradeName: b.tradeName,
       saved: Boolean(s),
       values: {
-        roomRule: s?.roomRule ?? "one_month",
+        // Sin configuración guardada se muestran los valores por defecto (departamento 1 mes, cuarto sin garantía).
+        roomRule: s?.roomRule ?? DEFAULT_DEPOSIT_POLICY.room.rule,
         roomFixedAmount: amountText(s?.roomFixedAmount ?? null),
-        apartmentRule: s?.apartmentRule ?? "one_month",
+        apartmentRule: s?.apartmentRule ?? DEFAULT_DEPOSIT_POLICY.apartment.rule,
         apartmentFixedAmount: amountText(s?.apartmentFixedAmount ?? null),
         covers: s?.covers ?? ["walls", "door", "window", "furniture", "keys", "cleaning"],
         refundDays: String(s?.refundDays ?? 7),

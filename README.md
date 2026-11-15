@@ -252,7 +252,7 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-11 | Al aceptar la invitación, **ganan los datos del residente**; lo que le falte se completa con lo del arrendador | Lo decidió el dueño. |
 | 2026-11-11 | El residente **no lee las tablas del arrendador**; sus nombres de residencia y unidad salen de `my_resident_places()` | Varias pantallas del arrendador asumen "si veo el negocio, es mío" (por ejemplo, el selector de negocio). |
 | 2026-11-12 | Garantía en **tres niveles**: configuración del negocio por tipo de unidad → excepción por unidad → lo decidido para esta persona en su contrato | Lo pidió el dueño, igual que los documentos (por ejemplo, a un familiar no se le pide o se le cobra después). |
-| 2026-11-12 | Sin configuración guardada **no se pide garantía** | Mejor no cobrar algo que el arrendador no eligió. |
+| 2026-11-12 → 2026-11-15 | Sin configuración guardada: **departamento 1 mes, cuarto sin garantía** (antes: no se pedía) | Decisión del dueño (2026-11-15). Un solo lugar en el código: `businessDepositPolicy`. |
 | 2026-11-12 | La garantía se calcula **una vez, al confirmar** el contrato; cambiar la configuración vale para los siguientes. Los contratos confirmados antes de la Fase 5 **no** reciben garantía retroactiva (sí sus recibos de renta) | El monto acordado no debe cambiar solo ni cobrarse de golpe a quien ya vive ahí. |
 | 2026-11-12 | Los recibos se crean **todos al confirmar** (uno por mes); los mes a mes, 12 meses hacia adelante y se extienden solos al abrir Cobros | Decisión del dueño (pregunta 5). Sin tareas programadas hasta la Fase 8. |
 | 2026-11-12 | El recibo **no es una tabla**: es lo que un residente le debe a un negocio en un mes. Pagado, pendiente y vencido se calculan | Igual que vigente/terminado en los contratos: no hay estados que se desincronicen. |
@@ -287,3 +287,9 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-13 | Pagos de pensión: **"Marcar pagado"** en un toque (sin comprobante) y, si la pensión lo activa (apagado por defecto), **comprobante del comensal** en revisión → aprobar o rechazar con motivo (migración 0016) | Decisión del dueño: la pensión chica coordina por WhatsApp; la grande quiere comprobantes. Solo cuentan los pagos confirmados. |
 | 2026-11-13 | **Pagos por partes** en la pensión: "pagado hasta" avanza solo hasta donde alcanza el dinero | Decisión del dueño. Lo sugerido completa el tramo a medias. |
 | 2026-11-13 | Los días que la pensión **no cocina no se muestran** | Decisión del dueño: no aportan nada y ensucian la vista. |
+| 2026-11-15 | Comprobante del residente **exactamente igual a lo que falta** se confirma solo; lista "Confirmados solos" para revisarlos (migración 0019) | Decisión del dueño. Lo decide una función de la base (`auto_confirm_my_payment`), no el navegador. |
+| 2026-11-15 | Pagos anulados o rechazados **ocultos por defecto** ("Mostrar anulados") | Decisión del dueño: no marear. Siguen en la bitácora. |
+| 2026-11-15 | Reportar lo de ingreso: **7 días hábiles (lunes a viernes)** (migración 0017) | Decisión del dueño. Feriados, después. |
+| 2026-11-15 | Garantía **movible a otro mes o en cuotas** (hasta 6), mientras no haya cuota pagada | Decisión del dueño. Sin migración: un contrato ya podía tener varios cargos de garantía. |
+| 2026-11-15 | Pensión: **cancela la cocina** (no se cobra; a uno o a todos) vs **avisó tarde el comensal** (se cobra) (migración 0018) | Decisión del dueño. Los mensajes llegan con la campanita. |
+| 2026-11-15 | "Copiar la semana anterior" **pregunta**: reemplazar todo o solo llenar lo vacío | Decisión del dueño. |

@@ -12,6 +12,7 @@ import {
   kitchenProblem,
   limaNow,
   nearestServiceDay,
+  notCharged,
   nextCoverage,
   overlapsSubscription,
   pauseProblem,
@@ -260,5 +261,17 @@ describe("días sin servicio: no se muestran (decisión del dueño, 2026-11-13)"
     expect(nearestServiceDay("2026-11-13", 1, weekdays)).toBe("2026-11-16"); // viernes → lunes
     expect(nearestServiceDay("2026-11-16", -1, weekdays)).toBe("2026-11-13"); // lunes → viernes
     expect(nearestServiceDay("2026-11-11", 1, weekdays)).toBe("2026-11-12");
+  });
+});
+
+describe("cancelaciones: cocina vs comensal (decisión del dueño, 2026-11-15)", () => {
+  const deadline = "2026-11-12T20:00"; // la cena del 13 se cancela hasta el 12 a las 20:00
+  const at = (lima: string) => new Date(`${lima}:00-05:00`);
+  it("la cocina por su lado: nunca se cobra, aunque sea tarde", () => {
+    expect(notCharged({ kitchenCancelled: true, updatedAt: at("2026-11-13T12:00"), deadline })).toBe(true);
+  });
+  it("el comensal: a tiempo no se cobra; tarde (lo anota la cocina) sí", () => {
+    expect(notCharged({ kitchenCancelled: false, updatedAt: at("2026-11-12T19:59"), deadline })).toBe(true);
+    expect(notCharged({ kitchenCancelled: false, updatedAt: at("2026-11-12T20:00"), deadline })).toBe(false);
   });
 });

@@ -11,6 +11,8 @@ import {
   proofMismatch,
   receiptSummary,
   rentCharges,
+  proofMatchesBalance,
+  splitVoided,
 } from "./rules";
 
 describe("dinero en céntimos", () => {
@@ -155,5 +157,28 @@ describe("cargos cubiertos", () => {
     ];
     expect([...coveredChargeIds(charges, [{ amount: "700" }])]).toEqual(["garantia"]);
     expect(coveredChargeIds(charges, []).size).toBe(0);
+  });
+});
+
+describe("pagos anulados ocultos por defecto (decisión del dueño, 2026-11-15)", () => {
+  it("separa los anulados o rechazados sin perder el orden", () => {
+    const list = [
+      { id: "a", status: "confirmed" as const },
+      { id: "b", status: "rejected" as const },
+      { id: "c", status: "in_review" as const },
+    ];
+    const { active, voided } = splitVoided(list);
+    expect(active.map((p) => p.id)).toEqual(["a", "c"]);
+    expect(voided.map((p) => p.id)).toEqual(["b"]);
+  });
+});
+
+describe("comprobante que coincide se confirma solo (decisión del dueño, 2026-11-15)", () => {
+  it("solo si es exactamente lo que falta", () => {
+    expect(proofMatchesBalance({ amount: "850", balance: "850.00" })).toBe(true);
+    expect(proofMatchesBalance({ amount: "849.99", balance: "850.00" })).toBe(false);
+    expect(proofMatchesBalance({ amount: "900", balance: "850.00" })).toBe(false);
+    // Si no falta nada, nunca se confirma solo.
+    expect(proofMatchesBalance({ amount: "0", balance: "0.00" })).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, CalendarRange, Copy, Move } from "lucide-react";
+import { CalendarDays, CalendarRange, Move } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
@@ -12,6 +12,7 @@ import { dishLines } from "@/server/pension/menu-moves";
 import type { WeekMenuView } from "@/server/pension/queries";
 import { isServiceDay, MEAL_LABEL } from "@/server/pension/rules";
 
+import { CopyWeekButton } from "./menu/copy-week-button";
 import { DayDetail } from "./menu/day-detail";
 import { DayView } from "./menu/day-view";
 import { EditDayDialog, EditMealSheet } from "./menu/edit-day-dialog";
@@ -104,17 +105,7 @@ export function WeekMenuEditor({ view }: { view: WeekMenuView }) {
               Día
             </ViewButton>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-11 text-primary-text"
-            disabled={board.pending || board.dirty}
-            title={board.dirty ? "Guarda primero tus cambios" : undefined}
-            onClick={board.copyPreviousWeek}
-          >
-            <Copy aria-hidden="true" />
-            Copiar la semana anterior
-          </Button>
+          <CopyWeekButton board={board} />
         </div>
         <div className="hidden gap-2 md:flex">{actions}</div>
       </div>

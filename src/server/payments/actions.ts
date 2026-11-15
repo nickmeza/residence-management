@@ -16,7 +16,8 @@ type Tx = Parameters<Parameters<typeof withRls>[1]>[0];
 // Acciones de pagos. Validan, corren con la sesión (RLS) y vuelven a dibujar Cobros y Mis pagos.
 
 export type PaymentResult =
-  { ok: true } | { ok: false; message: string; fieldErrors?: Record<string, string> };
+  | { ok: true; autoConfirmed?: boolean }
+  | { ok: false; message: string; fieldErrors?: Record<string, string> };
 
 function revalidatePayments(residentId: string, period: string) {
   revalidatePath("/cobros", "layout");
@@ -39,9 +40,14 @@ async function save(
   }
   const claims = await getSessionClaims();
   try {
-    await withRls(claims, (tx) => change(tx, parsed.data, claims.sub));
+    const result = await withRls(claims, (tx) => change(tx, parsed.data, claims.sub));
     revalidatePayments(parsed.data.residentId, parsed.data.period);
-    return { ok: true };
+    const autoConfirmed =
+      typeof result === "object" &&
+      result !== null &&
+      "autoConfirmed" in result &&
+      result.autoConfirmed === true;
+    return { ok: true, autoConfirmed };
   } catch (e) {
     if (e instanceof m.PaymentError) return { ok: false, message: e.message };
     console.error(e);

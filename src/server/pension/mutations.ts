@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { and, between, eq, gte, lte, sql } from "drizzle-orm";
+import { and, between, eq, gte, inArray, lte, sql } from "drizzle-orm";
 
 import type { db } from "@/db";
 import {
@@ -321,7 +321,10 @@ export async function removePause(tx: Tx, pauseId: string) {
 }
 
 // La cocina cancela, vuelve a pedir o marca si comió (PN-06, PN-07). Puede hacerlo aunque haya pasado la hora
-// límite; una cancelación tardía se cobra (lo calcula el estado de cuenta con la hora en que se hizo).
+// límite. Dos formas de cancelar (decisión del dueño, 2026-11-15):
+// - "cancel": anota que canceló el comensal (por ejemplo, avisó por WhatsApp). Si fue después de la hora límite,
+//   se cobra (lo calcula el estado de cuenta con la hora en que se hizo).
+// - "kitchen_cancel": cancela la cocina por su lado (una emergencia). No se cobra nunca.
 export async function kitchenChange(
   tx: Tx,
   businessId: string,
@@ -329,7 +332,7 @@ export async function kitchenChange(
     residentId: string;
     date: IsoDate;
     meal: "breakfast" | "lunch" | "dinner";
-    change: "cancel" | "restore" | "served" | "not_served";
+    change: "cancel" | "kitchen_cancel" | "restore" | "served" | "not_served";
   },
 ) {
   await requireDiner(tx, businessId, input.residentId);
@@ -369,7 +372,7 @@ export async function kitchenChange(
     eq(mealAttendance.date, input.date),
     eq(mealAttendance.meal, input.meal),
   );
-  const upsert = (values: { cancelled: boolean; served: boolean }) =>
+  const upsert = (values: { cancelled: boolean; kitchenCancelled: boolean; served: boolean }) =>
     tx
       .insert(mealAttendance)
       .values({ residentId: input.residentId, date: input.date, meal: input.meal, updatedBy, ...values })
@@ -377,12 +380,100 @@ export async function kitchenChange(
         target: [mealAttendance.residentId, mealAttendance.date, mealAttendance.meal],
         set: { ...values, updatedBy, updatedAt: new Date() },
       });
-  if (input.change === "cancel") await upsert({ cancelled: true, served: false });
-  else if (input.change === "served") await upsert({ cancelled: false, served: true });
+  if (input.change === "cancel") await upsert({ cancelled: true, kitchenCancelled: false, served: false });
+  else if (input.change === "kitchen_cancel") {
+    await upsert({ cancelled: true, kitchenCancelled: true, served: false });
+  } else if (input.change === "served")
+    await upsert({ cancelled: false, kitchenCancelled: false, served: true });
   // Sin fila = viene (por defecto se cocina).
   else if (input.change === "restore") {
     await tx.delete(mealAttendance).where(and(key, eq(mealAttendance.served, false)));
   } else await tx.delete(mealAttendance).where(and(key, eq(mealAttendance.cancelled, false)));
+}
+
+// "Cancelar esta comida para todos" (decisión del dueño, 2026-11-15): una emergencia de la cocina. Cancela, como
+// cocina (no se cobra), la comida de todos los que la tenían ese día; no toca a quien ya comió ni a quien está en
+// pausa. Devuelve a cuántos les canceló.
+export async function kitchenCancelAll(
+  tx: Tx,
+  businessId: string,
+  input: { date: IsoDate; meal: "breakfast" | "lunch" | "dinner" },
+): Promise<number> {
+  await requirePension(tx, businessId);
+  const [st] = await tx
+    .select({ serviceDays: mealSettings.serviceDays })
+    .from(mealSettings)
+    .where(eq(mealSettings.businessId, businessId))
+    .limit(1);
+  if (!isServiceDay(input.date, st?.serviceDays ?? ALL_DAYS)) {
+    throw new PensionError("Ese día tu pensión no cocina.");
+  }
+  if (input.date < limaToday(new Date())) throw new PensionError("Ese día ya pasó.");
+  const subs = await tx
+    .select({
+      id: pensionSubscription.id,
+      residentId: pensionSubscription.residentId,
+      startDate: pensionSubscription.startDate,
+      endDate: pensionSubscription.endDate,
+      planMeals: pensionPlan.meals,
+    })
+    .from(pensionSubscription)
+    .innerJoin(pensionPlan, eq(pensionPlan.id, pensionSubscription.planId))
+    .where(eq(pensionPlan.businessId, businessId));
+  const having = subs.filter((s) => coversDay(s, input.date) && s.planMeals.includes(input.meal));
+  if (!having.length) throw new PensionError("Nadie tiene esa comida ese día.");
+  const pauses = await tx
+    .select({
+      subscriptionId: pensionPause.subscriptionId,
+      fromDate: pensionPause.fromDate,
+      toDate: pensionPause.toDate,
+    })
+    .from(pensionPause)
+    .where(
+      inArray(
+        pensionPause.subscriptionId,
+        having.map((s) => s.id),
+      ),
+    );
+  const served = await tx
+    .select({ residentId: mealAttendance.residentId })
+    .from(mealAttendance)
+    .where(
+      and(
+        inArray(
+          mealAttendance.residentId,
+          having.map((s) => s.residentId),
+        ),
+        eq(mealAttendance.date, input.date),
+        eq(mealAttendance.meal, input.meal),
+        eq(mealAttendance.served, true),
+      ),
+    );
+  const targets = having.filter(
+    (s) =>
+      !served.some((x) => x.residentId === s.residentId) &&
+      !pauses.some((p) => p.subscriptionId === s.id && p.fromDate <= input.date && input.date <= p.toDate),
+  );
+  if (!targets.length) return 0;
+  const updatedBy = await myPersonId(tx);
+  await tx
+    .insert(mealAttendance)
+    .values(
+      targets.map((s) => ({
+        residentId: s.residentId,
+        date: input.date,
+        meal: input.meal,
+        cancelled: true,
+        kitchenCancelled: true,
+        served: false,
+        updatedBy,
+      })),
+    )
+    .onConflictDoUpdate({
+      target: [mealAttendance.residentId, mealAttendance.date, mealAttendance.meal],
+      set: { cancelled: true, kitchenCancelled: true, served: false, updatedBy, updatedAt: new Date() },
+    });
+  return targets.length;
 }
 
 type MealKind = "breakfast" | "lunch" | "dinner";
@@ -449,8 +540,15 @@ export async function saveWeekMenu(
   }
 }
 
-// Copiar la semana anterior a esta (como borrador), sin pisar lo que ya esté escrito ni los días que ya pasaron.
-export async function copyPreviousWeek(tx: Tx, businessId: string, monday: IsoDate) {
+// Copiar la semana anterior a esta (como borrador). Los días que ya pasaron nunca se tocan. Si ya hay días escritos,
+// la pantalla pregunta (decisión del dueño, 2026-11-15): "fill" = solo llena lo vacío; "replace" = desde hoy, la
+// semana queda igual a la anterior (lo escrito se reemplaza y lo que la anterior no tenía queda vacío).
+export async function copyPreviousWeek(
+  tx: Tx,
+  businessId: string,
+  monday: IsoDate,
+  mode: "fill" | "replace" = "fill",
+) {
   await requirePension(tx, businessId);
   const today = limaToday(new Date());
   const previous = await tx
@@ -466,6 +564,18 @@ export async function copyPreviousWeek(tx: Tx, businessId: string, monday: IsoDa
   if (!previous.length) throw new PensionError("La semana anterior no tiene menú.");
   const toCopy = previous.filter((p) => addDays(p.date, 7) >= today);
   if (!toCopy.length) throw new PensionError("Los días de esta semana ya pasaron: no hay dónde copiar.");
+  if (mode === "replace") {
+    const from = monday > today ? monday : today;
+    await tx
+      .delete(menuItem)
+      .where(
+        and(
+          eq(menuItem.businessId, businessId),
+          gte(menuItem.date, from),
+          lte(menuItem.date, addDays(monday, 6)),
+        ),
+      );
+  }
   await tx
     .insert(menuItem)
     .values(
@@ -526,7 +636,8 @@ export async function submitPensionProof(
     .from(mealSettings)
     .where(eq(mealSettings.businessId, sub.businessId))
     .limit(1);
-  if (!st?.accepts) throw new PensionError("Tu pensión no recibe comprobantes por aquí. Avísale por WhatsApp.");
+  if (!st?.accepts)
+    throw new PensionError("Tu pensión no recibe comprobantes por aquí. Avísale por WhatsApp.");
   if (!isFolderPathOf(data.proofPath, sub.businessId, sub.residentId, "comprobantes")) {
     throw new PensionError("Sube la foto o el PDF de tu comprobante.");
   }

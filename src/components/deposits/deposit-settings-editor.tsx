@@ -322,7 +322,7 @@ export function DepositSettingsEditor({
             floja), lo reporta con una foto, y eso no se le descuenta al salir salvo que esté peor.
           </p>
           <div className="flex max-w-56 flex-col gap-1.5">
-            <Label htmlFor="entryReportDays">Puede reportarlo hasta (días desde que entra)</Label>
+            <Label htmlFor="entryReportDays">Puede reportarlo hasta (días hábiles desde que entra)</Label>
             <Input
               id="entryReportDays"
               className="h-11"
