@@ -2,6 +2,7 @@
 
 import {
   Building2,
+  BarChart3,
   CalendarClock,
   FileText,
   LayoutDashboard,
@@ -43,6 +44,7 @@ const pensionItems = (links: NavLinks): Item[] => [
   { label: "Pensión", Icon: Soup, href: links.pension, match: "/pension", except: "/pension/comensales" },
   { label: "Clientes", Icon: Users, href: "/pension/comensales" },
   { label: "Comunicados", Icon: Megaphone, href: "/comunicados" },
+  { label: "Reportes", Icon: BarChart3, href: "/reportes" },
   { label: "Configuración", Icon: Settings, href: links.configuracion, match: "/negocio/" },
 ];
 
@@ -77,6 +79,7 @@ export function SidebarNav({ links, onNavigate }: { links: NavLinks; onNavigate?
           },
           { label: "Mantenimiento", Icon: Wrench, href: "/mantenimiento" },
           { label: "Comunicados", Icon: Megaphone, href: "/comunicados" },
+          { label: "Reportes", Icon: BarChart3, href: "/reportes" },
           { label: "Configuración", Icon: Settings, href: links.configuracion, match: "/negocio/" },
         ];
 
