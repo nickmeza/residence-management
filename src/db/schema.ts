@@ -157,6 +157,8 @@ export const business = pgTable(
     billingDay: smallint(),
     // Mes incompleto (entra o sale a mitad de mes): true = se cobran solo los días; false = el mes completo.
     prorateRent: boolean().notNull().default(true),
+    // ¿Recibe postulaciones por su enlace público /postular/<id>? Apagado por defecto (Fase 7).
+    acceptsApplications: boolean().notNull().default(false),
   },
   (t) => [
     index("business_owner_id_idx").on(t.ownerId),
@@ -1534,6 +1536,51 @@ export const announcement = pgTable(
     check("announcement_title", sql`length(trim(${t.title})) between 1 and 120`),
     check("announcement_body", sql`length(trim(${t.body})) between 1 and 2000`),
     pgPolicy("announcement_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in ${myBusinessIds}`,
+      withCheck: sql`${t.businessId} in ${myBusinessIds}`,
+    }),
+  ],
+);
+
+// Postulación (RS-03, RS-04, RS-05): alguien que pide un cuarto por el enlace público del negocio. La guarda el
+// servidor (no hay sesión) después de validarla; el arrendador la aprueba (se crea su ficha de residente), la deja en
+// lista de espera o la rechaza.
+export const applicationStatus = pgEnum("application_status", ["new", "waitlist", "approved", "rejected"]);
+
+export const application = pgTable(
+  "application",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => business.id, { onDelete: "cascade" }),
+    fullName: text().notNull(),
+    phone: text().notNull(),
+    email: text(),
+    // Qué busca: cuarto o departamento (vacío = cualquiera).
+    unitType: unitType(),
+    moveInDate: date(),
+    months: smallint(),
+    budget: numeric({ precision: 10, scale: 2 }),
+    // Universidad, trabajo u hospital (lo que lo trae a la ciudad).
+    occupation: text(),
+    message: text(),
+    status: applicationStatus().notNull().default("new"),
+    // Nota del arrendador (por ejemplo, el motivo del rechazo). No la ve el postulante.
+    note: text(),
+    residentId: uuid().references(() => resident.id, { onDelete: "set null" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    reviewedAt: timestamp({ withTimezone: true }),
+  },
+  (t) => [
+    index("application_business_created_idx").on(t.businessId, t.createdAt),
+    check("application_full_name", sql`length(trim(${t.fullName})) between 2 and 120`),
+    check("application_message", sql`${t.message} is null or length(${t.message}) <= 1000`),
+    check("application_months", sql`${t.months} is null or ${t.months} between 1 and 60`),
+    check("application_budget", sql`${t.budget} is null or ${t.budget} >= 0`),
+    pgPolicy("application_landlord_all", {
       for: "all",
       to: authenticatedRole,
       using: sql`${t.businessId} in ${myBusinessIds}`,
