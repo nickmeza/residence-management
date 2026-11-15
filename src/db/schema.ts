@@ -1503,3 +1503,41 @@ export const maintenanceComment = pgTable(
     }),
   ],
 );
+
+// Comunicado del arrendador (CM-01): para todo el negocio, un edificio, un piso o una persona. Se entrega como una
+// notificación a cada destinatario (la ven en la campanita y en "Avisos"); aquí queda el historial de lo enviado.
+export const announcementAudience = pgEnum("announcement_audience", ["all", "property", "floor", "resident"]);
+
+export const announcement = pgTable(
+  "announcement",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => business.id, { onDelete: "cascade" }),
+    audience: announcementAudience().notNull(),
+    propertyId: uuid().references(() => property.id, { onDelete: "set null" }),
+    floorId: uuid().references(() => floor.id, { onDelete: "set null" }),
+    residentId: uuid().references(() => resident.id, { onDelete: "set null" }),
+    title: text().notNull(),
+    body: text().notNull(),
+    urgent: boolean().notNull().default(false),
+    // A cuántas personas les llegó al enviarlo.
+    recipients: integer().notNull().default(0),
+    createdBy: uuid()
+      .notNull()
+      .references(() => person.id, { onDelete: "restrict" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("announcement_business_created_idx").on(t.businessId, t.createdAt),
+    check("announcement_title", sql`length(trim(${t.title})) between 1 and 120`),
+    check("announcement_body", sql`length(trim(${t.body})) between 1 and 2000`),
+    pgPolicy("announcement_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in ${myBusinessIds}`,
+      withCheck: sql`${t.businessId} in ${myBusinessIds}`,
+    }),
+  ],
+);

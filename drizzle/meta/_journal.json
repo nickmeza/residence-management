@@ -155,6 +155,13 @@
       "when": 1794768464173,
       "tag": "0021_mantenimiento",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794768983877,
+      "tag": "0022_comunicados",
+      "breakpoints": true
     }
   ]
 }

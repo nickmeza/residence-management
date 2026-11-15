@@ -4,6 +4,7 @@ import {
   Building2,
   FileText,
   LayoutDashboard,
+  Megaphone,
   Settings,
   ShieldCheck,
   Soup,
@@ -39,6 +40,7 @@ const pensionItems = (links: NavLinks): Item[] => [
   { label: "Panel", Icon: LayoutDashboard, href: "/panel" },
   { label: "Pensión", Icon: Soup, href: links.pension, match: "/pension", except: "/pension/comensales" },
   { label: "Clientes", Icon: Users, href: "/pension/comensales" },
+  { label: "Comunicados", Icon: Megaphone, href: "/comunicados" },
   { label: "Configuración", Icon: Settings, href: links.configuracion, match: "/negocio/" },
 ];
 
@@ -70,6 +72,7 @@ export function SidebarNav({ links, onNavigate }: { links: NavLinks; onNavigate?
             note: links.pension ? undefined : "Solo Pensión",
           },
           { label: "Mantenimiento", Icon: Wrench, href: "/mantenimiento" },
+          { label: "Comunicados", Icon: Megaphone, href: "/comunicados" },
           { label: "Configuración", Icon: Settings, href: links.configuracion, match: "/negocio/" },
         ];
 
