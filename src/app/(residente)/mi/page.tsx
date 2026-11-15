@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 
+import { PendingList } from "@/components/notifications/pending-list";
 import { ReceiptBadge } from "@/components/payments/receipt-badge";
 import { ContactButtons } from "@/components/resident-side/contact-buttons";
 import { FALLBACK_COVER, ResidentHero } from "@/components/resident-side/resident-hero";
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { coverUrl } from "@/server/building/cover";
 import { formatLongDate, limaToday } from "@/server/contracts/dates";
 import { toCents } from "@/server/payments/money";
+import { getMyPending } from "@/server/notifications/pending-queries";
 import { periodLabel } from "@/server/payments/rules";
 import { getMyBilling, type MyBilling } from "@/server/payments/self";
 import { contractHeadline } from "@/server/residents/home";
@@ -214,6 +216,12 @@ function Residence({
   );
 }
 
+// "Pendientes" del residente, solo si hay algo (el inicio aprobado no cambia cuando está al día).
+async function MyPending() {
+  const items = await getMyPending();
+  return items.length ? <PendingList items={items} title="Tienes pendiente" /> : null;
+}
+
 async function Content() {
   const [{ firstName, residences }, billing] = await Promise.all([getMyResidences(), getMyBilling()]);
   const today = limaToday(new Date());
@@ -247,6 +255,9 @@ async function Content() {
             </p>
           </section>
         )}
+        <Suspense fallback={null}>
+          <MyPending />
+        </Suspense>
       </div>
     </>
   );

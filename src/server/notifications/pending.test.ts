@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { landlordPending, residentPending, type LandlordCounts } from "./pending";
+import { businessDaysLeft, landlordPending, residentPending, type LandlordCounts } from "./pending";
 
 const none: LandlordCounts = {
   paymentsToReview: 0,
@@ -59,5 +59,14 @@ describe("residentPending", () => {
   it("cuenta documentos y recibos vencidos", () => {
     const labels = residentPending({ ...base, missingDocuments: 2, overdueReceipts: 1 }).map((i) => i.label);
     expect(labels).toEqual(["Tienes 1 recibo vencido", "Te faltan 2 documentos"]);
+  });
+});
+
+describe("businessDaysLeft", () => {
+  it("cuenta lunes a viernes hasta el plazo, sin contar hoy", () => {
+    // Viernes 13 → martes 17: lunes y martes.
+    expect(businessDaysLeft("2026-11-13", "2026-11-17")).toBe(2);
+    expect(businessDaysLeft("2026-11-17", "2026-11-17")).toBe(0);
+    expect(businessDaysLeft("2026-11-18", "2026-11-17")).toBeNull();
   });
 });

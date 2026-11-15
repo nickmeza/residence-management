@@ -138,3 +138,17 @@ export function residentPending(c: ResidentCounts): PendingItem[] {
   ];
   return items.filter((i): i is PendingItem => i !== false);
 }
+
+// Días hábiles (lunes a viernes) que quedan desde hoy hasta `until` incluido, sin contar hoy. null si ya pasó.
+// Feriados, después (igual que el plazo de reporte de ingreso).
+export function businessDaysLeft(today: string, until: string): number | null {
+  if (until < today) return null;
+  let left = 0;
+  const d = new Date(`${today}T00:00:00Z`);
+  while (d.toISOString().slice(0, 10) < until) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const weekday = d.getUTCDay();
+    if (weekday !== 0 && weekday !== 6) left++;
+  }
+  return left;
+}
