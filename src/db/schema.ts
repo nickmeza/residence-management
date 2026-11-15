@@ -1588,3 +1588,43 @@ export const application = pgTable(
     }),
   ],
 );
+
+// Ingreso y salida de un contrato (CT-06, CT-07, CR-10): la cita para entregar o recibir llaves y el checklist de ese
+// día. Uno de cada tipo por contrato. Las fallas del cuarto las reporta el residente (entry_report) y los daños van en
+// la liquidación de la garantía: aquí queda solo lo de la entrega.
+export const moveKind = pgEnum("move_kind", ["check_in", "check_out"]);
+
+export const moveEvent = pgTable(
+  "move_event",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    contractId: uuid()
+      .notNull()
+      .references(() => contract.id, { onDelete: "cascade" }),
+    kind: moveKind().notNull(),
+    scheduledAt: timestamp({ withTimezone: true }),
+    doneAt: timestamp({ withTimezone: true }),
+    keysCount: smallint(),
+    // Lo marcado del checklist, por clave ("keys", "clean"…). Las claves salen de src/server/moves/rules.ts.
+    checklist: jsonb().$type<Record<string, boolean>>().notNull().default({}),
+    notes: text(),
+    updatedBy: uuid().references(() => person.id, { onDelete: "set null" }),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("move_event_contract_kind_idx").on(t.contractId, t.kind),
+    check("move_event_keys", sql`${t.keysCount} is null or ${t.keysCount} between 0 and 20`),
+    check("move_event_notes", sql`${t.notes} is null or length(${t.notes}) <= 1000`),
+    pgPolicy("move_event_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.contractId} in ${myBusinessContractIds}`,
+      withCheck: sql`${t.contractId} in ${myBusinessContractIds}`,
+    }),
+    pgPolicy("move_event_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.contractId} in ${myOwnContractIds}`,
+    }),
+  ],
+);

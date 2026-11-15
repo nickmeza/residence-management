@@ -2,6 +2,7 @@
 
 import {
   Building2,
+  CalendarClock,
   FileText,
   LayoutDashboard,
   Megaphone,
@@ -63,6 +64,7 @@ export function SidebarNav({ links, onNavigate }: { links: NavLinks; onNavigate?
           },
           { label: "Residentes", Icon: Users, href: "/residentes" },
           { label: "Postulantes", Icon: UserPlus, href: "/postulantes" },
+          { label: "Ingresos y salidas", Icon: CalendarClock, href: "/ingresos" },
           { label: "Contratos", Icon: FileText, href: "/contratos" },
           { label: "Cobros", Icon: Wallet, href: "/cobros" },
           { label: "Garantías", Icon: ShieldCheck, href: "/garantias" },
