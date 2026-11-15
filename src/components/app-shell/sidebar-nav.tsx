@@ -69,7 +69,7 @@ export function SidebarNav({ links, onNavigate }: { links: NavLinks; onNavigate?
             match: "/pension",
             note: links.pension ? undefined : "Solo Pensión",
           },
-          { label: "Mantenimiento", Icon: Wrench, href: null, note: "Pronto" },
+          { label: "Mantenimiento", Icon: Wrench, href: "/mantenimiento" },
           { label: "Configuración", Icon: Settings, href: links.configuracion, match: "/negocio/" },
         ];
 

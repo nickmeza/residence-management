@@ -1333,3 +1333,173 @@ export const pensionPayment = pgTable(
     }),
   ],
 );
+
+// ---------------------------------------------------------------------------------------------------------------
+// Fase 7 · Operación diaria. Catálogo de avisos en docs/notificaciones.md.
+
+// Notificación de la campanita: un aviso personal que crea el sistema cuando algo pasa ("subió un comprobante").
+// Nadie la inserta directo: pasa por las funciones notify_owner y notify_resident de la base (migración 0020), que
+// solo dejan avisar dentro de un mismo negocio (el arrendador a sus residentes y el residente a su arrendador).
+// business_id: de qué negocio viene (para mostrarlo y filtrarlo); link: a dónde lleva al tocarla.
+export const notification = pgTable(
+  "notification",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    personId: uuid()
+      .notNull()
+      .references(() => person.id, { onDelete: "cascade" }),
+    businessId: uuid().references(() => business.id, { onDelete: "cascade" }),
+    // Tipo del catálogo (por ejemplo "payment_proof"); la pantalla elige el ícono con él.
+    type: text().notNull(),
+    title: text().notNull(),
+    body: text(),
+    link: text(),
+    urgent: boolean().notNull().default(false),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    readAt: timestamp({ withTimezone: true }),
+  },
+  (t) => [
+    index("notification_person_created_idx").on(t.personId, t.createdAt),
+    check("notification_title", sql`length(trim(${t.title})) between 1 and 200`),
+    check("notification_body", sql`${t.body} is null or length(${t.body}) <= 2000`),
+    // Solo enlaces dentro de la app ("/cobros/…"), nunca a otro sitio.
+    check("notification_link", sql`${t.link} is null or ${t.link} ~ '^/[^/]'`),
+    pgPolicy("notification_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.personId} in ${myPersonIds}`,
+    }),
+    // Marcar como leída (o no leída).
+    pgPolicy("notification_update_own", {
+      for: "update",
+      to: authenticatedRole,
+      using: sql`${t.personId} in ${myPersonIds}`,
+      withCheck: sql`${t.personId} in ${myPersonIds}`,
+    }),
+    pgPolicy("notification_delete_own", {
+      for: "delete",
+      to: authenticatedRole,
+      using: sql`${t.personId} in ${myPersonIds}`,
+    }),
+  ],
+);
+
+// Mantenimiento (MT-01, MT-02, MT-03, MT-07): un pedido del residente (con foto) o del arrendador. Mientras un pedido
+// con "deja la unidad fuera de servicio" esté abierto o en curso, la unidad se ve "Mantenimiento" (regla de estados).
+export const maintenanceStatus = pgEnum("maintenance_status", ["open", "in_progress", "done", "cancelled"]);
+export const maintenancePriority = pgEnum("maintenance_priority", ["low", "normal", "high", "urgent"]);
+export const maintenanceCategory = pgEnum("maintenance_category", [
+  "plumbing",
+  "electrical",
+  "furniture",
+  "appliance",
+  "internet",
+  "cleaning",
+  "other",
+]);
+
+export const maintenanceRequest = pgTable(
+  "maintenance_request",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => business.id, { onDelete: "cascade" }),
+    // Vacía: un área común (pasillo, azotea…) o algo de todo el edificio.
+    unitId: uuid().references(() => unit.id, { onDelete: "set null" }),
+    // Quién lo pidió, si fue un residente. Vacía: lo creó el arrendador.
+    residentId: uuid().references(() => resident.id, { onDelete: "set null" }),
+    title: text().notNull(),
+    description: text(),
+    category: maintenanceCategory().notNull().default("other"),
+    priority: maintenancePriority().notNull().default("normal"),
+    status: maintenanceStatus().notNull().default("open"),
+    // Foto en el espacio privado "documents": <negocio>/mantenimiento/<id>.<ext>
+    photoPath: text().unique(),
+    // Responsable (texto libre: "Gasfitero Juan", "Yo"). Los usuarios con rol llegan después.
+    assignee: text(),
+    cost: numeric({ precision: 10, scale: 2 }),
+    blocksUnit: boolean().notNull().default(false),
+    reportedBy: uuid()
+      .notNull()
+      .references(() => person.id, { onDelete: "restrict" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp({ withTimezone: true }),
+  },
+  (t) => [
+    index("maintenance_request_business_status_idx").on(t.businessId, t.status),
+    index("maintenance_request_unit_id_idx").on(t.unitId),
+    index("maintenance_request_resident_id_idx").on(t.residentId),
+    check("maintenance_request_title", sql`length(trim(${t.title})) between 1 and 120`),
+    check(
+      "maintenance_request_description",
+      sql`${t.description} is null or length(${t.description}) <= 2000`,
+    ),
+    check("maintenance_request_cost", sql`${t.cost} is null or ${t.cost} >= 0`),
+    check(
+      "maintenance_request_resolved_at",
+      sql`(${t.status} in ('done', 'cancelled')) = (${t.resolvedAt} is not null)`,
+    ),
+    pgPolicy("maintenance_request_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.businessId} in ${myBusinessIds}`,
+      withCheck: sql`${t.businessId} in ${myBusinessIds}`,
+    }),
+    pgPolicy("maintenance_request_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.residentId} in ${myOwnResidentIds}`,
+    }),
+    // El residente pide a su nombre, en su negocio, abierto y sin costo ni responsable; la unidad, si la pone, es la de
+    // uno de sus contratos.
+    pgPolicy("maintenance_request_insert_own", {
+      for: "insert",
+      to: authenticatedRole,
+      withCheck: sql`${t.residentId} in ${myOwnResidentIds} and ${t.reportedBy} in ${myPersonIds}
+        and ${t.businessId} = (select r.business_id from public.resident r where r.id = ${t.residentId})
+        and ${t.status} = 'open' and ${t.cost} is null and ${t.assignee} is null and ${t.blocksUnit} = false
+        and (${t.unitId} is null or ${t.unitId} in (select c.unit_id from public.contract c where c.resident_id = ${t.residentId}))`,
+    }),
+  ],
+);
+
+const myBusinessMaintenanceIds = sql`(select m.id from public.maintenance_request m where m.business_id in ${myBusinessIds})`;
+const myOwnMaintenanceIds = sql`(select m.id from public.maintenance_request m where m.resident_id in ${myOwnResidentIds})`;
+
+// Conversación de un pedido: lo que escriben el arrendador y el residente ("Pasamos el jueves en la tarde").
+export const maintenanceComment = pgTable(
+  "maintenance_comment",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    requestId: uuid()
+      .notNull()
+      .references(() => maintenanceRequest.id, { onDelete: "cascade" }),
+    authorId: uuid()
+      .notNull()
+      .references(() => person.id, { onDelete: "restrict" }),
+    body: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("maintenance_comment_request_id_idx").on(t.requestId),
+    check("maintenance_comment_body", sql`length(trim(${t.body})) between 1 and 1000`),
+    pgPolicy("maintenance_comment_landlord_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.requestId} in ${myBusinessMaintenanceIds}`,
+      withCheck: sql`${t.requestId} in ${myBusinessMaintenanceIds} and ${t.authorId} in ${myPersonIds}`,
+    }),
+    pgPolicy("maintenance_comment_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.requestId} in ${myOwnMaintenanceIds}`,
+    }),
+    pgPolicy("maintenance_comment_insert_own", {
+      for: "insert",
+      to: authenticatedRole,
+      withCheck: sql`${t.requestId} in ${myOwnMaintenanceIds} and ${t.authorId} in ${myPersonIds}`,
+    }),
+  ],
+);

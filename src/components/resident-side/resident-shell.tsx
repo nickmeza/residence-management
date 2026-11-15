@@ -4,7 +4,9 @@ import { Suspense, type ReactNode } from "react";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { initials } from "@/lib/greeting";
+import { getMyNotifications } from "@/server/notifications/queries";
 import { hasMyPension } from "@/server/pension/queries";
 import { getMyShell, type MyShell } from "@/server/residents/self";
 
@@ -80,13 +82,23 @@ async function MobileNav() {
   return <ResidentNav pension={await hasMyPension()} />;
 }
 
+// Campanita del residente (comunicados, pagos, pensión, mantenimiento…). Lee la sesión: va dentro de <Suspense>.
+async function Bell({ align }: { align?: "start" | "end" }) {
+  return <NotificationBell data={await getMyNotifications()} allHref="/mi/avisos" align={align} />;
+}
+
 // Estructura de las pantallas del residente. En escritorio: menú a la izquierda (decisión del dueño).
 // En tablet: barra de arriba con las secciones. En el celular: las secciones abajo, al alcance del pulgar.
 export function ResidentShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-1 bg-background">
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-6 border-r bg-card p-4 lg:flex">
-        <Brand />
+        <div className="flex items-center justify-between gap-2">
+          <Brand />
+          <Suspense fallback={null}>
+            <Bell align="start" />
+          </Suspense>
+        </div>
         <Suspense fallback={<p className="flex-1 px-3 text-sm text-muted-foreground">Cargando…</p>}>
           <Sidebar />
         </Suspense>
@@ -97,6 +109,9 @@ export function ResidentShell({ children }: { children: ReactNode }) {
             <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3 px-4 py-3">
               <span className="font-bold">Mi residencia</span>
               <div className="flex items-center gap-2">
+                <Suspense fallback={null}>
+                  <Bell />
+                </Suspense>
                 <ThemeToggle />
                 <SignOutButton />
               </div>

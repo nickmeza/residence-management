@@ -5,7 +5,9 @@ import { Suspense, type ReactNode } from "react";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { initials } from "@/lib/greeting";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { getShellData } from "@/server/business/current";
+import { getMyNotifications } from "@/server/notifications/queries";
 
 import { MobileNav } from "./mobile-nav";
 import { ShellBusinessSwitcher } from "./shell-business-switcher";
@@ -76,6 +78,9 @@ async function TopBar() {
     <>
       <MobileNav links={linksFor(data)} brand={<Brand />} footer={<UserCard fullName={data.fullName} />} />
       {data.current ? <ShellBusinessSwitcher options={options} currentId={data.current.id} /> : null}
+      <div className="ml-auto">
+        <NotificationBell data={await getMyNotifications()} allHref="/notificaciones" />
+      </div>
     </>
   );
 }

@@ -141,6 +141,20 @@
       "when": 1794765398557,
       "tag": "0019_comprobante_se_confirma_solo",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794768016713,
+      "tag": "0020_notificaciones",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794768464173,
+      "tag": "0021_mantenimiento",
+      "breakpoints": true
     }
   ]
 }

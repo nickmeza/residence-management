@@ -13,6 +13,10 @@ import {
   resident,
 } from "@/db/schema";
 
+import { documentReviewed, documentUploaded } from "@/server/notifications/catalog";
+import { residentInfo } from "@/server/notifications/context";
+import { notifyOwner, notifyResident } from "@/server/notifications/notify";
+
 import { DEFAULT_LIMITS, fileProblem, isPathOf } from "./files";
 import type { RequirementData } from "./schemas";
 
@@ -139,12 +143,14 @@ export async function registerDocument(tx: Tx, input: NewDocument, userId: strin
   }
 
   let limits = DEFAULT_LIMITS;
+  let label = input.kind === "signed_contract" ? "Contrato firmado" : input.fileName;
   if (input.kind === "requirement") {
     // El residente solo ve los requisitos obligatorios y activos (RLS): los demás no los encuentra.
     const [req] = input.requirementId
       ? await tx
           .select({
             businessId: documentRequirement.businessId,
+            name: documentRequirement.name,
             acceptedFormats: documentRequirement.acceptedFormats,
             maxSizeMb: documentRequirement.maxSizeMb,
           })
@@ -154,6 +160,7 @@ export async function registerDocument(tx: Tx, input: NewDocument, userId: strin
       : [];
     if (!req || req.businessId !== card.businessId) throw new DocumentError(NOT_FOUND);
     limits = req;
+    label = req.name;
   } else if (input.requirementId) {
     throw new DocumentError(NOT_FOUND);
   }
@@ -191,6 +198,10 @@ export async function registerDocument(tx: Tx, input: NewDocument, userId: strin
     .insert(document)
     .values({ ...input, uploadedBy: me.id, ...review })
     .returning({ id: document.id });
+  if (!own) {
+    const who = await residentInfo(tx, input.residentId);
+    if (who) await notifyOwner(tx, card.businessId, documentUploaded(who.name, label, input.residentId));
+  }
   return { id: row.id, businessId: card.businessId };
 }
 
@@ -212,7 +223,30 @@ export async function reviewDocument(
       reviewedAt: new Date(),
     })
     .where(eq(document.id, id))
-    .returning({ residentId: document.residentId, contractId: document.contractId });
+    .returning({
+      residentId: document.residentId,
+      contractId: document.contractId,
+      kind: document.kind,
+      fileName: document.fileName,
+      requirementId: document.requirementId,
+    });
   if (!row) throw new DocumentError(NOT_FOUND);
+  const [req] = row.requirementId
+    ? await tx
+        .select({ name: documentRequirement.name })
+        .from(documentRequirement)
+        .where(eq(documentRequirement.id, row.requirementId))
+        .limit(1)
+    : [];
+  const label = req?.name ?? (row.kind === "signed_contract" ? "Contrato firmado" : row.fileName);
+  await notifyResident(
+    tx,
+    row.residentId,
+    documentReviewed(
+      label,
+      decision.status === "verified",
+      decision.status === "rejected" ? decision.reason : null,
+    ),
+  );
   return row;
 }
