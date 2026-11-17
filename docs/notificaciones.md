@@ -79,9 +79,16 @@ dueño lo revise y le agregue filas (2026-11-15).
 | Nueva postulación | Arrendador | No |
 | Un comunicado | Los destinatarios | Si se marcó urgente |
 | Se programó tu ingreso o tu salida | Residente | No |
+| Te escribieron (mensajes) | El otro (arrendador o residente/comensal) | No |
+| Llegó un paquete para ti | Residente | No |
+| Un residente pidió limpieza | Arrendador | No |
+| Tu limpieza tiene fecha, se hizo o se canceló | Residente | No |
+| Recibiste una reseña (sin nombre si es anónima) | Arrendador | No |
 
 Pendientes agregados: pedidos de mantenimiento (los urgentes aparte), postulaciones nuevas, ingresos y salidas de
 los próximos 7 días, contratos esperando la firma; para el residente, liquidación por responder y contrato por firmar.
+Segunda parte (2026-11-17): mensajes sin leer, tareas de mantenimiento o limpieza atrasadas o de la semana, pedidos de
+limpieza sin fecha y unidades por limpiar; para el residente, mensajes nuevos, paquetes por recoger y estadía por calificar.
 
 ## Decidido (Claude, 2026-11-15; el dueño puede cambiarlo)
 

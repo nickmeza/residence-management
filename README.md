@@ -139,6 +139,13 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 7.5 Ingresos y salidas | Migración 0024: `/ingresos` (próximos 30 días y atrasados, salen de las fechas de los contratos) con cita, llaves y checklist |
 | 7.6 Reportes | `/reportes`: ocupación por piso y por mes, facturado, cobrado, por cobrar, mantenimiento, deuda vencida y pensión; descarga CSV para Excel |
 | 7.7 Pruebas | Reglas puras en `src/server/{notifications,maintenance,announcements,applications,moves,reports}` y `tests/db/fase7.test.ts` |
+| 7.8 Mensajes | Migración 0025: tabla `message`, una conversación por ficha. `/mensajes`, `/mensajes/[residente]` y `/mi/mensajes`; también en la Pensión. Avisos a la campanita y "sin leer" en Pendientes |
+| 7.9 Reseñas | Tabla `review` (una por contrato terminado y no renovado). El residente califica en `/mi/contrato`; el arrendador ve promedios en `/reportes/resenas` con la función `business_reviews` (sin nombre ni unidad si es anónima) |
+| 7.10 Visitas y paquetes | Tablas `visit` y `parcel`. `/visitas` (quién entró, a quién visita, "Ya se fue") y `/visitas/paquetes` (al residente le llega un aviso; "Entregado") |
+| 7.11 Proveedores | Tabla `supplier` y `maintenance_request.supplier_id`. `/mantenimiento/proveedores` y su ficha con el historial y lo pagado |
+| 7.12 Preventivo | Tablas `recurring_task` y `task_log`. `/mantenimiento/preventivo`: tareas que se repiten; "Hecho" calcula la próxima fecha. Sus costos suman en Reportes |
+| 7.13 Limpieza | `unit.cleaning_status` (al marcar una salida pasa a "Por limpiar"), tareas de áreas comunes y pedidos del residente (`cleaning_request`, solo si el negocio lo prende). `/mantenimiento/limpieza` y "Pedir limpieza" en `/mi/mantenimiento` |
+| 7.14 Calendario | `/calendario`: ingresos, salidas, cobros, tareas y limpiezas del mes (cuadrícula en escritorio, lista en el celular). No guarda nada propio. Pruebas en `tests/db/fase7b.test.ts` |
 
 ### Pantallas de la app (después de iniciar sesión)
 
@@ -313,3 +320,11 @@ Las dos variables de Supabase también están configuradas en Vercel.
 | 2026-11-15 | Postulantes: enlace público **apagado por defecto**; sin DNI ni documentos; un celular no postula dos veces en 24 h; aprobar **crea la ficha** del residente | Decisión de Claude. La unidad se asigna después con un contrato, como siempre. |
 | 2026-11-15 | Ingresos y salidas salen de las **fechas de los contratos**; solo se guarda la cita y el checklist | Decisión de Claude. Las fallas siguen yendo por el reporte de ingreso y la liquidación. |
 | 2026-11-15 | Reportes en **tablas** con descarga CSV (sin gráficos ni paquetes nuevos) | Decisión de Claude. Los gráficos se pueden sumar en la Fase 9. |
+| 2026-11-17 | **Usuarios y roles** en pausa, muy adelante (como la lavandería) | Decisión del dueño: por ahora hay una sola persona por negocio. |
+| 2026-11-17 | Mensajes: una conversación por ficha; también para los **comensales** de la pensión | Decisión del dueño (aceptó la recomendación). El residente marca como leído con una función de la base para no poder cambiar el texto. |
+| 2026-11-17 | Reseñas: **sin respuesta** del arrendador y **privadas** (no públicas) | Decisión del dueño (recomendación). Si son anónimas, la base nunca le entrega al arrendador el nombre ni la unidad. Públicas sería para Foráneos. |
+| 2026-11-17 | Visitas: **solo el nombre**, sin DNI; el residente no avisa visitas todavía | Decisión del dueño (recomendación). El DNI es un dato sensible. |
+| 2026-11-17 | Tareas que se repiten aparecen en Pendientes **7 días antes**; al marcarlas hechas **mantienen el ritmo** (si tocaban los lunes, siguen los lunes) | Decisión del dueño (7 días) y de Claude (ritmo). Los avisos por correo o WhatsApp en la Fase 8. |
+| 2026-11-17 | Limpieza: **calendario de áreas comunes** (pasillos cada semana…), estado de cada unidad **entre residentes** y **"Pedir limpieza"** del residente solo si el negocio lo prende (apagado por defecto) | Decisión del dueño. **Sin cobro** por ahora (decisión de Claude): si la limpieza se cobra, se suma después al recibo. |
+| 2026-11-17 | Proveedores: borrar uno **no borra sus trabajos**, solo quita su nombre | Decisión de Claude. El responsable en texto libre del pedido sigue existiendo. |
+| 2026-11-17 | Calendario solo para Residencia y **sin datos propios**: sale de contratos, citas, recibos, tareas y limpiezas | CLAUDE.md: lo que se muestra se deriva de lo que ya existe. |

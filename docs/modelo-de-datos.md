@@ -385,3 +385,16 @@ Bitácora (`money_log`): cada cambio en estas tablas y en las de garantía queda
 | postulacion.estado, nota, ficha_id | nueva \| lista de espera \| aprobada \| rechazada, texto, → Ficha | Aprobar crea la ficha. |
 | ingreso_salida.contrato_id, tipo (`move_event`) | → Contrato, ingreso \| salida | Uno de cada tipo por contrato. |
 | ingreso_salida.cita, hecho_en, llaves, checklist, notas | fecha-hora, fecha-hora, entero, lista, texto | |
+| mensaje.ficha_id, autor_id, del_residente, texto, leido_en (`message`) | → Ficha, → Persona, booleano, texto, fecha-hora | Una conversación por ficha (residente o comensal). El residente marca leído con `read_my_messages`. |
+| resena.contrato_id, ficha_id, negocio_id (`review`) | → Contrato (único), → Ficha, → Negocio | Solo de un contrato terminado y no renovado. |
+| resena.cuarto, limpieza, trato, convivencia, pension | entero 1–5 | Pensión opcional. |
+| resena.comentario, recomienda, anonima | texto, booleano, booleano | El arrendador la ve con `business_reviews`: sin nombre ni unidad si es anónima. |
+| visita.negocio_id, ficha_id, nombre, entro, salio, nota (`visit`) | → Negocio, → Ficha (vacía = administración), texto, fecha-hora | Sin DNI. |
+| paquete.negocio_id, ficha_id, descripcion, llego, entregado, recogio (`parcel`) | → Negocio, → Ficha, texto, fecha-hora, texto | Al llegar se le avisa al residente. |
+| proveedor.negocio_id, nombre, oficio, celular, nota (`supplier`) | → Negocio, texto | Historial: pedidos (`maintenance_request.supplier_id`) y tareas hechas. |
+| tarea.negocio_id, tipo, titulo, lugar, edificio_id (`recurring_task`) | → Negocio, mantenimiento | limpieza, texto, → Propiedad | |
+| tarea.cada, periodo, proxima, proveedor_id, activa | entero, día | semana | mes, fecha, → Proveedor, booleano | Al marcarla hecha se calcula la próxima. |
+| tarea_hecha.tarea_id, fecha, costo, proveedor_id, nota (`task_log`) | → Tarea, fecha, S/, → Proveedor, texto | Sus costos suman en Reportes. |
+| unidad.limpieza (`cleaning_status`) | limpio | por limpiar | revisado | Pasa sola a "por limpiar" al marcar hecha una salida. |
+| negocio.recibe_pedidos_de_limpieza (`accepts_cleaning_requests`) | booleano | Apagado por defecto. |
+| pedido_limpieza.negocio_id, ficha_id, unidad_id, nota, prefiere, estado, fecha (`cleaning_request`) | → Negocio, → Ficha, → Unidad, texto, fecha, pedido | con fecha | hecho | cancelado, fecha | Solo si el negocio lo prende (`business_accepts_cleaning`). |
