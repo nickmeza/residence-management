@@ -176,6 +176,13 @@
       "when": 1794770787516,
       "tag": "0024_ingresos_y_salidas",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794953034691,
+      "tag": "0025_fase7_segunda_parte",
+      "breakpoints": true
     }
   ]
 }
