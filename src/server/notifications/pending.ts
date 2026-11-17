@@ -22,10 +22,22 @@ export type LandlordCounts = {
   urgentMaintenance: number;
   newApplications: number;
   upcomingMoves: number;
+  unreadMessages: number;
+  // Tareas que se repiten (mantenimiento o limpieza) atrasadas o de los próximos 7 días.
+  tasksDue: number;
+  tasksLate: number;
+  cleaningRequests: number;
+  dirtyUnits: number;
 };
 
 export function landlordPending(c: LandlordCounts): PendingItem[] {
   const items: (PendingItem | false)[] = [
+    c.unreadMessages > 0 && {
+      key: "messages",
+      label: `${plural(c.unreadMessages, "mensaje", "mensajes")} sin leer`,
+      href: "/mensajes",
+      urgent: false,
+    },
     c.paymentsToReview > 0 && {
       key: "payments",
       label: `${plural(c.paymentsToReview, "comprobante", "comprobantes")} por revisar`,
@@ -60,6 +72,30 @@ export function landlordPending(c: LandlordCounts): PendingItem[] {
       key: "maintenance",
       label: `${plural(c.openMaintenance - c.urgentMaintenance, "pedido", "pedidos")} de mantenimiento sin terminar`,
       href: "/mantenimiento",
+      urgent: false,
+    },
+    c.tasksLate > 0 && {
+      key: "tasks-late",
+      label: `${plural(c.tasksLate, "tarea atrasada", "tareas atrasadas")} de mantenimiento o limpieza`,
+      href: "/calendario",
+      urgent: true,
+    },
+    c.tasksDue - c.tasksLate > 0 && {
+      key: "tasks",
+      label: `${plural(c.tasksDue - c.tasksLate, "tarea", "tareas")} de mantenimiento o limpieza esta semana`,
+      href: "/calendario",
+      urgent: false,
+    },
+    c.cleaningRequests > 0 && {
+      key: "cleaning-requests",
+      label: `${plural(c.cleaningRequests, "pedido", "pedidos")} de limpieza sin fecha`,
+      href: "/mantenimiento/limpieza",
+      urgent: false,
+    },
+    c.dirtyUnits > 0 && {
+      key: "dirty-units",
+      label: `${plural(c.dirtyUnits, "unidad", "unidades")} por limpiar`,
+      href: "/mantenimiento/limpieza",
       urgent: false,
     },
     c.documentsToReview > 0 && {
@@ -97,6 +133,9 @@ export type ResidentCounts = {
   settlementToAnswer: boolean;
   // Días hábiles que le quedan para reportar lo que ya estaba mal al ingresar (null = no aplica o ya cerró).
   entryReportDaysLeft: number | null;
+  unreadMessages: number;
+  parcelsToPickUp: number;
+  reviewsToWrite: number;
 };
 
 export function residentPending(c: ResidentCounts): PendingItem[] {
@@ -118,6 +157,24 @@ export function residentPending(c: ResidentCounts): PendingItem[] {
       label: "Tu contrato está esperando tu firma",
       href: "/mi/contrato",
       urgent: true,
+    },
+    c.unreadMessages > 0 && {
+      key: "messages",
+      label: `Tienes ${plural(c.unreadMessages, "mensaje nuevo", "mensajes nuevos")} de tu residencia`,
+      href: "/mi/mensajes",
+      urgent: false,
+    },
+    c.parcelsToPickUp > 0 && {
+      key: "parcels",
+      label: `Tienes ${plural(c.parcelsToPickUp, "paquete", "paquetes")} por recoger en la administración`,
+      href: "/mi/avisos",
+      urgent: false,
+    },
+    c.reviewsToWrite > 0 && {
+      key: "reviews",
+      label: "Cuéntanos cómo fue tu estadía: califícala",
+      href: "/mi/contrato",
+      urgent: false,
     },
     c.missingDocuments > 0 && {
       key: "documents",

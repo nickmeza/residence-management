@@ -6,6 +6,10 @@ import {
   FileCheck,
   FileText,
   Megaphone,
+  MessageCircle,
+  Package,
+  Sparkles,
+  Star,
   ShieldCheck,
   Soup,
   UserCheck,
@@ -48,6 +52,12 @@ const ICON: Partial<Record<NotificationType, LucideIcon>> = {
   application_received: UserPlus,
   announcement: Megaphone,
   move_scheduled: CalendarClock,
+  message_received: MessageCircle,
+  message_reply: MessageCircle,
+  parcel_received: Package,
+  cleaning_requested: Sparkles,
+  cleaning_update: Sparkles,
+  review_received: Star,
 };
 
 // Un aviso de la campanita o de la página de notificaciones. Al tocarlo se marca como leído y lleva a su pantalla.

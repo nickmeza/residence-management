@@ -16,6 +16,9 @@ export type NotificationType =
   | "maintenance_request"
   | "maintenance_comment"
   | "application_received"
+  | "message_received"
+  | "cleaning_requested"
+  | "review_received"
   // Al residente (o comensal)
   | "document_reviewed"
   | "contract_to_sign"
@@ -28,7 +31,10 @@ export type NotificationType =
   | "pension_payment_reviewed"
   | "maintenance_update"
   | "announcement"
-  | "move_scheduled";
+  | "move_scheduled"
+  | "message_reply"
+  | "parcel_received"
+  | "cleaning_update";
 
 export type NotificationDraft = {
   type: NotificationType;
@@ -275,5 +281,65 @@ export const moveScheduled = (kind: "check_in" | "check_out", when: string): Not
   title: kind === "check_in" ? "Se programó tu ingreso" : "Se programó tu salida",
   body: when,
   link: "/mi/contrato",
+  urgent: false,
+});
+
+// --- Fase 7 · Segunda parte ---
+
+// Un residente o comensal escribió a la administración (CM-03).
+export const messageReceived = (name: string, body: string, residentId: string): NotificationDraft => ({
+  type: "message_received",
+  title: `${name} te escribió`,
+  body: firstLine(body),
+  link: `/mensajes/${residentId}`,
+  urgent: false,
+});
+
+export const messageReply = (body: string): NotificationDraft => ({
+  type: "message_reply",
+  title: "Tu residencia te respondió",
+  body: firstLine(body),
+  link: "/mi/mensajes",
+  urgent: false,
+});
+
+export const parcelReceived = (description: string): NotificationDraft => ({
+  type: "parcel_received",
+  title: "Llegó un paquete para ti",
+  body: `${firstLine(description)}. Recógelo en la administración.`,
+  link: "/mi",
+  urgent: false,
+});
+
+export const cleaningRequested = (name: string, unitName: string | null): NotificationDraft => ({
+  type: "cleaning_requested",
+  title: `${name} pidió limpieza${unitName ? ` en ${unitName}` : ""}`,
+  body: "Ponle una fecha en Mantenimiento › Limpieza.",
+  link: "/mantenimiento/limpieza",
+  urgent: false,
+});
+
+export const cleaningUpdate = (
+  status: "scheduled" | "done" | "cancelled",
+  date: string | null,
+): NotificationDraft => ({
+  type: "cleaning_update",
+  title:
+    status === "scheduled"
+      ? `Tu limpieza quedó para el ${date ? formatLongDate(date) : "día que acordaron"}`
+      : status === "done"
+        ? "Tu cuarto ya está limpio"
+        : "Se canceló tu pedido de limpieza",
+  body: null,
+  link: "/mi/mantenimiento",
+  urgent: false,
+});
+
+// Reseña recibida (CR-05). Si es anónima, sin nombre.
+export const reviewReceived = (name: string | null, recommends: boolean): NotificationDraft => ({
+  type: "review_received",
+  title: name ? `${name} dejó una reseña` : "Recibiste una reseña anónima",
+  body: recommends ? "Recomienda tu residencia." : "No recomienda tu residencia. Revisa su comentario.",
+  link: "/reportes/resenas",
   urgent: false,
 });

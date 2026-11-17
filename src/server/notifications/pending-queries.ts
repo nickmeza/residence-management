@@ -1,28 +1,37 @@
 import "server-only";
 
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 
 import { withRls } from "@/db/rls";
 import {
   application,
+  cleaningRequest,
   contract,
   deposit,
   document,
+  floor,
   maintenanceRequest,
+  message,
+  parcel,
   pensionPayment,
   pensionPlan,
   pensionSubscription,
+  property,
+  recurringTask,
   resident,
   settlement,
   settlementDiscount,
+  unit,
 } from "@/db/schema";
 import { getSessionClaims } from "@/server/auth/session";
-import { limaToday } from "@/server/contracts/dates";
+import { addDays, limaToday } from "@/server/contracts/dates";
 import { movesIn } from "@/server/moves/queries";
 import { buildReceipts, loadBusiness } from "@/server/payments/queries";
 import { pendingMovesSoon } from "@/server/moves/rules";
 import { getMyBilling, getMyDeposits } from "@/server/payments/self";
 import { getMyResidences } from "@/server/residents/self";
+import { listMyReviewables } from "@/server/reviews/queries";
+import { DUE_SOON_DAYS } from "@/server/tasks/rules";
 
 import {
   businessDaysLeft,
@@ -44,6 +53,57 @@ async function optional(tx: Tx, query: (sp: Tx) => Promise<number>): Promise<num
   } catch {
     return 0;
   }
+}
+
+// Mensajes de residentes o comensales que el arrendador todavía no leyó.
+function unreadFor(tx: Tx, businessId: string) {
+  return optional(tx, async (sp) => {
+    const [r] = await sp
+      .select({ n: count })
+      .from(message)
+      .innerJoin(resident, eq(resident.id, message.residentId))
+      .where(
+        and(eq(resident.businessId, businessId), eq(message.fromResident, true), isNull(message.readAt)),
+      );
+    return r.n;
+  });
+}
+
+// Tareas que se repiten, limpieza pedida y unidades por limpiar (Fase 7, segunda parte).
+async function operationCounts(tx: Tx, businessId: string, today: string) {
+  const activeTasks = and(eq(recurringTask.businessId, businessId), eq(recurringTask.active, true));
+  // Uno tras otro: cada cuenta va en su propio punto de guardado de la misma transacción.
+  const tasksDue = await optional(tx, async (sp) => {
+    const [r] = await sp
+      .select({ n: count })
+      .from(recurringTask)
+      .where(and(activeTasks, lte(recurringTask.nextDue, addDays(today, DUE_SOON_DAYS))));
+    return r.n;
+  });
+  const tasksLate = await optional(tx, async (sp) => {
+    const [r] = await sp
+      .select({ n: count })
+      .from(recurringTask)
+      .where(and(activeTasks, sql`${recurringTask.nextDue} < ${today}`));
+    return r.n;
+  });
+  const cleaningRequests = await optional(tx, async (sp) => {
+    const [r] = await sp
+      .select({ n: count })
+      .from(cleaningRequest)
+      .where(and(eq(cleaningRequest.businessId, businessId), eq(cleaningRequest.status, "requested")));
+    return r.n;
+  });
+  const dirtyUnits = await optional(tx, async (sp) => {
+    const [r] = await sp
+      .select({ n: count })
+      .from(unit)
+      .innerJoin(floor, eq(floor.id, unit.floorId))
+      .innerJoin(property, eq(property.id, floor.propertyId))
+      .where(and(eq(property.businessId, businessId), eq(unit.cleaningStatus, "dirty")));
+    return r.n;
+  });
+  return { tasksDue, tasksLate, cleaningRequests, dirtyUnits };
 }
 
 async function residenceCounts(tx: Tx, businessId: string): Promise<Partial<LandlordCounts>> {
@@ -111,6 +171,8 @@ async function residenceCounts(tx: Tx, businessId: string): Promise<Partial<Land
     urgentMaintenance,
     newApplications,
     upcomingMoves: pendingMovesSoon(await movesIn(tx, businessId), today),
+    unreadMessages: await unreadFor(tx, businessId),
+    ...(await operationCounts(tx, businessId, today)),
   };
 }
 
@@ -121,7 +183,7 @@ async function pensionCounts(tx: Tx, businessId: string): Promise<Partial<Landlo
     .innerJoin(pensionSubscription, eq(pensionSubscription.id, pensionPayment.subscriptionId))
     .innerJoin(pensionPlan, eq(pensionPlan.id, pensionSubscription.planId))
     .where(and(eq(pensionPlan.businessId, businessId), eq(pensionPayment.status, "in_review")));
-  return { pensionProofs: r.n };
+  return { pensionProofs: r.n, unreadMessages: await unreadFor(tx, businessId) };
 }
 
 const ZERO: LandlordCounts = {
@@ -135,6 +197,11 @@ const ZERO: LandlordCounts = {
   urgentMaintenance: 0,
   newApplications: 0,
   upcomingMoves: 0,
+  unreadMessages: 0,
+  tasksDue: 0,
+  tasksLate: 0,
+  cleaningRequests: 0,
+  dirtyUnits: 0,
 };
 
 // "Pendientes" del Panel (DB-01, DB-03) para el negocio elegido arriba.
@@ -151,10 +218,12 @@ export async function getLandlordPending(
 
 // "Pendientes" del inicio del residente, sumando todas sus residencias.
 export async function getMyPending(): Promise<PendingItem[]> {
-  const [{ residences }, billing, deposits] = await Promise.all([
+  const [{ residences }, billing, deposits, reviewables, mine] = await Promise.all([
     getMyResidences(),
     getMyBilling(),
     getMyDeposits(),
+    listMyReviewables().catch(() => []),
+    myMessagesAndParcels(),
   ]);
   const today = limaToday(new Date());
   const reportDays = deposits
@@ -168,5 +237,36 @@ export async function getMyPending(): Promise<PendingItem[]> {
       ({ deposit: d }) => d?.settlement?.status === "sent" && d.settlement.acceptedAt === null,
     ),
     entryReportDaysLeft: reportDays.length ? Math.min(...reportDays) : null,
+    unreadMessages: mine.unreadMessages,
+    parcelsToPickUp: mine.parcels,
+    reviewsToWrite: reviewables.length,
+  });
+}
+
+// Mensajes sin leer de su residencia y paquetes por recoger, de todas sus fichas.
+async function myMessagesAndParcels(): Promise<{ unreadMessages: number; parcels: number }> {
+  const claims = await getSessionClaims();
+  return withRls(claims, async (tx) => {
+    const cards = tx
+      .select({ id: resident.id })
+      .from(resident)
+      .where(sql`${resident.personId} in (select id from public.person where user_id = ${claims.sub})`);
+    const unreadMessages = await optional(tx, async (sp) => {
+      const [r] = await sp
+        .select({ n: count })
+        .from(message)
+        .where(
+          and(inArray(message.residentId, cards), eq(message.fromResident, false), isNull(message.readAt)),
+        );
+      return r.n;
+    });
+    const parcels = await optional(tx, async (sp) => {
+      const [r] = await sp
+        .select({ n: count })
+        .from(parcel)
+        .where(and(inArray(parcel.residentId, cards), isNull(parcel.deliveredAt)));
+      return r.n;
+    });
+    return { unreadMessages, parcels };
   });
 }

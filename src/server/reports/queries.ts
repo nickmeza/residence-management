@@ -7,6 +7,8 @@ import {
   business,
   floor,
   maintenanceRequest,
+  recurringTask,
+  taskLog,
   pensionPayment,
   pensionPlan,
   pensionSubscription,
@@ -52,11 +54,12 @@ export type PensionReport = {
   monthly: { period: string; collected: string; diners: number }[];
 };
 
-// Costo de mantenimiento por mes (pedidos resueltos). Sin la migración 0021, no hay costos.
+// Costo de mantenimiento por mes: pedidos resueltos y tareas que se repiten (preventivo y limpieza). Sin las
+// migraciones 0021 y 0025, no hay costos.
 async function maintenanceCosts(tx: Tx, businessId: string) {
   try {
-    const rows = await tx.transaction((sp) =>
-      sp
+    const [rows, tasks] = await tx.transaction(async (sp) => [
+      await sp
         .select({ cost: maintenanceRequest.cost, resolvedAt: maintenanceRequest.resolvedAt })
         .from(maintenanceRequest)
         .where(
@@ -66,8 +69,16 @@ async function maintenanceCosts(tx: Tx, businessId: string) {
             isNotNull(maintenanceRequest.cost),
           ),
         ),
-    );
-    return rows.map((r) => ({ period: periodOf(limaToday(r.resolvedAt!)), amount: r.cost! }));
+      await sp
+        .select({ cost: taskLog.cost, doneOn: taskLog.doneOn })
+        .from(taskLog)
+        .innerJoin(recurringTask, eq(recurringTask.id, taskLog.taskId))
+        .where(and(eq(recurringTask.businessId, businessId), isNotNull(taskLog.cost))),
+    ]);
+    return [
+      ...rows.map((r) => ({ period: periodOf(limaToday(r.resolvedAt!)), amount: r.cost! })),
+      ...tasks.map((t) => ({ period: periodOf(t.doneOn), amount: t.cost! })),
+    ];
   } catch {
     return [];
   }

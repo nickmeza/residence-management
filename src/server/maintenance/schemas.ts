@@ -53,6 +53,7 @@ export const requestUpdateSchema = z.object({
   status: z.enum(STATUS_VALUES),
   priority: z.enum(PRIORITY_VALUES),
   assignee,
+  supplierId: z.uuid().nullable(),
   cost: z.union([z.literal("").transform(() => null), money]),
   blocksUnit: z.boolean(),
 });

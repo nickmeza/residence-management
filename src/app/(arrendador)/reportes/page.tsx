@@ -2,6 +2,7 @@ import { Download } from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 
+import { REPORT_TABS, SectionTabs } from "@/components/section-tabs";
 import { buttonVariants } from "@/components/ui/button";
 import { formatSoles } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -153,6 +154,7 @@ export default function ReportsPage() {
   return (
     <>
       <h1 className="text-[34px] font-bold tracking-tight">Reportes</h1>
+      <SectionTabs tabs={REPORT_TABS} current="numeros" label="Secciones de reportes" />
       <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
         <Content />
       </Suspense>

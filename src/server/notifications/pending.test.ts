@@ -13,6 +13,11 @@ const none: LandlordCounts = {
   urgentMaintenance: 0,
   newApplications: 0,
   upcomingMoves: 0,
+  unreadMessages: 0,
+  tasksDue: 0,
+  tasksLate: 0,
+  cleaningRequests: 0,
+  dirtyUnits: 0,
 };
 
 describe("landlordPending", () => {
@@ -33,6 +38,16 @@ describe("landlordPending", () => {
       "3 pedidos de mantenimiento sin terminar",
     ]);
   });
+
+  it("separa las tareas atrasadas de las de esta semana", () => {
+    const items = landlordPending({ ...none, tasksDue: 3, tasksLate: 1, dirtyUnits: 2 });
+    expect(items.map((i) => i.label)).toEqual([
+      "1 tarea atrasada de mantenimiento o limpieza",
+      "2 tareas de mantenimiento o limpieza esta semana",
+      "2 unidades por limpiar",
+    ]);
+    expect(items[0].urgent).toBe(true);
+  });
 });
 
 describe("residentPending", () => {
@@ -42,6 +57,9 @@ describe("residentPending", () => {
     contractToSign: false,
     settlementToAnswer: false,
     entryReportDaysLeft: null,
+    unreadMessages: 0,
+    parcelsToPickUp: 0,
+    reviewsToWrite: 0,
   };
 
   it("sin nada pendiente no muestra nada", () => {

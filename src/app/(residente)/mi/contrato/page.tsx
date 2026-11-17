@@ -3,12 +3,14 @@ import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 
 import { UploadedList } from "@/components/documents/uploaded-list";
+import { ReviewForm } from "@/components/reviews/review-form";
 import { ContractPhaseBadge } from "@/components/residents/badges";
 import { buttonVariants } from "@/components/ui/button";
 import { formatSoles } from "@/lib/format";
 import { formatLongDate } from "@/server/contracts/dates";
 import { PAPERWORK_LABEL } from "@/server/contracts/schemas";
 import { getMyResidences } from "@/server/residents/self";
+import { listMyReviewables } from "@/server/reviews/queries";
 
 export const metadata: Metadata = { title: "Mi contrato · Mi residencia" };
 
@@ -22,11 +24,29 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
 }
 
 async function Content() {
-  const { residences } = await getMyResidences();
+  const [{ residences }, reviewables] = await Promise.all([getMyResidences(), listMyReviewables()]);
   const withContract = residences.filter((r) => r.contract);
   return (
     <>
       <h1 className="text-2xl font-bold">Mi contrato</h1>
+      {reviewables.map((r) => (
+        <section
+          key={r.contractId}
+          className="flex flex-col gap-3 rounded-xl border bg-card p-5 shadow-card"
+          aria-labelledby={`calificar-${r.contractId}`}
+        >
+          <div className="flex flex-col gap-0.5">
+            <h2 id={`calificar-${r.contractId}`} className="text-lg font-bold">
+              Califica tu estadía en {r.businessName}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Del {formatLongDate(r.startDate)} al {formatLongDate(r.endDate)}. Solo se puede calificar una
+              vez.
+            </p>
+          </div>
+          <ReviewForm contractId={r.contractId} />
+        </section>
+      ))}
       {withContract.length === 0 ? (
         <p className="text-muted-foreground">Todavía no tienes un contrato con tu residencia.</p>
       ) : null}

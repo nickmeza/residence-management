@@ -10,6 +10,7 @@ import { RequestEditor } from "@/components/maintenance/request-editor";
 import { formatSoles } from "@/lib/format";
 import { getRequest } from "@/server/maintenance/queries";
 import { CATEGORY_LABEL } from "@/server/maintenance/rules";
+import { getSupplierOptions } from "@/server/tasks/queries";
 
 export const metadata: Metadata = { title: "Pedido de mantenimiento · Gestión de residencias" };
 
@@ -36,6 +37,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const r = await getRequest(id);
   if (!r) notFound();
+  const suppliers = await getSupplierOptions(r.businessId);
   const now = new Date();
   return (
     <>
@@ -111,7 +113,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
           <h2 id="seguimiento" className="text-lg font-bold">
             Seguimiento
           </h2>
-          <RequestEditor r={r} />
+          <RequestEditor r={r} suppliers={suppliers} />
         </section>
       </div>
     </>

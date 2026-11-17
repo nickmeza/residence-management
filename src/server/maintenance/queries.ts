@@ -75,6 +75,7 @@ export type RequestComment = { id: string; authorName: string; mine: boolean; bo
 
 export type RequestDetail = RequestRow & {
   businessId: string;
+  supplierId: string | null;
   description: string | null;
   cost: string | null;
   hasPhoto: boolean;
@@ -130,6 +131,7 @@ export async function getRequest(id: string): Promise<RequestDetail | null> {
         residentId: maintenanceRequest.residentId,
         residentName: person.fullName,
         assignee: maintenanceRequest.assignee,
+        supplierId: maintenanceRequest.supplierId,
         cost: maintenanceRequest.cost,
         blocksUnit: maintenanceRequest.blocksUnit,
         photoPath: maintenanceRequest.photoPath,

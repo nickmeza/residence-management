@@ -152,6 +152,7 @@ describe("mantenimiento (Fase 7.2)", () => {
         assignee: "Gasfitero",
         cost: "80",
         blocksUnit: false,
+        supplierId: null,
       });
       // Un pedido resuelto no se vuelve a abrir.
       await expect(
@@ -161,6 +162,7 @@ describe("mantenimiento (Fase 7.2)", () => {
           assignee: null,
           cost: null,
           blocksUnit: false,
+          supplierId: null,
         }),
       ).rejects.toBeInstanceOf(MaintenanceError);
       await actAs(tx, RESIDENT);

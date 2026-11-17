@@ -23,12 +23,19 @@ import {
 
 // Estado, prioridad, responsable, costo y "fuera de servicio" de un pedido (MT-03). Un pedido cerrado (resuelto o
 // cancelado) ya no cambia de estado: si vuelve a fallar, se crea uno nuevo.
-export function RequestEditor({ r }: { r: RequestDetail }) {
+export function RequestEditor({
+  r,
+  suppliers,
+}: {
+  r: RequestDetail;
+  suppliers: { id: string; name: string }[];
+}) {
   const router = useRouter();
   const [form, setForm] = useState({
     status: r.status,
     priority: r.priority,
     assignee: r.assignee ?? "",
+    supplierId: r.supplierId ?? "",
     cost: r.cost ?? "",
     blocksUnit: r.blocksUnit,
   });
@@ -40,7 +47,7 @@ export function RequestEditor({ r }: { r: RequestDetail }) {
 
   const save = () =>
     startTransition(async () => {
-      const result = await updateRequestAction(r.id, form);
+      const result = await updateRequestAction(r.id, { ...form, supplierId: form.supplierId || null });
       if (!result.ok) {
         setErrors(result.fieldErrors ?? {});
         setMessage({ ok: false, text: result.message });
@@ -93,6 +100,23 @@ export function RequestEditor({ r }: { r: RequestDetail }) {
             onChange={(e) => setForm({ ...form, assignee: e.target.value })}
           />
         </Field>
+        {suppliers.length ? (
+          <Field id="proveedor" label="Proveedor" hint="Del directorio de proveedores, para su historial.">
+            <select
+              id="proveedor"
+              className={selectClass}
+              value={form.supplierId}
+              onChange={(e) => setForm({ ...form, supplierId: e.target.value })}
+            >
+              <option value="">Ninguno</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
         <Field
           id="costo"
           label="Costo (S/)"

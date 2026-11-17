@@ -11,6 +11,7 @@ import {
   maintenanceRequest,
   person,
   property,
+  supplier,
   unit,
 } from "@/db/schema";
 import { isFolderPathOf } from "@/server/documents/files";
@@ -133,6 +134,7 @@ async function findRequest(tx: Tx, id: string) {
     .select({
       id: maintenanceRequest.id,
       unitId: maintenanceRequest.unitId,
+      businessId: maintenanceRequest.businessId,
       residentId: maintenanceRequest.residentId,
       title: maintenanceRequest.title,
       status: maintenanceRequest.status,
@@ -154,12 +156,21 @@ export async function updateRequest(tx: Tx, id: string, data: RequestUpdateData)
   const problem = statusProblem(r.status, data.status);
   if (problem) throw new MaintenanceError(problem);
   const closing = isActive(r.status) && !isActive(data.status);
+  if (data.supplierId) {
+    const [s] = await tx
+      .select({ id: supplier.id })
+      .from(supplier)
+      .where(and(eq(supplier.id, data.supplierId), eq(supplier.businessId, r.businessId)))
+      .limit(1);
+    if (!s) throw new MaintenanceError("No encontramos ese proveedor. Recarga la página.");
+  }
   await tx
     .update(maintenanceRequest)
     .set({
       status: data.status,
       priority: data.priority,
       assignee: data.assignee,
+      supplierId: data.supplierId,
       cost: data.cost,
       blocksUnit: r.unitId ? data.blocksUnit : false,
       updatedAt: new Date(),

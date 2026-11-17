@@ -3,7 +3,7 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 
 import type { withRls } from "@/db/rls";
-import { contract, moveEvent, person } from "@/db/schema";
+import { contract, moveEvent, person, unit } from "@/db/schema";
 import { moveScheduled } from "@/server/notifications/catalog";
 import { notifyResident } from "@/server/notifications/notify";
 
@@ -26,7 +26,7 @@ const when = new Intl.DateTimeFormat("es-PE", {
 // Guarda la cita, el checklist y si ya se hizo. Si la cita es nueva o cambió, se le avisa al residente.
 export async function saveMove(tx: Tx, contractId: string, data: MoveData, userId: string) {
   const [c] = await tx
-    .select({ residentId: contract.residentId, status: contract.status })
+    .select({ residentId: contract.residentId, unitId: contract.unitId, status: contract.status })
     .from(contract)
     .where(eq(contract.id, contractId))
     .limit(1);
@@ -54,6 +54,10 @@ export async function saveMove(tx: Tx, contractId: string, data: MoveData, userI
     .insert(moveEvent)
     .values({ contractId, kind: data.kind, ...values })
     .onConflictDoUpdate({ target: [moveEvent.contractId, moveEvent.kind], set: values });
+  // Limpieza (MT-05): al marcar hecha una salida por primera vez, la unidad queda "por limpiar".
+  if (data.kind === "check_out" && data.done && !before?.doneAt) {
+    await tx.update(unit).set({ cleaningStatus: "dirty" }).where(eq(unit.id, c.unitId));
+  }
   const changed = (before?.scheduledAt?.getTime() ?? null) !== (data.scheduledAt?.getTime() ?? null);
   if (data.scheduledAt && changed && !data.done) {
     await notifyResident(tx, c.residentId, moveScheduled(data.kind, when.format(data.scheduledAt)));

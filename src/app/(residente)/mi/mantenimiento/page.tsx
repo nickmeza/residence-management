@@ -2,11 +2,15 @@ import { ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { MyCleaningForm } from "@/components/cleaning/my-cleaning-form";
 import { CommentThread } from "@/components/maintenance/comment-thread";
 import { MaintenanceStatusBadge } from "@/components/maintenance/maintenance-badges";
 import { MyRequestForm } from "@/components/maintenance/my-request-form";
 import { StatusBadge } from "@/components/status-badge";
-import { formatTimeAgo } from "@/lib/format";
+import { formatShortDate, formatTimeAgo } from "@/lib/format";
+import { getMyCleaning } from "@/server/cleaning/queries";
+import { isOpenRequest, REQUEST_LABEL } from "@/server/cleaning/rules";
+import { limaToday } from "@/server/contracts/dates";
 import { listMyRequests } from "@/server/maintenance/queries";
 import { CATEGORY_LABEL, isActive } from "@/server/maintenance/rules";
 import { getMyResidences } from "@/server/residents/self";
@@ -25,6 +29,7 @@ async function Content() {
       contractId: r.contract!.id,
       label: `${r.businessName} · ${r.contract!.unitName}`,
     }));
+  const cleaning = await getMyCleaning(places);
   const now = new Date();
   return (
     <>
@@ -40,6 +45,33 @@ async function Content() {
           </p>
         )}
       </section>
+      {cleaning.places.length ? (
+        <section className={card} aria-labelledby="limpieza">
+          <h2 id="limpieza" className="text-lg font-bold">
+            Pedir limpieza
+          </h2>
+          <MyCleaningForm places={cleaning.places} today={limaToday(now)} />
+          {cleaning.requests.length ? (
+            <ul className="flex flex-col">
+              {cleaning.requests.map((r) => (
+                <li key={r.id} className="flex flex-wrap items-center gap-3 border-t py-2.5 text-sm">
+                  <span className="flex-1">
+                    Pedida {formatTimeAgo(r.createdAt, now)}
+                    {r.scheduledFor && isOpenRequest(r.status)
+                      ? ` · para el ${formatShortDate(r.scheduledFor)}`
+                      : ""}
+                  </span>
+                  <StatusBadge
+                    tone={r.status === "done" ? "ok" : r.status === "cancelled" ? "neutral" : "primary"}
+                  >
+                    {REQUEST_LABEL[r.status]}
+                  </StatusBadge>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
       <section className="flex flex-col gap-3" aria-labelledby="mis-pedidos">
         <h2 id="mis-pedidos" className="text-lg font-bold">
           Mis pedidos

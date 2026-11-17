@@ -1,4 +1,4 @@
-import { Home } from "lucide-react";
+import { Home, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 
@@ -109,6 +109,13 @@ export function ResidentShell({ children }: { children: ReactNode }) {
             <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3 px-4 py-3">
               <span className="font-bold">Mi residencia</span>
               <div className="flex items-center gap-2">
+                <Link
+                  href="/mi/mensajes"
+                  aria-label="Mensajes"
+                  className="flex size-11 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
+                >
+                  <MessageCircle className="size-5" aria-hidden="true" />
+                </Link>
                 <Suspense fallback={null}>
                   <Bell />
                 </Suspense>
