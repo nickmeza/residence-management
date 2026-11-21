@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
+import { DateField } from "@/components/date-field";
+import { SelectField } from "@/components/select-field";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatSoles } from "@/lib/format";
 import { rescheduleDepositAction } from "@/server/deposits/actions";
@@ -108,30 +109,25 @@ export function DepositSchedule({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="deposit-first-due">Vence la primera cuota</Label>
-              <Input
+              <DateField
                 id="deposit-first-due"
-                type="date"
-                className="h-11"
                 min={startDate}
                 value={firstDue}
-                onChange={(e) => setFirstDue(e.target.value)}
+                onValueChange={(v) => setFirstDue(v)}
               />
               {error?.fields.firstDue ? <p className="text-sm text-danger">{error.fields.firstDue}</p> : null}
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="deposit-count">Cuotas</Label>
-              <select
+              <SelectField
                 id="deposit-count"
-                className="h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm"
-                value={count}
-                onChange={(e) => setCount(Number(e.target.value))}
-              >
-                {Array.from({ length: MAX_DEPOSIT_INSTALLMENTS }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>
-                    {n === 1 ? "1 (entera)" : n}
-                  </option>
-                ))}
-              </select>
+                value={String(count)}
+                onValueChange={(v) => setCount(Number(v))}
+                options={Array.from({ length: MAX_DEPOSIT_INSTALLMENTS }, (_, i) => i + 1).map((n) => ({
+                  value: String(n),
+                  label: n === 1 ? "1 (entera)" : String(n),
+                }))}
+              />
             </div>
           </div>
           {preview.length ? (

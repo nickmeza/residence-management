@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
-import { Field, selectClass, textareaClass } from "@/components/form-controls";
+import { DateField } from "@/components/date-field";
+import { Field } from "@/components/form-controls";
+import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { createTaskAction, markTaskDoneAction, updateTaskAction } from "@/server/tasks/actions";
 import type { Option, TaskRow } from "@/server/tasks/queries";
 import { PERIOD_VALUES, type TaskKind, type TaskPeriod } from "@/server/tasks/rules";
@@ -117,19 +120,15 @@ export function TaskDialog({
             </Field>
             {properties.length > 1 ? (
               <Field id="tarea-edificio" label="Edificio">
-                <select
+                <SelectField
                   id="tarea-edificio"
-                  className={selectClass}
                   value={form.propertyId}
-                  onChange={(e) => set("propertyId", e.target.value)}
-                >
-                  <option value="">Todos</option>
-                  {properties.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(v) => set("propertyId", v)}
+                  options={[
+                    { value: "", label: "Todos" },
+                    ...properties.map((p) => ({ value: p.id, label: p.name })),
+                  ]}
+                />
               </Field>
             ) : null}
           </div>
@@ -147,52 +146,40 @@ export function TaskDialog({
               />
             </Field>
             <Field id="tarea-periodo" label="Unidad">
-              <select
+              <SelectField
                 id="tarea-periodo"
-                className={selectClass}
                 value={form.period}
-                onChange={(e) => set("period", e.target.value as TaskPeriod)}
-              >
-                {PERIOD_VALUES.map((p) => (
-                  <option key={p} value={p}>
-                    {PERIOD_WORD[p]}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(v) => set("period", v as TaskPeriod)}
+                options={PERIOD_VALUES.map((p) => ({ value: p, label: PERIOD_WORD[p] }))}
+              />
             </Field>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field id="tarea-fecha" label={task ? "Próxima fecha" : "Primera fecha"} error={errors.nextDue}>
-              <Input
+              <DateField
                 id="tarea-fecha"
-                className="h-11"
-                type="date"
                 value={form.nextDue}
-                onChange={(e) => set("nextDue", e.target.value)}
+                invalid={Boolean(errors.nextDue)}
+                onValueChange={(v) => set("nextDue", v)}
               />
             </Field>
             <Field id="tarea-proveedor" label="Quién la hace (opcional)">
-              <select
+              <SelectField
                 id="tarea-proveedor"
-                className={selectClass}
                 value={form.supplierId}
-                onChange={(e) => set("supplierId", e.target.value)}
-              >
-                <option value="">Yo / sin proveedor</option>
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(v) => set("supplierId", v)}
+                options={[
+                  { value: "", label: "Yo / sin proveedor" },
+                  ...suppliers.map((s) => ({ value: s.id, label: s.name })),
+                ]}
+              />
             </Field>
           </div>
           <Field id="tarea-notas" label="Notas (opcional)" error={errors.notes}>
-            <textarea
+            <Textarea
               id="tarea-notas"
               rows={2}
               maxLength={1000}
-              className={textareaClass}
               value={form.notes}
               onChange={(e) => set("notes", e.target.value)}
             />
@@ -255,13 +242,12 @@ export function DoneDialog({
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-4">
               <Field id="hecho-fecha" label="Cuándo" error={errors.doneOn}>
-                <Input
+                <DateField
                   id="hecho-fecha"
-                  className="h-11"
-                  type="date"
                   max={today}
                   value={form.doneOn}
-                  onChange={(e) => setForm((f) => ({ ...f, doneOn: e.target.value }))}
+                  invalid={Boolean(errors.doneOn)}
+                  onValueChange={(v) => setForm((f) => ({ ...f, doneOn: v }))}
                 />
               </Field>
               <Field id="hecho-costo" label="Costo S/ (opcional)" error={errors.cost}>
@@ -276,19 +262,15 @@ export function DoneDialog({
               </Field>
             </div>
             <Field id="hecho-proveedor" label="Quién la hizo">
-              <select
+              <SelectField
                 id="hecho-proveedor"
-                className={selectClass}
                 value={form.supplierId}
-                onChange={(e) => setForm((f) => ({ ...f, supplierId: e.target.value }))}
-              >
-                <option value="">Yo / sin proveedor</option>
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(v) => setForm((f) => ({ ...f, supplierId: v }))}
+                options={[
+                  { value: "", label: "Yo / sin proveedor" },
+                  ...suppliers.map((s) => ({ value: s.id, label: s.name })),
+                ]}
+              />
             </Field>
             <Field id="hecho-nota" label="Nota (opcional)" error={errors.note}>
               <Input

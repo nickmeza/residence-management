@@ -4,12 +4,17 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
-import { Field, textareaClass } from "@/components/form-controls";
+import { DateField } from "@/components/date-field";
+import { Field } from "@/components/form-controls";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { saveMoveAction } from "@/server/moves/actions";
 import { CHECKLIST, type MoveKind } from "@/server/moves/rules";
+
+// Hora que se pone al elegir el día de la cita (se cambia al lado).
+const DEFAULT_TIME = "09:00";
 
 // Cita, llaves, checklist y notas de un ingreso o una salida. "scheduledAt" llega como "AAAA-MM-DDTHH:MM" en hora de
 // Lima (lo arma la página en el servidor).
@@ -59,13 +64,34 @@ export function MoveForm({
           hint="Al guardarla, le llega un aviso al residente."
           error={errors.scheduledAt}
         >
-          <Input
-            id="cita"
-            type="datetime-local"
-            className="h-11"
-            value={form.scheduledAt}
-            onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
-          />
+          {/* El día con el calendario y la hora aparte; juntos forman "AAAA-MM-DDTHH:MM". */}
+          <div className="flex gap-2">
+            <DateField
+              id="cita"
+              className="flex-1"
+              clearable
+              value={form.scheduledAt.slice(0, 10)}
+              onValueChange={(day) =>
+                setForm({
+                  ...form,
+                  scheduledAt: day ? `${day}T${form.scheduledAt.slice(11, 16) || DEFAULT_TIME}` : "",
+                })
+              }
+            />
+            <Input
+              type="time"
+              aria-label="Hora de la cita"
+              className="h-11 w-32"
+              disabled={!form.scheduledAt}
+              value={form.scheduledAt.slice(11, 16)}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  scheduledAt: `${form.scheduledAt.slice(0, 10)}T${e.target.value || DEFAULT_TIME}`,
+                })
+              }
+            />
+          </div>
         </Field>
         <Field
           id="llaves"
@@ -97,11 +123,10 @@ export function MoveForm({
         ))}
       </fieldset>
       <Field id="notas" label="Notas (opcional)" error={errors.notes}>
-        <textarea
+        <Textarea
           id="notas"
           rows={3}
           maxLength={1000}
-          className={textareaClass}
           value={form.notes}
           placeholder="Por ejemplo: se le dio el control del portón."
           onChange={(e) => setForm({ ...form, notes: e.target.value })}

@@ -6,9 +6,12 @@ import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
 import { ConfirmButton } from "@/components/confirm-button";
+import { DateField } from "@/components/date-field";
 import { FileField } from "@/components/payments/file-field";
+import { SelectField } from "@/components/select-field";
 import { StatusBadge } from "@/components/status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -38,7 +41,6 @@ import type { DepositDetail, DiscountRow } from "@/server/deposits/queries";
 import { AREA_LABEL, INSPECTION_AREAS, type InspectionArea } from "@/server/deposits/rules";
 import { METHOD_LABEL, type DiscountInput, type RefundInput } from "@/server/payments/schemas";
 
-const selectClass = "h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm";
 const card = "rounded-xl border bg-card p-5 shadow-card sm:p-6";
 
 const DISCOUNT_STATUS = {
@@ -432,27 +434,22 @@ function DiscountDialog({
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="discount-area">Rubro</Label>
-            <select
+            <SelectField
               id="discount-area"
-              className={selectClass}
               value={values.area}
-              onChange={(e) => set({ area: e.target.value as InspectionArea, worseThanEntry: false })}
-            >
-              {INSPECTION_AREAS.map((a) => (
-                <option key={a} value={a}>
-                  {AREA_LABEL[a]}
-                  {reportedAreas.has(a) && a !== "other" ? " (reportado al ingresar)" : ""}
-                </option>
-              ))}
-            </select>
+              onValueChange={(v) => set({ area: v as InspectionArea, worseThanEntry: false })}
+              options={INSPECTION_AREAS.map((a) => ({
+                value: a,
+                label: `${AREA_LABEL[a]}${reportedAreas.has(a) && a !== "other" ? " (reportado al ingresar)" : ""}`,
+              }))}
+            />
           </div>
           {reported ? (
             <label className="flex min-h-11 items-start gap-3 rounded-lg bg-warn-soft p-3 text-sm text-warn">
-              <input
-                type="checkbox"
-                className="mt-0.5 size-5 accent-primary"
+              <Checkbox
+                className="mt-0.5"
                 checked={values.worseThanEntry}
-                onChange={(e) => set({ worseThanEntry: e.target.checked })}
+                onCheckedChange={(checked) => set({ worseThanEntry: checked })}
               />
               <span>
                 El residente reportó este rubro al ingresar. Solo se descuenta si{" "}
@@ -626,28 +623,19 @@ function RefundForm({ detail, max }: { detail: DepositDetail; max: string }) {
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="refund-method">Método</Label>
-          <select
+          <SelectField
             id="refund-method"
-            className={selectClass}
             value={values.method}
-            onChange={(e) => set({ method: e.target.value as RefundInput["method"] })}
-          >
-            {(["yape", "plin", "transfer", "cash"] as const).map((m) => (
-              <option key={m} value={m}>
-                {METHOD_LABEL[m]}
-              </option>
-            ))}
-          </select>
+            onValueChange={(v) => set({ method: v as RefundInput["method"] })}
+            options={(["yape", "plin", "transfer", "cash"] as const).map((m) => ({
+              value: m,
+              label: METHOD_LABEL[m],
+            }))}
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="refund-date">Fecha de devolución</Label>
-          <Input
-            id="refund-date"
-            type="date"
-            className="h-11"
-            value={values.paidOn}
-            onChange={(e) => set({ paidOn: e.target.value })}
-          />
+          <DateField id="refund-date" value={values.paidOn} onValueChange={(v) => set({ paidOn: v })} />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="refund-op">N.º de operación (opcional)</Label>

@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
-import { textareaClass } from "@/components/form-controls";
+
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { formatTimeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -86,14 +87,13 @@ export function ChatThread({
         <label htmlFor={inputId} className="sr-only">
           Escribe un mensaje
         </label>
-        <textarea
+        <Textarea
           id={inputId}
           rows={3}
           maxLength={2000}
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder="Escribe un mensaje"
-          className={textareaClass}
         />
         <FormMessage message={error} />
         <Button type="button" className="h-11 self-end" disabled={pending || !body.trim()} onClick={send}>

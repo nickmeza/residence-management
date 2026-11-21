@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
-import { Field, textareaClass } from "@/components/form-controls";
+import { Field } from "@/components/form-controls";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { submitReviewAction } from "@/server/reviews/actions";
 import { RUBRICS, type RubricKey } from "@/server/reviews/rules";
@@ -112,14 +113,13 @@ export function ReviewForm({ contractId }: { contractId: string }) {
         </div>
       </fieldset>
       <Field id={`comentario-${contractId}`} label="Comentario (opcional)">
-        <textarea
+        <Textarea
           id={`comentario-${contractId}`}
           rows={3}
           maxLength={1000}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           placeholder="¿Qué te gustó y qué mejorarías?"
-          className={textareaClass}
         />
       </Field>
       <label className="flex min-h-11 items-start gap-3 text-sm">

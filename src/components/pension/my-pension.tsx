@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
+import { DateField } from "@/components/date-field";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatShortDate, formatSoles } from "@/lib/format";
 import { cancelMyMealAction, pauseMyPensionAction, type PensionResult } from "@/server/pension/actions";
@@ -227,22 +227,18 @@ function Pension({ p, today }: { p: MyPension; today: string }) {
           >
             <div className="flex flex-col gap-1.5">
               <Label htmlFor={`pf-${p.residentId}`}>Desde</Label>
-              <Input
+              <DateField
                 id={`pf-${p.residentId}`}
-                className="h-11"
-                type="date"
                 value={range.fromDate}
-                onChange={(e) => setRange({ ...range, fromDate: e.target.value })}
+                onValueChange={(v) => setRange({ ...range, fromDate: v })}
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor={`pt-${p.residentId}`}>Hasta</Label>
-              <Input
+              <DateField
                 id={`pt-${p.residentId}`}
-                className="h-11"
-                type="date"
                 value={range.toDate}
-                onChange={(e) => setRange({ ...range, toDate: e.target.value })}
+                onValueChange={(v) => setRange({ ...range, toDate: v })}
               />
             </div>
             <Button type="submit" variant="outline" className="h-11" disabled={pending}>

@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
+import { DateField } from "@/components/date-field";
+import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,8 +14,6 @@ import { registerPaymentAction, submitProofAction } from "@/server/payments/acti
 import { METHOD_LABEL, PAYMENT_METHODS, type PaymentInput } from "@/server/payments/schemas";
 
 import { FileField } from "./file-field";
-
-const selectClass = "h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm";
 
 type Method = (typeof PAYMENT_METHODS)[number];
 
@@ -95,23 +95,17 @@ export function PaymentForm({
       {residents ? (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={id("resident")}>Residente</Label>
-          <select
+          <SelectField
             id={id("resident")}
-            className={selectClass}
             value={values.residentId}
-            onChange={(e) => {
-              const chosen = residents.find((r) => r.id === e.target.value);
+            placeholder="Elige al residente"
+            options={residents.map((r) => ({ value: r.id, label: r.label }))}
+            onValueChange={(residentId) => {
+              const chosen = residents.find((r) => r.id === residentId);
               setFile(null);
-              set({ residentId: e.target.value, amount: chosen?.balance ?? values.amount });
+              set({ residentId, amount: chosen?.balance ?? values.amount });
             }}
-          >
-            <option value="">Elige al residente</option>
-            {residents.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.label}
-              </option>
-            ))}
-          </select>
+          />
           {field("residentId")}
         </div>
       ) : null}
@@ -129,30 +123,18 @@ export function PaymentForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={id("method")}>Método</Label>
-          <select
+          <SelectField
             id={id("method")}
-            className={selectClass}
             value={values.method}
-            onChange={(e) => set({ method: e.target.value as Method })}
-          >
-            {methods.map((m) => (
-              <option key={m} value={m}>
-                {METHOD_LABEL[m]}
-              </option>
-            ))}
-          </select>
+            onValueChange={(v) => set({ method: v as Method })}
+            options={methods.map((m) => ({ value: m, label: METHOD_LABEL[m] }))}
+          />
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={id("paidOn")}>Fecha de pago</Label>
-          <Input
-            id={id("paidOn")}
-            type="date"
-            className="h-11"
-            value={values.paidOn}
-            onChange={(e) => set({ paidOn: e.target.value })}
-          />
+          <DateField id={id("paidOn")} value={values.paidOn} onValueChange={(v) => set({ paidOn: v })} />
           {field("paidOn")}
         </div>
         <div className="flex flex-col gap-1.5">

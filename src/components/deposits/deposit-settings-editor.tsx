@@ -6,8 +6,10 @@ import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
 import { ConfirmButton } from "@/components/confirm-button";
+import { SelectField } from "@/components/select-field";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -36,7 +38,6 @@ import {
 import { METHOD_LABEL, PAYMENT_METHODS } from "@/server/payments/schemas";
 
 const RULES: DepositRule[] = ["none", "one_month", "two_months", "fixed"];
-const selectClass = "h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm";
 const card = "rounded-xl border bg-card p-5 shadow-card sm:p-6";
 
 type Values = DepositSettingsView["values"];
@@ -260,15 +261,11 @@ export function DepositSettingsEditor({
             <div className="flex flex-wrap gap-x-5">
               {INSPECTION_AREAS.filter((a) => a !== "other").map((a) => (
                 <label key={a} className="flex min-h-11 items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="size-5 accent-primary"
+                  <Checkbox
                     checked={values.covers.includes(a)}
-                    onChange={(e) =>
+                    onCheckedChange={(checked) =>
                       set({
-                        covers: e.target.checked
-                          ? [...values.covers, a]
-                          : values.covers.filter((x) => x !== a),
+                        covers: checked ? [...values.covers, a] : values.covers.filter((x) => x !== a),
                       })
                     }
                   />
@@ -293,13 +290,11 @@ export function DepositSettingsEditor({
             <div className="flex flex-wrap gap-x-5">
               {PAYMENT_METHODS.filter((m) => m !== "card").map((m) => (
                 <label key={m} className="flex min-h-11 items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="size-5 accent-primary"
+                  <Checkbox
                     checked={values.refundMethods.includes(m)}
-                    onChange={(e) =>
+                    onCheckedChange={(checked) =>
                       set({
-                        refundMethods: e.target.checked
+                        refundMethods: checked
                           ? [...values.refundMethods, m]
                           : values.refundMethods.filter((x) => x !== m),
                       })
@@ -416,19 +411,13 @@ export function DepositSettingsEditor({
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="exception-unit">Unidad</Label>
-                <select
+                <SelectField
                   id="exception-unit"
-                  className={selectClass}
                   value={exception.unitId}
-                  onChange={(e) => setException({ ...exception, unitId: e.target.value })}
-                >
-                  <option value="">Elige la unidad</option>
-                  {view.units.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.label}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(v) => setException({ ...exception, unitId: v })}
+                  placeholder="Elige la unidad"
+                  options={view.units.map((u) => ({ value: u.id, label: u.label }))}
+                />
               </div>
               <Chips
                 options={RULES}

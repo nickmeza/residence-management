@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
-import { Field, selectClass } from "@/components/form-controls";
+import { DateField } from "@/components/date-field";
+import { Field } from "@/components/form-controls";
+import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { requestCleaningAction } from "@/server/cleaning/actions";
@@ -39,29 +41,22 @@ export function MyCleaningForm({ places, today }: { places: MyCleaningPlace[]; t
     <div className="flex flex-col gap-4">
       {places.length > 1 ? (
         <Field id="limpieza-donde" label="Dónde">
-          <select
+          <SelectField
             id="limpieza-donde"
-            className={selectClass}
-            value={place}
-            onChange={(e) => setPlace(Number(e.target.value))}
-          >
-            {places.map((p, i) => (
-              <option key={p.contractId} value={i}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+            value={String(place)}
+            onValueChange={(v) => setPlace(Number(v))}
+            options={places.map((p, i) => ({ value: String(i), label: p.label }))}
+          />
         </Field>
       ) : null}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field id="limpieza-fecha" label="Qué día te queda bien (opcional)">
-          <Input
+          <DateField
             id="limpieza-fecha"
-            type="date"
-            className="h-11"
             min={today}
             value={preferredDate}
-            onChange={(e) => setPreferredDate(e.target.value)}
+            onValueChange={setPreferredDate}
+            clearable
           />
         </Field>
         <Field id="limpieza-nota" label="Nota (opcional)">

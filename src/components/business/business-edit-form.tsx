@@ -8,6 +8,7 @@ import { FormProvider, useForm, useFormContext, useWatch } from "react-hook-form
 import { FormMessage } from "@/components/auth/auth-field";
 import { ChoiceCard, ToggleChip } from "@/components/onboarding/choice-card";
 import { FieldError, FormSection, TextField } from "@/components/onboarding/form-field";
+import { FormSelectField } from "@/components/select-field";
 import { buttonVariants, Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { updateBusiness } from "@/server/business/actions";
@@ -64,7 +65,7 @@ export function BusinessEditForm({
   initial: BusinessForm;
 }) {
   const methods = useForm<BusinessForm>({ defaultValues: initial });
-  const { register, setValue, setError, reset, handleSubmit, formState } = methods;
+  const { setValue, setError, reset, handleSubmit, formState } = methods;
   const kind = useWatch({ control: methods.control, name: "kind" });
   const [message, setMessage] = useState<{ text: string; ok: boolean }>();
   const [pending, startTransition] = useTransition();
@@ -124,17 +125,14 @@ export function BusinessEditForm({
             ) : null}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="billingDay">Día de cobro mensual</Label>
-              <select
+              <FormSelectField
                 id="billingDay"
-                className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm"
-                {...register("billingDay")}
-              >
-                {BILLING_DAYS.map((d) => (
-                  <option key={d} value={String(d)}>
-                    {d === 31 ? "Fin de mes" : `Día ${d}`}
-                  </option>
-                ))}
-              </select>
+                name="billingDay"
+                options={BILLING_DAYS.map((d) => ({
+                  value: String(d),
+                  label: d === 31 ? "Fin de mes" : `Día ${d}`,
+                }))}
+              />
             </div>
           </FormSection>
           <PaymentMethods />

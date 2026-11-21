@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
-import { Field, selectClass, textareaClass } from "@/components/form-controls";
+import { DateField } from "@/components/date-field";
+import { Field } from "@/components/form-controls";
+import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { submitApplicationAction } from "@/server/applications/actions";
 
 const EMPTY = {
@@ -90,19 +93,24 @@ export function ApplicationForm({ businessId }: { businessId: string }) {
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field id="tipo" label="Qué buscas">
-          <select id="tipo" className={selectClass} value={form.unitType} onChange={set("unitType")}>
-            <option value="">Cualquiera</option>
-            <option value="room">Un cuarto</option>
-            <option value="apartment">Un departamento</option>
-          </select>
+          <SelectField
+            id="tipo"
+            value={form.unitType}
+            onValueChange={(v) => setForm((f) => ({ ...f, unitType: v }))}
+            options={[
+              { value: "", label: "Cualquiera" },
+              { value: "room", label: "Un cuarto" },
+              { value: "apartment", label: "Un departamento" },
+            ]}
+          />
         </Field>
         <Field id="ingreso" label="Desde cuándo (opcional)" error={errors.moveInDate}>
-          <Input
+          <DateField
             id="ingreso"
-            className="h-11"
-            type="date"
             value={form.moveInDate}
-            onChange={set("moveInDate")}
+            onValueChange={(v) => setForm((f) => ({ ...f, moveInDate: v }))}
+            invalid={Boolean(errors.moveInDate)}
+            clearable
           />
         </Field>
         <Field id="meses" label="Por cuántos meses (opcional)" error={errors.months}>
@@ -133,14 +141,7 @@ export function ApplicationForm({ businessId }: { businessId: string }) {
         <Input id="ocupacion" className="h-11" value={form.occupation} onChange={set("occupation")} />
       </Field>
       <Field id="mensaje" label="Mensaje (opcional)" error={errors.message}>
-        <textarea
-          id="mensaje"
-          rows={3}
-          maxLength={1000}
-          className={textareaClass}
-          value={form.message}
-          onChange={set("message")}
-        />
+        <Textarea id="mensaje" rows={3} maxLength={1000} value={form.message} onChange={set("message")} />
       </Field>
       <label className="flex min-h-11 items-start gap-3 text-sm">
         <Checkbox checked={accepts} onCheckedChange={(v) => setAccepts(v === true)} className="mt-0.5" />

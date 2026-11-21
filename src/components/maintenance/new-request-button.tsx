@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
-import { Field, selectClass, textareaClass } from "@/components/form-controls";
+import { Field } from "@/components/form-controls";
 import { FileField } from "@/components/payments/file-field";
+import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -18,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { createRequestAction } from "@/server/maintenance/actions";
 import {
   CATEGORY_LABEL,
@@ -89,19 +91,15 @@ export function NewRequestButton({ businessId, units }: { businessId: string; un
           </DialogHeader>
           <div className="flex flex-col gap-4">
             <Field id="unidad" label="Dónde" hint="Déjalo en “Área común” si no es de una unidad.">
-              <select
+              <SelectField
                 id="unidad"
-                className={selectClass}
                 value={form.unitId}
-                onChange={(e) => set("unitId", e.target.value)}
-              >
-                <option value="">Área común</option>
-                {units.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.label}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(v) => set("unitId", v)}
+                options={[
+                  { value: "", label: "Área común" },
+                  ...units.map((u) => ({ value: u.id, label: u.label })),
+                ]}
+              />
             </Field>
             <Field id="titulo" label="Qué pasa" error={errors.title}>
               <Input
@@ -114,43 +112,30 @@ export function NewRequestButton({ businessId, units }: { businessId: string; un
               />
             </Field>
             <Field id="detalle" label="Detalle (opcional)" error={errors.description}>
-              <textarea
+              <Textarea
                 id="detalle"
                 rows={3}
                 maxLength={2000}
-                className={textareaClass}
                 value={form.description}
                 onChange={(e) => set("description", e.target.value)}
               />
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field id="categoria" label="Tipo">
-                <select
+                <SelectField
                   id="categoria"
-                  className={selectClass}
                   value={form.category}
-                  onChange={(e) => set("category", e.target.value as MaintenanceCategory)}
-                >
-                  {CATEGORY_VALUES.map((c) => (
-                    <option key={c} value={c}>
-                      {CATEGORY_LABEL[c]}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(v) => set("category", v as MaintenanceCategory)}
+                  options={CATEGORY_VALUES.map((c) => ({ value: c, label: CATEGORY_LABEL[c] }))}
+                />
               </Field>
               <Field id="prioridad" label="Prioridad">
-                <select
+                <SelectField
                   id="prioridad"
-                  className={selectClass}
                   value={form.priority}
-                  onChange={(e) => set("priority", e.target.value as MaintenancePriority)}
-                >
-                  {PRIORITY_VALUES.map((p) => (
-                    <option key={p} value={p}>
-                      {PRIORITY_LABEL[p]}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(v) => set("priority", v as MaintenancePriority)}
+                  options={PRIORITY_VALUES.map((p) => ({ value: p, label: PRIORITY_LABEL[p] }))}
+                />
               </Field>
             </div>
             <Field id="responsable" label="Responsable (opcional)" error={errors.assignee}>

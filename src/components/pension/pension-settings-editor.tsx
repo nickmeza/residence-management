@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { savePensionSettingsAction } from "@/server/pension/actions";
@@ -103,13 +104,11 @@ export function PensionSettingsEditor({
                 key={day}
                 className="flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-semibold has-checked:border-primary has-checked:bg-primary-soft has-checked:text-primary-text"
               >
-                <input
-                  type="checkbox"
-                  className="size-5 accent-primary"
+                <Checkbox
                   checked={values.serviceDays.includes(day)}
-                  onChange={(e) =>
+                  onCheckedChange={(checked) =>
                     set({
-                      serviceDays: e.target.checked
+                      serviceDays: checked
                         ? [...values.serviceDays, day].sort()
                         : values.serviceDays.filter((d) => d !== day),
                     })
@@ -135,11 +134,9 @@ export function PensionSettingsEditor({
               className="flex flex-wrap items-end gap-3 border-t py-4 first:border-t-0 first:pt-0"
             >
               <label className="flex min-h-11 min-w-36 items-center gap-2 font-semibold">
-                <input
-                  type="checkbox"
-                  className="size-5 accent-primary"
+                <Checkbox
                   checked={m.active}
-                  onChange={(e) => setMeal(m.type, { active: e.target.checked })}
+                  onCheckedChange={(checked) => setMeal(m.type, { active: checked })}
                 />
                 {MEAL_LABEL[m.type]}
               </label>
@@ -213,15 +210,13 @@ export function PensionSettingsEditor({
       <section className={card}>
         <h2 className="mb-1 text-lg font-bold">Pagos</h2>
         <p className="mb-3 text-sm text-muted-foreground">
-          Tú marcas los pagos en Pensión › Pagos. Si quieres, tus comensales también pueden avisarte que pagaron,
-          con la foto del comprobante; tú lo apruebas o lo rechazas.
+          Tú marcas los pagos en Pensión › Pagos. Si quieres, tus comensales también pueden avisarte que
+          pagaron, con la foto del comprobante; tú lo apruebas o lo rechazas.
         </p>
         <label className="flex min-h-11 cursor-pointer items-center gap-3">
-          <input
-            type="checkbox"
-            className="size-5 accent-primary"
+          <Checkbox
             checked={values.acceptsPaymentProofs}
-            onChange={(e) => set({ acceptsPaymentProofs: e.target.checked })}
+            onCheckedChange={(checked) => set({ acceptsPaymentProofs: checked })}
           />
           <span className="font-semibold">Mis comensales pueden mandar su comprobante</span>
         </label>
@@ -234,13 +229,11 @@ export function PensionSettingsEditor({
           <div className="flex flex-wrap gap-x-5">
             {SERVICE_MODE_VALUES.map((mode) => (
               <label key={mode} className="flex min-h-11 items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="size-5 accent-primary"
+                <Checkbox
                   checked={values.serviceModes.includes(mode)}
-                  onChange={(e) =>
+                  onCheckedChange={(checked) =>
                     set({
-                      serviceModes: e.target.checked
+                      serviceModes: checked
                         ? [...values.serviceModes, mode]
                         : values.serviceModes.filter((x) => x !== mode),
                     })

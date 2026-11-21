@@ -4,10 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
-import { Field, selectClass, textareaClass } from "@/components/form-controls";
+import { Field } from "@/components/form-controls";
+import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { sendAnnouncementAction } from "@/server/announcements/actions";
 import type { AudienceOptions } from "@/server/announcements/queries";
 import { AUDIENCE_LABEL } from "@/server/announcements/rules";
@@ -93,19 +95,13 @@ export function AnnouncementForm({ businessId, options }: { businessId: string; 
       </fieldset>
       {audience !== "all" ? (
         <Field id="destino" label={AUDIENCE_LABEL[audience]} error={errors.targetId}>
-          <select
+          <SelectField
             id="destino"
-            className={selectClass}
             value={targetId}
-            onChange={(e) => setTargetId(e.target.value)}
-          >
-            <option value="">Elige…</option>
-            {targets.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+            placeholder="Elige…"
+            onValueChange={setTargetId}
+            options={targets.map((t) => ({ value: t.id, label: t.label }))}
+          />
         </Field>
       ) : null}
       <Field id="titulo" label="Título" error={errors.title}>
@@ -119,11 +115,10 @@ export function AnnouncementForm({ businessId, options }: { businessId: string; 
         />
       </Field>
       <Field id="mensaje" label="Mensaje" error={errors.body}>
-        <textarea
+        <Textarea
           id="mensaje"
           rows={5}
           maxLength={2000}
-          className={textareaClass}
           value={body}
           placeholder="Cuéntales qué pasa, cuándo y qué tienen que hacer."
           onChange={(e) => setBody(e.target.value)}

@@ -7,9 +7,11 @@ import { FormProvider, useForm } from "react-hook-form";
 
 import { FormMessage } from "@/components/auth/auth-field";
 import { TextField } from "@/components/onboarding/form-field";
+import { FormSelectField } from "@/components/select-field";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import { createResidentAction, updateResidentAction } from "@/server/residents/actions";
 import {
   IDENTITY_DOCUMENT_LABEL,
@@ -30,8 +32,6 @@ export const EMPTY_RESIDENT: ResidentInput = {
   emergencyContactPhone: "",
   notes: "",
 };
-
-const selectClass = "h-11 rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm";
 
 export function ResidentForm({
   residentId,
@@ -86,14 +86,15 @@ export function ResidentForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="identityDocumentType">Documento (opcional)</Label>
-              <select id="identityDocumentType" className={selectClass} {...register("identityDocumentType")}>
-                <option value="">Sin indicar</option>
-                {IDENTITY_DOCUMENT_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {IDENTITY_DOCUMENT_LABEL[t]}
-                  </option>
-                ))}
-              </select>
+              <FormSelectField
+                id="identityDocumentType"
+                control={methods.control}
+                name="identityDocumentType"
+                options={[
+                  { value: "", label: "Sin indicar" },
+                  ...IDENTITY_DOCUMENT_TYPES.map((t) => ({ value: t, label: IDENTITY_DOCUMENT_LABEL[t] })),
+                ]}
+              />
               {formState.errors.identityDocumentType ? (
                 <p className="text-sm text-danger">{formState.errors.identityDocumentType.message}</p>
               ) : null}
@@ -112,12 +113,7 @@ export function ResidentForm({
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="notes">Notas (opcional)</Label>
-            <textarea
-              id="notes"
-              rows={3}
-              className="rounded-lg border border-input bg-transparent p-3 text-base md:text-sm"
-              {...register("notes")}
-            />
+            <Textarea id="notes" rows={3} {...register("notes")} />
           </div>
         </fieldset>
 

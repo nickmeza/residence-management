@@ -5,11 +5,11 @@ import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
 import { ConfirmButton } from "@/components/confirm-button";
-import { selectClass } from "@/components/form-controls";
+import { DateField } from "@/components/date-field";
+import { SelectField } from "@/components/select-field";
 import { StatusBadge, type BadgeTone } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { formatShortDate, formatTimeAgo } from "@/lib/format";
 import {
   setAcceptsCleaningAction,
@@ -70,13 +70,12 @@ function OpenRequest({
         <StatusBadge tone={REQUEST_TONE[r.status]}>{REQUEST_LABEL[r.status]}</StatusBadge>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Input
-          type="date"
-          aria-label="Fecha de la limpieza"
-          className="h-11 w-auto"
+        <DateField
+          ariaLabel="Fecha de la limpieza"
+          className="w-auto"
           min={today}
           value={date}
-          onChange={(e) => setDate(e.target.value)}
+          onValueChange={setDate}
         />
         <Button
           type="button"
@@ -211,19 +210,14 @@ export function CleaningBoard({
               <li key={u.id} className="flex flex-wrap items-center gap-3 border-t py-2.5 first:border-t-0">
                 <span className="min-w-0 flex-1 font-semibold">{u.label}</span>
                 <StatusBadge tone={UNIT_TONE[u.status]}>{CLEANING_LABEL[u.status]}</StatusBadge>
-                <select
-                  aria-label={`Estado de limpieza de ${u.label}`}
-                  className={`${selectClass} w-40`}
+                <SelectField
+                  ariaLabel={`Estado de limpieza de ${u.label}`}
+                  className="w-40"
                   value={u.status}
                   disabled={pending}
-                  onChange={(e) => act(() => setUnitCleaningAction(u.id, e.target.value))}
-                >
-                  {CLEANING_VALUES.map((s) => (
-                    <option key={s} value={s}>
-                      {CLEANING_LABEL[s]}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(v) => act(() => setUnitCleaningAction(u.id, v))}
+                  options={CLEANING_VALUES.map((s) => ({ value: s, label: CLEANING_LABEL[s] }))}
+                />
               </li>
             ))}
           </ul>

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
-import { Field, textareaClass } from "@/components/form-controls";
+import { Field } from "@/components/form-controls";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { createSupplierAction, updateSupplierAction } from "@/server/tasks/actions";
 
 type SupplierForm = { name: string; trade: string; phone: string; note: string };
@@ -98,11 +99,10 @@ export function SupplierDialog({
             </Field>
           </div>
           <Field id="proveedor-nota" label="Nota (opcional)" error={errors.note}>
-            <textarea
+            <Textarea
               id="proveedor-nota"
               rows={2}
               maxLength={500}
-              className={textareaClass}
               value={form.note}
               onChange={(e) => set("note", e.target.value)}
             />

@@ -3,9 +3,10 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { useFormContext, useFormState, useWatch } from "react-hook-form";
+import { Controller, useFormContext, useFormState, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -107,7 +108,6 @@ function PasswordField() {
 }
 
 export function StepAccount({ goTo }: { goTo: (step: StepId) => void }) {
-  const { register } = useFormContext<SetupForm>();
   const values = useWatch<SetupForm>() as SetupForm;
   const password = values.account?.password ?? "";
   const summary = formSummary(values.property.floors);
@@ -161,10 +161,11 @@ export function StepAccount({ goTo }: { goTo: (step: StepId) => void }) {
           })}
         </ul>
         <label className="flex items-start gap-2.5 text-sm">
-          <input
-            type="checkbox"
-            className="mt-0.5 size-5 accent-primary"
-            {...register("account.acceptTerms")}
+          <Controller
+            name="account.acceptTerms"
+            render={({ field }) => (
+              <Checkbox className="mt-0.5" checked={Boolean(field.value)} onCheckedChange={field.onChange} />
+            )}
           />
           <span>
             Acepto los{" "}

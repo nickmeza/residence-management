@@ -9,6 +9,7 @@ import { UploadButton } from "@/components/documents/upload-button";
 import { ViewLink } from "@/components/documents/uploaded-list";
 import { DocumentStatusBadge } from "@/components/residents/badges";
 import { StatusBadge } from "@/components/status-badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { setAskedAction } from "@/server/documents/actions";
 import { UNIT_TYPE_LABEL } from "@/server/documents/schemas";
 import type { ResidentDetail } from "@/server/residents/queries";
@@ -104,13 +105,7 @@ export function RequirementsChecklist({
               ) : null}
               {r.required ? (
                 <label className="flex min-h-11 items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="size-5 accent-primary"
-                    checked={r.asked}
-                    disabled={pending}
-                    onChange={() => toggle(r)}
-                  />
+                  <Checkbox checked={r.asked} disabled={pending} onCheckedChange={() => toggle(r)} />
                   Pedírselo
                 </label>
               ) : null}

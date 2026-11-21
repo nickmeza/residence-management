@@ -4,10 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
-import { Field, selectClass, textareaClass } from "@/components/form-controls";
+import { Field } from "@/components/form-controls";
 import { FileField } from "@/components/payments/file-field";
+import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { createMyRequestAction } from "@/server/maintenance/actions";
 import { CATEGORY_LABEL, CATEGORY_VALUES, type MaintenanceCategory } from "@/server/maintenance/rules";
 
@@ -60,21 +62,15 @@ export function MyRequestForm({ places }: { places: MyPlace[] }) {
     <div className="flex flex-col gap-4">
       {places.length > 1 ? (
         <Field id="lugar" label="Dónde">
-          <select
+          <SelectField
             id="lugar"
-            className={selectClass}
-            value={placeIndex}
-            onChange={(e) => {
-              setPlaceIndex(Number(e.target.value));
+            value={String(placeIndex)}
+            onValueChange={(v) => {
+              setPlaceIndex(Number(v));
               setPhoto(null);
             }}
-          >
-            {places.map((p, i) => (
-              <option key={p.contractId} value={i}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+            options={places.map((p, i) => ({ value: String(i), label: p.label }))}
+          />
         </Field>
       ) : (
         <p className="text-sm text-muted-foreground">{place.label}</p>
@@ -90,29 +86,22 @@ export function MyRequestForm({ places }: { places: MyPlace[] }) {
         />
       </Field>
       <Field id="detalle" label="Detalle (opcional)" error={errors.description}>
-        <textarea
+        <Textarea
           id="detalle"
           rows={3}
           maxLength={2000}
-          className={textareaClass}
           value={description}
           placeholder="Desde cuándo pasa, en qué parte…"
           onChange={(e) => setDescription(e.target.value)}
         />
       </Field>
       <Field id="categoria" label="Tipo">
-        <select
+        <SelectField
           id="categoria"
-          className={selectClass}
           value={category}
-          onChange={(e) => setCategory(e.target.value as MaintenanceCategory)}
-        >
-          {CATEGORY_VALUES.map((c) => (
-            <option key={c} value={c}>
-              {CATEGORY_LABEL[c]}
-            </option>
-          ))}
-        </select>
+          onValueChange={(v) => setCategory(v as MaintenanceCategory)}
+          options={CATEGORY_VALUES.map((c) => ({ value: c, label: CATEGORY_LABEL[c] }))}
+        />
       </Field>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1.5 text-sm font-medium">¿Es urgente?</legend>

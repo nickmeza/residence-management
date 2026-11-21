@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
-import { textareaClass } from "@/components/form-controls";
+
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { formatTimeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { addCommentAction } from "@/server/maintenance/actions";
@@ -64,14 +65,13 @@ export function CommentThread({
           <label htmlFor={`comentario-${requestId}`} className="sr-only">
             Escribe un mensaje
           </label>
-          <textarea
+          <Textarea
             id={`comentario-${requestId}`}
             rows={2}
             maxLength={1000}
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder="Escribe un mensaje (por ejemplo: pasamos el jueves en la tarde)"
-            className={textareaClass}
           />
           <FormMessage message={error} />
           <Button type="button" className="h-11 self-end" disabled={pending || !body.trim()} onClick={send}>

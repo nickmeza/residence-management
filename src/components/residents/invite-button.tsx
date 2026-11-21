@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { FormMessage } from "@/components/auth/auth-field";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { inviteResidentAction, type InvitationResult } from "@/server/residents/actions";
 
 const expiryFormat = new Intl.DateTimeFormat("es-PE", {
@@ -66,11 +67,11 @@ export function InviteButton({
             <div className="flex flex-col gap-4">
               <label className="flex flex-col gap-1.5 text-sm font-semibold">
                 Mensaje
-                <textarea
+                <Textarea
                   readOnly
                   value={result.message}
                   rows={5}
-                  className="resize-none rounded-lg border border-input bg-transparent p-3 text-sm font-normal"
+                  className="resize-none p-3 font-normal md:text-sm"
                   onFocus={(e) => e.currentTarget.select()}
                 />
               </label>

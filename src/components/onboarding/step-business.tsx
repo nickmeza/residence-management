@@ -1,10 +1,12 @@
 "use client";
 
+import { FormSelectField } from "@/components/select-field";
 import { ImageIcon } from "lucide-react";
 import { useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { SetupForm, StepId } from "@/server/onboarding/form";
 import { PAYMENT_METHODS, type PaymentMethod } from "@/server/onboarding/schema";
@@ -109,7 +111,7 @@ function BusinessColumn({ prefix }: { prefix: BusinessPrefix }) {
 
 // Bloque "Cómo cobras" de la columna derecha.
 function BillingSection({ prefix }: { prefix: BusinessPrefix }) {
-  const { setValue, register, clearErrors } = useFormContext<SetupForm>();
+  const { setValue, clearErrors } = useFormContext<SetupForm>();
   const methods = useWatch<SetupForm, `${BusinessPrefix}.paymentMethods`>({
     name: `${prefix}.paymentMethods`,
   });
@@ -138,17 +140,14 @@ function BillingSection({ prefix }: { prefix: BusinessPrefix }) {
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`${prefix}-billingDay`}>Día de cobro mensual</Label>
-        <select
+        <FormSelectField
           id={`${prefix}-billingDay`}
-          className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm"
-          {...register(`${prefix}.billingDay`)}
-        >
-          {BILLING_DAYS.map((d) => (
-            <option key={d} value={String(d)}>
-              {d === 31 ? "Fin de mes" : `Día ${d} de cada mes`}
-            </option>
-          ))}
-        </select>
+          name={`${prefix}.billingDay`}
+          options={BILLING_DAYS.map((d) => ({
+            value: String(d),
+            label: d === 31 ? "Fin de mes" : `Día ${d} de cada mes`,
+          }))}
+        />
         <FieldError name={`${prefix}.billingDay`} />
       </div>
       <div className="flex flex-col gap-1.5">
@@ -210,12 +209,10 @@ export function StepBusiness({ goTo }: { goTo: (step: StepId) => void }) {
         <div className="flex flex-col gap-5">
           {both && prefix === "mealPlanBusiness" ? (
             <label className="flex min-h-11 items-center gap-3 rounded-xl border bg-card p-4 text-sm shadow-card">
-              <input
-                type="checkbox"
-                className="size-5 accent-primary"
+              <Checkbox
                 checked={same}
-                onChange={(e) =>
-                  setValue("mealPlanBusiness.sameAsResidence", e.target.checked, { shouldDirty: true })
+                onCheckedChange={(checked) =>
+                  setValue("mealPlanBusiness.sameAsResidence", checked, { shouldDirty: true })
                 }
               />
               Usar los mismos datos que la Residencia (RUC, contacto y cobros)

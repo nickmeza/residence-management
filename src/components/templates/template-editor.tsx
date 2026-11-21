@@ -10,7 +10,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
 import { fillTemplate, TEMPLATE_FIELDS } from "@/server/contracts/template";
 import { deleteTemplateAction, saveTemplateAction } from "@/server/templates/actions";
 import type { TemplateRow } from "@/server/templates/queries";
@@ -155,17 +155,14 @@ export function TemplateEditor({ businessId, templates }: { businessId: string; 
                 </button>
               ))}
             </div>
-            <textarea
+            <Textarea
               id="template-body"
               ref={bodyRef}
               rows={14}
               value={editing.body}
               onChange={(e) => setEditing({ ...editing, body: e.target.value })}
               aria-invalid={fieldErrors.body ? true : undefined}
-              className={cn(
-                "resize-y rounded-lg border border-input bg-transparent p-3 text-base leading-relaxed md:text-sm",
-                fieldErrors.body && "border-danger",
-              )}
+              className="resize-y p-3 leading-relaxed"
             />
             {fieldErrors.body ? (
               <p className="text-sm text-danger">{fieldErrors.body}</p>

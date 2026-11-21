@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { selectClass } from "@/components/form-controls";
+import { SelectField } from "@/components/select-field";
 import { StatusBadge } from "@/components/status-badge";
 import { Input } from "@/components/ui/input";
 import { formatTimeAgo } from "@/lib/format";
@@ -46,19 +46,14 @@ export function ConversationList({
         </div>
         <span className="hidden flex-1 sm:block" />
         {people.length ? (
-          <select
-            aria-label="Escribir a"
-            className={`${selectClass} sm:w-64`}
+          <SelectField
+            ariaLabel="Escribir a"
+            className="sm:w-64"
             value=""
-            onChange={(e) => e.target.value && router.push(`/mensajes/${e.target.value}`)}
-          >
-            <option value="">Escribir a…</option>
-            {people.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+            placeholder="Escribir a…"
+            onValueChange={(v) => v && router.push(`/mensajes/${v}`)}
+            options={people.map((p) => ({ value: p.id, label: p.name }))}
+          />
         ) : null}
       </div>
       {!conversations.length ? (

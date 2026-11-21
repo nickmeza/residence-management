@@ -5,7 +5,8 @@ import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
 import { ConfirmButton } from "@/components/confirm-button";
-import { Field, selectClass } from "@/components/form-controls";
+import { Field } from "@/components/form-controls";
+import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -62,33 +63,21 @@ export function RequestEditor({
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field id="estado" label="Estado">
-          <select
+          <SelectField
             id="estado"
-            className={selectClass}
             value={form.status}
             disabled={closed}
-            onChange={(e) => setForm({ ...form, status: e.target.value as MaintenanceStatus })}
-          >
-            {statuses.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABEL[s]}
-              </option>
-            ))}
-          </select>
+            onValueChange={(v) => setForm({ ...form, status: v as MaintenanceStatus })}
+            options={statuses.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
+          />
         </Field>
         <Field id="prioridad" label="Prioridad">
-          <select
+          <SelectField
             id="prioridad"
-            className={selectClass}
             value={form.priority}
-            onChange={(e) => setForm({ ...form, priority: e.target.value as MaintenancePriority })}
-          >
-            {PRIORITY_VALUES.map((p) => (
-              <option key={p} value={p}>
-                {PRIORITY_LABEL[p]}
-              </option>
-            ))}
-          </select>
+            onValueChange={(v) => setForm({ ...form, priority: v as MaintenancePriority })}
+            options={PRIORITY_VALUES.map((p) => ({ value: p, label: PRIORITY_LABEL[p] }))}
+          />
         </Field>
         <Field id="responsable" label="Responsable" error={errors.assignee}>
           <Input
@@ -102,19 +91,15 @@ export function RequestEditor({
         </Field>
         {suppliers.length ? (
           <Field id="proveedor" label="Proveedor" hint="Del directorio de proveedores, para su historial.">
-            <select
+            <SelectField
               id="proveedor"
-              className={selectClass}
               value={form.supplierId}
-              onChange={(e) => setForm({ ...form, supplierId: e.target.value })}
-            >
-              <option value="">Ninguno</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+              onValueChange={(v) => setForm({ ...form, supplierId: v })}
+              options={[
+                { value: "", label: "Ninguno" },
+                ...suppliers.map((s) => ({ value: s.id, label: s.name })),
+              ]}
+            />
           </Field>
         ) : null}
         <Field

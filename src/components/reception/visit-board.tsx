@@ -6,7 +6,8 @@ import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
 import { ConfirmButton } from "@/components/confirm-button";
-import { Field, selectClass } from "@/components/form-controls";
+import { Field } from "@/components/form-controls";
+import { SelectField } from "@/components/select-field";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,19 +84,15 @@ export function VisitBoard({
             />
           </Field>
           <Field id="visita-a-quien" label="A quién visita">
-            <select
+            <SelectField
               id="visita-a-quien"
-              className={selectClass}
               value={form.residentId}
-              onChange={(e) => setForm((f) => ({ ...f, residentId: e.target.value }))}
-            >
-              <option value="">A la administración</option>
-              {residents.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
+              onValueChange={(v) => setForm((f) => ({ ...f, residentId: v }))}
+              options={[
+                { value: "", label: "A la administración" },
+                ...residents.map((r) => ({ value: r.id, label: r.name })),
+              ]}
+            />
           </Field>
         </div>
         <Field id="visita-nota" label="Nota (opcional)" error={errors.note}>

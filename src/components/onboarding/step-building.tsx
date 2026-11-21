@@ -6,7 +6,9 @@ import { useState } from "react";
 import { useFieldArray, useFormContext, useFormState, useWatch } from "react-hook-form";
 
 import { ConfirmButton } from "@/components/confirm-button";
+import { SceneSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { formatSoles } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ViewMode } from "@/lib/view-mode";
@@ -138,13 +140,12 @@ function ApartmentBlock({
         <label
           className={cn("flex min-h-11 items-center gap-2 text-sm font-semibold", !onlyUnit && "opacity-60")}
         >
-          <input
-            type="checkbox"
-            role="switch"
-            className="size-5 accent-primary"
+          <Switch
             checked={unit.occupiesWholeFloor}
             disabled={!onlyUnit}
-            onChange={(e) => setValue(`${path}.occupiesWholeFloor`, e.target.checked, { shouldDirty: true })}
+            onCheckedChange={(checked) =>
+              setValue(`${path}.occupiesWholeFloor`, checked, { shouldDirty: true })
+            }
           />
           Ocupa todo el piso
         </label>
@@ -423,14 +424,7 @@ function BuildingPreview() {
 // La vista previa 3D (con three.js) solo se descarga al elegir el modo 3D.
 const BuildingPreview3D = dynamic(() => import("./building-preview-3d").then((m) => m.BuildingPreview3D), {
   ssr: false,
-  loading: () => (
-    <p
-      role="status"
-      className="flex h-72 items-center justify-center rounded-lg border bg-background text-sm text-muted-foreground"
-    >
-      Cargando la vista 3D…
-    </p>
-  ),
+  loading: () => <SceneSkeleton className="h-72" />,
 });
 
 // Columna derecha en modo 3D ("Vista previa 3D" del prototipo): el edificio que vas armando, sus cifras y una nota.
@@ -494,7 +488,9 @@ function FloorList({ onEdit }: { onEdit: (index: number) => void }) {
                   {floorName(i + 1)}
                   {whole ? ` · ${whole.name || "Sin nombre"}` : ""}
                 </b>
-                <span className={cn("text-sm", hasError ? "font-semibold text-danger" : "text-muted-foreground")}>
+                <span
+                  className={cn("text-sm", hasError ? "font-semibold text-danger" : "text-muted-foreground")}
+                >
                   {hasError
                     ? "Revisa este piso"
                     : whole
@@ -577,7 +573,12 @@ export function StepBuilding({
               <>
                 {type === "building" ? (
                   <div>
-                    <Button type="button" variant="ghost" className="h-11 gap-1 px-2" onClick={() => setPicked(null)}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-11 gap-1 px-2"
+                      onClick={() => setPicked(null)}
+                    >
                       <ChevronLeft className="size-4" aria-hidden="true" />
                       Todos los pisos
                     </Button>

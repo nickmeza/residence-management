@@ -8,6 +8,7 @@ import { FormMessage } from "@/components/auth/auth-field";
 import { ConfirmButton } from "@/components/confirm-button";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   deleteRequirementAction,
   saveRequirementAction,
@@ -159,14 +161,7 @@ export function RequirementsEditor({
                   {r.required ? "Obligatorio" : "Opcional"}
                 </StatusBadge>
                 <label className="flex min-h-11 items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    role="switch"
-                    className="size-5 accent-primary"
-                    checked={r.active}
-                    disabled={pending}
-                    onChange={() => toggleActive(r)}
-                  />
+                  <Switch checked={r.active} disabled={pending} onCheckedChange={() => toggleActive(r)} />
                   {r.active ? "Activo" : "Inactivo"}
                 </label>
                 <Button
@@ -258,13 +253,11 @@ export function RequirementsEditor({
                 <div className="flex flex-wrap gap-4">
                   {DOCUMENT_FORMATS.map((f) => (
                     <label key={f} className="flex min-h-11 items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        className="size-5 accent-primary"
+                      <Checkbox
                         checked={editing.values.acceptedFormats.includes(f)}
-                        onChange={(e) =>
+                        onCheckedChange={(checked) =>
                           set({
-                            acceptedFormats: e.target.checked
+                            acceptedFormats: checked
                               ? [...editing.values.acceptedFormats, f]
                               : editing.values.acceptedFormats.filter((x) => x !== f),
                           })
@@ -292,12 +285,9 @@ export function RequirementsEditor({
                 ) : null}
               </div>
               <label className="flex min-h-11 items-center gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  role="switch"
-                  className="size-5 accent-primary"
+                <Switch
                   checked={editing.values.required}
-                  onChange={(e) => set({ required: e.target.checked })}
+                  onCheckedChange={(checked) => set({ required: checked })}
                 />
                 <span>
                   <span className="font-semibold">Obligatorio</span>

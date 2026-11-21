@@ -6,7 +6,8 @@ import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
 import { ConfirmButton } from "@/components/confirm-button";
-import { Field, selectClass } from "@/components/form-controls";
+import { Field } from "@/components/form-controls";
+import { SelectField } from "@/components/select-field";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,19 +114,14 @@ export function ParcelBoard({
           <>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field id="paquete-para" label="Para quién" error={errors.residentId}>
-                <select
+                <SelectField
                   id="paquete-para"
-                  className={selectClass}
                   value={form.residentId}
-                  onChange={(e) => setForm((f) => ({ ...f, residentId: e.target.value }))}
-                >
-                  <option value="">Elige a la persona</option>
-                  {residents.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Elige a la persona"
+                  invalid={Boolean(errors.residentId)}
+                  onValueChange={(v) => setForm((f) => ({ ...f, residentId: v }))}
+                  options={residents.map((r) => ({ value: r.id, label: r.name }))}
+                />
               </Field>
               <Field id="paquete-que" label="Qué es" error={errors.description}>
                 <Input

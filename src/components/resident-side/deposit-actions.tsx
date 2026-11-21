@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
 import { FileField } from "@/components/payments/file-field";
+import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,8 +24,6 @@ import {
 } from "@/server/deposits/actions";
 import { AREA_LABEL, INSPECTION_AREAS, type InspectionArea } from "@/server/deposits/rules";
 import { METHOD_LABEL } from "@/server/payments/schemas";
-
-const selectClass = "h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm";
 
 type Method = "yape" | "plin" | "transfer" | "cash" | "card";
 
@@ -74,18 +73,12 @@ export function EntryReportForm({
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="report-area">Qué es</Label>
-              <select
+              <SelectField
                 id="report-area"
-                className={selectClass}
                 value={area}
-                onChange={(e) => setArea(e.target.value as InspectionArea)}
-              >
-                {INSPECTION_AREAS.map((a) => (
-                  <option key={a} value={a}>
-                    {AREA_LABEL[a]}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(v) => setArea(v as InspectionArea)}
+                options={INSPECTION_AREAS.map((a) => ({ value: a, label: AREA_LABEL[a] }))}
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="report-note">Qué encontraste</Label>
@@ -155,18 +148,12 @@ export function SettlementResponse({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="refund-method">Método</Label>
-        <select
+        <SelectField
           id="refund-method"
-          className={selectClass}
           value={method}
-          onChange={(e) => setMethod(e.target.value as Method)}
-        >
-          {methods.map((m) => (
-            <option key={m} value={m}>
-              {METHOD_LABEL[m]}
-            </option>
-          ))}
-        </select>
+          onValueChange={(v) => setMethod(v as Method)}
+          options={methods.map((m) => ({ value: m, label: METHOD_LABEL[m] }))}
+        />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="refund-account">
