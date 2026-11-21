@@ -59,3 +59,6 @@ export function formatTimeAgo(date: Date, now: Date): string {
   if (hours < 48) return "ayer";
   return limaDateTime.format(date).replace(".", "");
 }
+
+// Precio de una unidad para escribirlo en un campo, sin decimales de más ("650.00" → "650"; null → "").
+export const priceText = (price: string | null) => (price ? String(Number(price)) : "");
