@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { AnnouncementForm } from "@/components/announcements/announcement-form";
+import { ListSkeleton } from "@/components/skeletons";
 import { StatusBadge } from "@/components/status-badge";
 import { formatTimeAgo } from "@/lib/format";
 import { getAnnouncements } from "@/server/announcements/queries";
@@ -63,7 +64,7 @@ export default function AnnouncementsPage() {
   return (
     <>
       <h1 className="text-[34px] font-bold tracking-tight">Comunicados</h1>
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<ListSkeleton rows={4} />}>
         <Content />
       </Suspense>
     </>

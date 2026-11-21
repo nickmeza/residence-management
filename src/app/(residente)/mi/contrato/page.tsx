@@ -5,6 +5,7 @@ import { Suspense, type ReactNode } from "react";
 import { UploadedList } from "@/components/documents/uploaded-list";
 import { ReviewForm } from "@/components/reviews/review-form";
 import { ContractPhaseBadge } from "@/components/residents/badges";
+import { DetailSkeleton } from "@/components/skeletons";
 import { buttonVariants } from "@/components/ui/button";
 import { formatSoles } from "@/lib/format";
 import { formatLongDate } from "@/server/contracts/dates";
@@ -97,7 +98,7 @@ async function Content() {
 
 export default function MyContractPage() {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<DetailSkeleton />}>
       <Content />
     </Suspense>
   );

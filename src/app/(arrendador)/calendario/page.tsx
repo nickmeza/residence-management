@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { MonthCalendar } from "@/components/calendar/month-calendar";
+import { CalendarSkeleton, Reveal } from "@/components/skeletons";
 import { getShellData } from "@/server/business/current";
 import { getCalendar } from "@/server/calendar/queries";
 import { parseMonth } from "@/server/calendar/rules";
@@ -29,8 +30,20 @@ export default function CalendarPage({ searchParams }: Props) {
   return (
     <>
       <h1 className="text-[34px] font-bold tracking-tight">Calendario</h1>
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
-        <Content searchParams={searchParams} />
+      <Suspense
+        fallback={
+          <CalendarSkeleton
+            messages={[
+              "Buscando ingresos y salidas…",
+              "Agregando los cobros del mes…",
+              "Poniendo tareas y limpiezas…",
+            ]}
+          />
+        }
+      >
+        <Reveal>
+          <Content searchParams={searchParams} />
+        </Reveal>
       </Suspense>
     </>
   );

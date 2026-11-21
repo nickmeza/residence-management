@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { NavSkeleton } from "@/components/skeletons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { initials } from "@/lib/greeting";
@@ -99,7 +100,7 @@ export function ResidentShell({ children }: { children: ReactNode }) {
             <Bell align="start" />
           </Suspense>
         </div>
-        <Suspense fallback={<p className="flex-1 px-3 text-sm text-muted-foreground">Cargando…</p>}>
+        <Suspense fallback={<NavSkeleton />}>
           <Sidebar />
         </Suspense>
       </aside>

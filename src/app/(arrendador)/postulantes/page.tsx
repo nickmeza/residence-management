@@ -3,6 +3,7 @@ import { Suspense } from "react";
 
 import { ApplicationLinkCard } from "@/components/applications/application-link-card";
 import { ApplicationList } from "@/components/applications/application-list";
+import { ListSkeleton } from "@/components/skeletons";
 import { listApplications } from "@/server/applications/queries";
 import { getShellData } from "@/server/business/current";
 
@@ -29,7 +30,7 @@ export default function ApplicationsPage() {
   return (
     <>
       <h1 className="text-[34px] font-bold tracking-tight">Postulantes</h1>
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<ListSkeleton />}>
         <Content />
       </Suspense>
     </>

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { REPORT_TABS, SectionTabs } from "@/components/section-tabs";
+import { CardsSkeleton } from "@/components/skeletons";
 import { StatusBadge } from "@/components/status-badge";
 import { formatTimeAgo } from "@/lib/format";
 import { getShellData } from "@/server/business/current";
@@ -101,7 +102,7 @@ export default function ReviewsPage() {
     <>
       <h1 className="text-[34px] font-bold tracking-tight">Reportes</h1>
       <SectionTabs tabs={REPORT_TABS} current="resenas" label="Secciones de reportes" />
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<CardsSkeleton />}>
         <Content />
       </Suspense>
     </>

@@ -7,6 +7,7 @@ import { Suspense, type ReactNode } from "react";
 import { CommentThread } from "@/components/maintenance/comment-thread";
 import { MaintenanceStatusBadge, PriorityBadge } from "@/components/maintenance/maintenance-badges";
 import { RequestEditor } from "@/components/maintenance/request-editor";
+import { DetailSkeleton } from "@/components/skeletons";
 import { formatSoles } from "@/lib/format";
 import { getRequest } from "@/server/maintenance/queries";
 import { CATEGORY_LABEL } from "@/server/maintenance/rules";
@@ -123,7 +124,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
 // Detalle de un pedido (MT-03): datos, foto, mensajes con el residente y seguimiento.
 export default function MaintenanceRequestPage({ params }: PageProps<"/mantenimiento/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<DetailSkeleton />}>
       <Content params={params} />
     </Suspense>
   );

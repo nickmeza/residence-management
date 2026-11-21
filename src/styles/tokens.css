@@ -49,6 +49,14 @@
   --ds-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
   --ds-transition: 0.2s;
 
+  /* Carga: esqueleto con un brillo que lo recorre y entrada escalonada de las listas al llegar los datos */
+  --ds-skeleton: #e4e7f1;
+  --ds-skeleton-shine: #f5f6fb;
+  --ds-reveal: 0.45s;
+  --ds-reveal-step: 70ms;
+  /* Pantalla de paso al cambiar de negocio: lo que tarda en desvanecerse */
+  --ds-overlay-out: 0.6s;
+
   /* Fuentes (las variables --font-* las crea next/font en layout.tsx) */
   --ds-font-sans: var(--font-plus-jakarta), system-ui, sans-serif;
   --ds-font-script: var(--font-great-vibes), cursive; /* solo saludos de bienvenida */
@@ -84,4 +92,7 @@
   --ds-warn-bg: #3d3110;
 
   --ds-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+
+  --ds-skeleton: #292e4a;
+  --ds-skeleton-shine: #4a5379;
 }

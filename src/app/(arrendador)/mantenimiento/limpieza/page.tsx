@@ -3,6 +3,7 @@ import { Suspense } from "react";
 
 import { CleaningBoard } from "@/components/cleaning/cleaning-board";
 import { MAINTENANCE_TABS, SectionTabs } from "@/components/section-tabs";
+import { ListSkeleton } from "@/components/skeletons";
 import { TaskBoard } from "@/components/tasks/task-board";
 import { getShellData } from "@/server/business/current";
 import { getCleaningBoard } from "@/server/cleaning/queries";
@@ -52,7 +53,7 @@ export default function CleaningPage() {
     <>
       <h1 className="text-[34px] font-bold tracking-tight">Mantenimiento</h1>
       <SectionTabs tabs={MAINTENANCE_TABS} current="limpieza" label="Secciones de mantenimiento" />
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<ListSkeleton />}>
         <Content />
       </Suspense>
     </>

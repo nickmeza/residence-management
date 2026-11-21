@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { ConfigTabs } from "@/components/business/config-tabs";
 import { RequirementsEditor } from "@/components/documents/requirements-editor";
+import { FormSkeleton } from "@/components/skeletons";
 import { listRequirements } from "@/server/documents/queries";
 
 export const metadata: Metadata = { title: "Documentos que pides · Gestión de residencias" };
@@ -32,7 +33,7 @@ async function Content({ params }: { params: PageProps<"/negocio/[id]/documentos
 
 export default function DocumentRequirementsPage({ params }: PageProps<"/negocio/[id]/documentos">) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<FormSkeleton />}>
       <Content params={params} />
     </Suspense>
   );

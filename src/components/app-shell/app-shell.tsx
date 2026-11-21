@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { NavSkeleton, TopBarSkeleton } from "@/components/skeletons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { initials } from "@/lib/greeting";
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -92,13 +93,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-full flex-1">
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-6 border-r bg-card p-4 lg:flex">
         <Brand />
-        <Suspense fallback={<p className="flex-1 px-3 text-sm text-muted-foreground">Cargando…</p>}>
+        <Suspense fallback={<NavSkeleton />}>
           <Sidebar />
         </Suspense>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex min-h-16 items-center gap-3 border-b bg-card px-4 sm:px-8">
-          <Suspense fallback={<span className="text-sm text-muted-foreground">Cargando…</span>}>
+          <Suspense fallback={<TopBarSkeleton />}>
             <TopBar />
           </Suspense>
         </header>

@@ -7,7 +7,7 @@ Decidido el 2026-11-04, comparando paletas sobre la pantalla "Arrendador · Pane
 
 ## Reglas generales
 
-- **Sin degradados.** Barras, botones y fondos usan colores sólidos.
+- **Sin degradados en barras de porcentaje o progreso:** van con colores sólidos. En otros lugares se permiten si van con la temática (por ejemplo, el brillo que recorre los esqueletos de carga). Aclarado por el dueño el 2026-11-20.
 - **Nada de azul clásico saturado** (tipo `#2563EB`). Los colores principales son profundos y apagados.
 - **Todo estado lleva texto además de color** ("Ocupado", no solo rojo).
 - **Contraste mínimo:** 4.5:1 para texto, 3:1 para barras, bordes de campos y otros gráficos. Todos los pares de

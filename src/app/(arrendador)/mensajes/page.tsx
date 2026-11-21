@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { ConversationList } from "@/components/messages/conversation-list";
+import { ListSkeleton } from "@/components/skeletons";
 import { getShellData } from "@/server/business/current";
 import { listConversations } from "@/server/messages/queries";
 
@@ -20,7 +21,7 @@ export default function MessagesPage() {
   return (
     <>
       <h1 className="text-[34px] font-bold tracking-tight">Mensajes</h1>
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<ListSkeleton />}>
         <Content />
       </Suspense>
     </>

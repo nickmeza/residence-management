@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { ApplicationForm } from "@/components/applications/application-form";
+import { FormSkeleton } from "@/components/skeletons";
 import { getApplicationForm } from "@/server/applications/public";
 import { isUuid } from "@/server/business/queries";
 
@@ -36,7 +37,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
 export default function ApplyPage({ params }: PageProps<"/postular/[id]">) {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-4 px-4 py-8">
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<FormSkeleton fields={5} />}>
         <Content params={params} />
       </Suspense>
     </main>

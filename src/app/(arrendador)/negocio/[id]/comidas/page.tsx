@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { ConfigTabs } from "@/components/business/config-tabs";
 import { PensionSettingsEditor } from "@/components/pension/pension-settings-editor";
 import { PlansEditor } from "@/components/pension/plans-editor";
+import { FormSkeleton } from "@/components/skeletons";
 import { getBusinessForEdit } from "@/server/business/queries";
 import { getPensionAdmin } from "@/server/pension/queries";
 
@@ -47,7 +48,7 @@ async function Content({ params }: { params: PageProps<"/negocio/[id]/comidas">[
 
 export default function MealSettingsPage({ params }: PageProps<"/negocio/[id]/comidas">) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<FormSkeleton fields={5} />}>
       <Content params={params} />
     </Suspense>
   );

@@ -5,6 +5,7 @@ import { Suspense } from "react";
 
 import { BusinessCard } from "@/components/business/business-card";
 import { PendingList } from "@/components/notifications/pending-list";
+import { CardsSkeleton, GreetingSkeleton, PendingSkeleton } from "@/components/skeletons";
 import { buttonVariants } from "@/components/ui/button";
 import { greetingFor, greetingName } from "@/lib/greeting";
 import { getShellData } from "@/server/business/current";
@@ -83,13 +84,24 @@ async function CurrentBusiness() {
 export default function PanelPage() {
   return (
     <>
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<GreetingSkeleton />}>
         <Greeting />
       </Suspense>
-      <Suspense fallback={<p className="text-muted-foreground">Revisando pendientes…</p>}>
+      <Suspense
+        fallback={
+          <PendingSkeleton
+            messages={[
+              "Revisando tus cobros…",
+              "Contando documentos y contratos por firmar…",
+              "Mirando mantenimiento y postulantes…",
+              "Revisando ingresos, salidas y limpieza…",
+            ]}
+          />
+        }
+      >
         <Pending />
       </Suspense>
-      <Suspense fallback={<p className="text-muted-foreground">Cargando tu negocio…</p>}>
+      <Suspense fallback={<CardsSkeleton />}>
         <CurrentBusiness />
       </Suspense>
     </>

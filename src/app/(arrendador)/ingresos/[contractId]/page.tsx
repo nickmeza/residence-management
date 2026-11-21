@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { MoveForm } from "@/components/moves/move-form";
+import { DetailSkeleton } from "@/components/skeletons";
 import { buttonVariants } from "@/components/ui/button";
 import { formatLongDate } from "@/lib/format";
 import { getMove } from "@/server/moves/queries";
@@ -67,7 +68,7 @@ async function Content({ params, searchParams }: PageProps<"/ingresos/[contractI
 // Un ingreso o una salida (CT-06, CT-07, CR-10): la cita, las llaves y el checklist del día.
 export default function MovePage(props: PageProps<"/ingresos/[contractId]">) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<DetailSkeleton />}>
       <Content {...props} />
     </Suspense>
   );

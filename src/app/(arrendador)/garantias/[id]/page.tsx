@@ -7,6 +7,7 @@ import { DepositBadge } from "@/components/deposits/deposit-badge";
 import { DepositSchedule } from "@/components/deposits/deposit-schedule";
 import { SettlementPanel } from "@/components/deposits/settlement-panel";
 import { ContractPhaseBadge } from "@/components/residents/badges";
+import { DetailSkeleton } from "@/components/skeletons";
 import { buttonVariants } from "@/components/ui/button";
 import { formatSoles } from "@/lib/format";
 import { formatLongDate } from "@/server/contracts/dates";
@@ -76,7 +77,7 @@ async function Content({ params }: { params: PageProps<"/garantias/[id]">["param
 
 export default function DepositPage({ params }: PageProps<"/garantias/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<DetailSkeleton />}>
       <Content params={params} />
     </Suspense>
   );

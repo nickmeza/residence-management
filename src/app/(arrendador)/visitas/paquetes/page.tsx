@@ -3,6 +3,7 @@ import { Suspense } from "react";
 
 import { ParcelBoard } from "@/components/reception/parcel-board";
 import { RECEPTION_TABS, SectionTabs } from "@/components/section-tabs";
+import { ListSkeleton } from "@/components/skeletons";
 import { getShellData } from "@/server/business/current";
 import { listParcels } from "@/server/reception/queries";
 
@@ -25,7 +26,7 @@ export default function ParcelsPage() {
     <>
       <h1 className="text-[34px] font-bold tracking-tight">Visitas y paquetes</h1>
       <SectionTabs tabs={RECEPTION_TABS} current="paquetes" label="Visitas y paquetes" />
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<ListSkeleton />}>
         <Content />
       </Suspense>
     </>

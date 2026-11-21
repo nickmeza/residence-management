@@ -15,7 +15,7 @@ export function PendingList({ items, title = "Pendientes" }: { items: PendingIte
         {title}
       </h2>
       {items.length ? (
-        <ul className="flex flex-col divide-y">
+        <ul className="reveal-list flex flex-col divide-y">
           {items.map((i) => (
             <li key={i.key}>
               <Link

@@ -6,6 +6,7 @@ import { MyCleaningForm } from "@/components/cleaning/my-cleaning-form";
 import { CommentThread } from "@/components/maintenance/comment-thread";
 import { MaintenanceStatusBadge } from "@/components/maintenance/maintenance-badges";
 import { MyRequestForm } from "@/components/maintenance/my-request-form";
+import { ListSkeleton } from "@/components/skeletons";
 import { StatusBadge } from "@/components/status-badge";
 import { formatShortDate, formatTimeAgo } from "@/lib/format";
 import { getMyCleaning } from "@/server/cleaning/queries";
@@ -123,7 +124,7 @@ export default function MyMaintenancePage() {
   return (
     <>
       <h1 className="text-2xl font-bold">Mantenimiento</h1>
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<ListSkeleton rows={4} />}>
         <Content />
       </Suspense>
     </>

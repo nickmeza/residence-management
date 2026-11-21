@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { ConfigTabs } from "@/components/business/config-tabs";
+import { FormSkeleton } from "@/components/skeletons";
 import { TemplateEditor } from "@/components/templates/template-editor";
 import { listTemplates } from "@/server/templates/queries";
 
@@ -33,7 +34,7 @@ async function Content({ params }: { params: PageProps<"/negocio/[id]/plantillas
 
 export default function TemplatesPage({ params }: PageProps<"/negocio/[id]/plantillas">) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<FormSkeleton />}>
       <Content params={params} />
     </Suspense>
   );

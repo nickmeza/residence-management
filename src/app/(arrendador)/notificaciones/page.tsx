@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { NotificationFeed } from "@/components/notifications/notification-feed";
+import { ListSkeleton } from "@/components/skeletons";
 import { getMyNotifications } from "@/server/notifications/queries";
 
 export const metadata: Metadata = { title: "Notificaciones · Gestión de residencias" };
@@ -15,7 +16,7 @@ export default function NotificationsPage() {
   return (
     <>
       <h1 className="text-[34px] font-bold tracking-tight">Notificaciones</h1>
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<ListSkeleton />}>
         <Content />
       </Suspense>
     </>

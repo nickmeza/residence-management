@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { ConfigTabs } from "@/components/business/config-tabs";
 import { DepositSettingsEditor } from "@/components/deposits/deposit-settings-editor";
+import { FormSkeleton } from "@/components/skeletons";
 import { getDepositSettings } from "@/server/deposits/settings";
 
 export const metadata: Metadata = { title: "Garantía · Gestión de residencias" };
@@ -32,7 +33,7 @@ async function Content({ params }: { params: PageProps<"/negocio/[id]/garantia">
 
 export default function DepositSettingsPage({ params }: PageProps<"/negocio/[id]/garantia">) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<FormSkeleton />}>
       <Content params={params} />
     </Suspense>
   );

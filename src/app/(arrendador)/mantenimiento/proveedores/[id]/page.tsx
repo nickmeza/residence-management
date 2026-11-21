@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { DetailSkeleton } from "@/components/skeletons";
 import { SupplierActions } from "@/components/tasks/supplier-actions";
 import { formatShortDate, formatSoles } from "@/lib/format";
 import { getSupplier } from "@/server/tasks/queries";
@@ -102,7 +103,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
 // Ficha de un proveedor (MT-06) con su historial de trabajos y lo que se le pagó.
 export default function SupplierPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<DetailSkeleton />}>
       <Content params={params} />
     </Suspense>
   );

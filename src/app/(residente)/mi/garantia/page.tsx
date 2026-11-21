@@ -8,6 +8,7 @@ import {
   EntryReportForm,
   SettlementResponse,
 } from "@/components/resident-side/deposit-actions";
+import { DetailSkeleton } from "@/components/skeletons";
 import { StatusBadge } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { formatSoles } from "@/lib/format";
@@ -296,7 +297,7 @@ async function Content() {
 
 export default function MyDepositPage() {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<DetailSkeleton />}>
       <Content />
     </Suspense>
   );

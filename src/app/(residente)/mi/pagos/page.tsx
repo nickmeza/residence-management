@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { PaymentForm } from "@/components/payments/payment-form";
 import { ReceiptBadge } from "@/components/payments/receipt-badge";
 import { VoidedPayments } from "@/components/payments/voided-payments";
+import { DetailSkeleton } from "@/components/skeletons";
 import { StatusBadge } from "@/components/status-badge";
 import { formatSoles } from "@/lib/format";
 import { formatLongDate, limaToday } from "@/server/contracts/dates";
@@ -166,7 +167,7 @@ async function Content() {
 
 export default function MyPaymentsPage() {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<DetailSkeleton />}>
       <Content />
     </Suspense>
   );

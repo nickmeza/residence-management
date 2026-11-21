@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { BusinessCard } from "@/components/business/business-card";
 import { OpenBusinessButton } from "@/components/business/open-business-button";
+import { ListSkeleton } from "@/components/skeletons";
 import { buttonVariants } from "@/components/ui/button";
 import { getShellData } from "@/server/business/current";
 import { getMyOverview } from "@/server/business/overview";
@@ -46,7 +47,7 @@ export default function BusinessesPage() {
         <h1 className="text-[34px] font-bold tracking-tight">Mis negocios</h1>
         <p className="text-muted-foreground">Cada negocio tiene sus propios datos, cobros y propiedades.</p>
       </div>
-      <Suspense fallback={<p className="text-muted-foreground">Cargando tus negocios…</p>}>
+      <Suspense fallback={<ListSkeleton rows={3} />}>
         <List />
       </Suspense>
     </>

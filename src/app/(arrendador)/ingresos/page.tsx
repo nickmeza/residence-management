@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { ListSkeleton } from "@/components/skeletons";
 import { StatusBadge } from "@/components/status-badge";
 import { formatLongDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -91,7 +92,7 @@ export default function MovesPage() {
   return (
     <>
       <h1 className="text-[34px] font-bold tracking-tight">Ingresos y salidas</h1>
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<ListSkeleton />}>
         <Content />
       </Suspense>
     </>

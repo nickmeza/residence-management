@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { ChatThread } from "@/components/messages/chat-thread";
+import { ChatSkeleton } from "@/components/skeletons";
 import { getConversation } from "@/server/messages/queries";
 
 export const metadata: Metadata = { title: "Conversación · Gestión de residencias" };
@@ -53,7 +54,7 @@ async function Content({ params }: { params: Promise<{ residentId: string }> }) 
 // Una conversación con un residente o comensal.
 export default function ConversationPage({ params }: { params: Promise<{ residentId: string }> }) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<ChatSkeleton />}>
       <Content params={params} />
     </Suspense>
   );

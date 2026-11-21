@@ -3,6 +3,7 @@ import { Suspense } from "react";
 
 import { VisitBoard } from "@/components/reception/visit-board";
 import { RECEPTION_TABS, SectionTabs } from "@/components/section-tabs";
+import { ListSkeleton } from "@/components/skeletons";
 import { getShellData } from "@/server/business/current";
 import { listVisits } from "@/server/reception/queries";
 
@@ -25,7 +26,7 @@ export default function VisitsPage() {
     <>
       <h1 className="text-[34px] font-bold tracking-tight">Visitas y paquetes</h1>
       <SectionTabs tabs={RECEPTION_TABS} current="visitas" label="Visitas y paquetes" />
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<ListSkeleton />}>
         <Content />
       </Suspense>
     </>

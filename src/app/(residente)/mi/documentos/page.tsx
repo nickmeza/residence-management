@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { RequirementCard } from "@/components/resident-side/requirement-card";
+import { ListSkeleton } from "@/components/skeletons";
 import { getMyResidences } from "@/server/residents/self";
 
 export const metadata: Metadata = { title: "Mis documentos · Mi residencia" };
@@ -43,7 +44,7 @@ async function Content() {
 
 export default function MyDocumentsPage() {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<ListSkeleton rows={4} />}>
       <Content />
     </Suspense>
   );

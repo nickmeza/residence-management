@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { MaintenanceList } from "@/components/maintenance/maintenance-list";
 import { NewRequestButton } from "@/components/maintenance/new-request-button";
 import { MAINTENANCE_TABS, SectionTabs } from "@/components/section-tabs";
+import { ListSkeleton } from "@/components/skeletons";
 import { floorName } from "@/server/building/floors";
 import { getShellData } from "@/server/business/current";
 import { listRequests, listUnitOptions } from "@/server/maintenance/queries";
@@ -42,7 +43,7 @@ export default function MaintenancePage() {
     <>
       <h1 className="text-[34px] font-bold tracking-tight">Mantenimiento</h1>
       <SectionTabs tabs={MAINTENANCE_TABS} current="pedidos" label="Secciones de mantenimiento" />
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<ListSkeleton />}>
         <Content />
       </Suspense>
     </>

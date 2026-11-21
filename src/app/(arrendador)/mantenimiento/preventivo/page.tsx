@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { MAINTENANCE_TABS, SectionTabs } from "@/components/section-tabs";
+import { ListSkeleton } from "@/components/skeletons";
 import { TaskBoard } from "@/components/tasks/task-board";
 import { getShellData } from "@/server/business/current";
 import { limaToday } from "@/server/contracts/dates";
@@ -26,7 +27,7 @@ export default function PreventivePage() {
     <>
       <h1 className="text-[34px] font-bold tracking-tight">Mantenimiento</h1>
       <SectionTabs tabs={MAINTENANCE_TABS} current="preventivo" label="Secciones de mantenimiento" />
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<ListSkeleton />}>
         <Content />
       </Suspense>
     </>

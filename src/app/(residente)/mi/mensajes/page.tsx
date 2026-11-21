@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { ChatThread } from "@/components/messages/chat-thread";
+import { ChatSkeleton } from "@/components/skeletons";
 import { listMyThreads } from "@/server/messages/queries";
 
 export const metadata: Metadata = { title: "Mensajes · Mi residencia" };
@@ -40,7 +41,7 @@ export default function MyMessagesPage() {
   return (
     <>
       <h1 className="text-2xl font-bold">Mensajes</h1>
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<ChatSkeleton />}>
         <Content />
       </Suspense>
     </>

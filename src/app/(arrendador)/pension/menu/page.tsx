@@ -5,6 +5,7 @@ import { Suspense } from "react";
 
 import { currentPension, NotAPension, PensionHeader } from "@/components/pension/pension-page";
 import { WeekMenuEditor } from "@/components/pension/week-menu-editor";
+import { CalendarSkeleton } from "@/components/skeletons";
 import { buttonVariants } from "@/components/ui/button";
 import { formatShortDate } from "@/lib/format";
 import { limaToday } from "@/server/contracts/dates";
@@ -66,7 +67,7 @@ export default function PensionMenuPage({ searchParams }: Props) {
         tab="menu"
         description="Qué se sirve cada día. Tus comensales lo ven cuando lo publicas."
       />
-      <Suspense fallback={<p className="text-muted-foreground">Cargando el menú…</p>}>
+      <Suspense fallback={<CalendarSkeleton weeks={1} />}>
         <Content searchParams={searchParams} />
       </Suspense>
     </>
