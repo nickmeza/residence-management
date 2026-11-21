@@ -2,16 +2,18 @@
 
 import { MessageSquare, Search } from "lucide-react";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import { FilterMenu } from "@/components/filter-menu";
 import { Input } from "@/components/ui/input";
+import { useListParams } from "@/components/use-list-params";
 import { formatTimeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { RequestRow } from "@/server/maintenance/queries";
 import {
   CATEGORY_LABEL,
   STATUS_LABEL,
+  STATUS_SLUGS,
   STATUS_VALUES,
   type MaintenanceStatus,
 } from "@/server/maintenance/rules";
@@ -22,6 +24,9 @@ const GRID = "grid grid-cols-[2fr_1fr_1fr_.9fr_.9fr_.8fr] items-center gap-3 px-
 
 // Pedidos de mantenimiento (MT-02), versión simple como las demás listas: buscador, Filtrar y la tabla. Por defecto
 // se ven los activos (pendientes y en curso), los urgentes primero.
+// Sin filtro en la dirección, se ven los activos (pendientes y en curso).
+const ACTIVE_BY_DEFAULT: MaintenanceStatus[] = ["open", "in_progress"];
+
 export function MaintenanceList({
   rows,
   action,
@@ -31,8 +36,7 @@ export function MaintenanceList({
   action?: ReactNode;
   now: Date;
 }) {
-  const [filters, setFilters] = useState<MaintenanceStatus[]>(["open", "in_progress"]);
-  const [query, setQuery] = useState("");
+  const { filters, setFilters, query, setQuery } = useListParams(STATUS_SLUGS, ACTIVE_BY_DEFAULT);
   const q = query.trim().toLowerCase();
   const shown = rows.filter(
     (r) =>

@@ -41,20 +41,35 @@ export function documentsSummary(input: {
   return { missing, inReview };
 }
 
-export type ResidentFilter = "active" | "ending_soon" | "documents" | "no_contract";
+// Sin cuarto: nunca tuvo un contrato pendiente de firma ni confirmado (decisión del dueño, 2026-11-20). Un borrador no
+// cuenta como asignado; quien ya se fue (contrato terminado) tampoco aparece, para no llenar la lista de ex residentes.
+export function withoutRoom(contracts: Pick<ContractInput, "status">[]): boolean {
+  return !contracts.some((c) => c.status === "pending_signature" || c.status === "confirmed");
+}
+
+export type ResidentFilter = "active" | "ending_soon" | "documents" | "no_room";
 
 export const RESIDENT_FILTERS: { id: ResidentFilter; label: string }[] = [
   { id: "active", label: "Activos" },
   { id: "ending_soon", label: "Por vencer" },
   { id: "documents", label: "Documentos pendientes" },
-  { id: "no_contract", label: "Sin contrato" },
+  { id: "no_room", label: "Sin cuarto" },
 ];
+
+// Cómo se escribe cada filtro en la dirección (?filtro=sin-cuarto).
+export const RESIDENT_FILTER_SLUGS: Record<ResidentFilter, string> = {
+  active: "activos",
+  ending_soon: "por-vencer",
+  documents: "documentos",
+  no_room: "sin-cuarto",
+};
 
 export type ResidentRow = {
   id: string;
   fullName: string;
   phase: ContractPhase | null;
   unitName: string | null;
+  withoutRoom: boolean;
   searchText: string;
   documents: DocumentsSummary;
 };
@@ -63,7 +78,7 @@ export function matchesFilter(row: ResidentRow, filter: ResidentFilter): boolean
   if (filter === "active") return isActivePhase(row.phase);
   if (filter === "ending_soon") return row.phase === "ending_soon";
   if (filter === "documents") return row.documents.missing > 0 || row.documents.inReview > 0;
-  return row.phase === null;
+  return row.withoutRoom;
 }
 
 // Sin filtros marcados, todos. Con varios, los que cumplan cualquiera.

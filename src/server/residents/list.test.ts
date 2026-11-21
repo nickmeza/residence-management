@@ -8,6 +8,7 @@ import {
   filterResidents,
   matchesFilter,
   matchesSearch,
+  withoutRoom,
   type ResidentRow,
 } from "./list";
 
@@ -86,6 +87,13 @@ describe("resumen de documentos", () => {
       }),
     ).toEqual({ missing: 1, inReview: 0 });
   });
+
+  it("sin cuarto: nunca tuvo un contrato pendiente de firma ni confirmado (los borradores no cuentan)", () => {
+    expect(withoutRoom([])).toBe(true);
+    expect(withoutRoom([{ status: "draft" }, { status: "cancelled" }])).toBe(true);
+    expect(withoutRoom([{ status: "draft" }, { status: "pending_signature" }])).toBe(false);
+    expect(withoutRoom([{ status: "confirmed" }])).toBe(false);
+  });
 });
 
 describe("filtros y buscador", () => {
@@ -94,25 +102,29 @@ describe("filtros y buscador", () => {
     fullName: "María Pérez",
     phase: "ending_soon",
     unitName: "Cuarto 202",
+    withoutRoom: false,
     searchText: "María Pérez Cuarto 202",
     documents: { missing: 0, inReview: 0 },
   };
 
-  it("filtra por activos, por vencer, documentos pendientes y sin contrato", () => {
+  it("filtra por activos, por vencer, documentos pendientes y sin cuarto", () => {
     expect(matchesFilter(row, "active")).toBe(true);
     expect(matchesFilter(row, "ending_soon")).toBe(true);
     expect(matchesFilter(row, "documents")).toBe(false);
-    expect(matchesFilter(row, "no_contract")).toBe(false);
+    expect(matchesFilter(row, "no_room")).toBe(false);
     expect(matchesFilter({ ...row, documents: { missing: 1, inReview: 0 } }, "documents")).toBe(true);
-    expect(matchesFilter({ ...row, phase: null }, "no_contract")).toBe(true);
+    expect(matchesFilter({ ...row, phase: null, withoutRoom: true }, "no_room")).toBe(true);
     expect(matchesFilter({ ...row, phase: "ended" }, "active")).toBe(false);
   });
 
   it("sin filtros, todos; con varios, los que cumplan cualquiera; y la búsqueda", () => {
-    const rows = [row, { ...row, id: "s", fullName: "Luis", searchText: "Luis", phase: null }];
+    const rows = [
+      row,
+      { ...row, id: "s", fullName: "Luis", searchText: "Luis", phase: null, withoutRoom: true },
+    ];
     expect(filterResidents(rows, [], "")).toHaveLength(2);
-    expect(filterResidents(rows, ["ending_soon", "no_contract"], "").map((r) => r.id)).toEqual(["r", "s"]);
-    expect(filterResidents(rows, ["no_contract"], "maria")).toEqual([]);
+    expect(filterResidents(rows, ["ending_soon", "no_room"], "").map((r) => r.id)).toEqual(["r", "s"]);
+    expect(filterResidents(rows, ["no_room"], "maria")).toEqual([]);
   });
 
   it("busca por nombre o unidad sin importar tildes ni mayúsculas", () => {

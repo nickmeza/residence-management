@@ -21,6 +21,8 @@ export type LandlordCounts = {
   openMaintenance: number;
   urgentMaintenance: number;
   newApplications: number;
+  // Residentes que nunca tuvieron un contrato pendiente de firma ni confirmado (ver withoutRoom).
+  residentsWithoutRoom: number;
   upcomingMoves: number;
   unreadMessages: number;
   // Tareas que se repiten (mantenimiento o limpieza) atrasadas o de los próximos 7 días.
@@ -41,7 +43,7 @@ export function landlordPending(c: LandlordCounts): PendingItem[] {
     c.paymentsToReview > 0 && {
       key: "payments",
       label: `${plural(c.paymentsToReview, "comprobante", "comprobantes")} por revisar`,
-      href: "/cobros",
+      href: "/cobros?filtro=por-revisar",
       urgent: true,
     },
     c.pensionProofs > 0 && {
@@ -59,7 +61,7 @@ export function landlordPending(c: LandlordCounts): PendingItem[] {
     c.disputedDiscounts > 0 && {
       key: "disputes",
       label: `${plural(c.disputedDiscounts, "descuento", "descuentos")} en disputa`,
-      href: "/garantias",
+      href: "/garantias?filtro=en-liquidacion",
       urgent: true,
     },
     c.urgentMaintenance > 0 && {
@@ -101,19 +103,25 @@ export function landlordPending(c: LandlordCounts): PendingItem[] {
     c.documentsToReview > 0 && {
       key: "documents",
       label: `${plural(c.documentsToReview, "documento", "documentos")} por revisar`,
-      href: "/residentes",
+      href: "/residentes?filtro=documentos",
       urgent: false,
     },
     c.contractsToSign > 0 && {
       key: "contracts",
       label: `${plural(c.contractsToSign, "contrato", "contratos")} esperando la firma`,
-      href: "/contratos",
+      href: "/contratos?filtro=por-cerrar",
+      urgent: false,
+    },
+    c.residentsWithoutRoom > 0 && {
+      key: "without-room",
+      label: `${plural(c.residentsWithoutRoom, "residente", "residentes")} sin cuarto asignado`,
+      href: "/residentes?filtro=sin-cuarto",
       urgent: false,
     },
     c.newApplications > 0 && {
       key: "applications",
       label: `${plural(c.newApplications, "postulación nueva", "postulaciones nuevas")}`,
-      href: "/postulantes",
+      href: "/postulantes?filtro=nuevas",
       urgent: false,
     },
     c.upcomingMoves > 0 && {

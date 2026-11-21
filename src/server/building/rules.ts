@@ -34,7 +34,8 @@ export type FloorProblem =
   | { code: "duplicate_name"; unitIds: [string, string] };
 
 // ¿Se alquila por sí misma? Cuarto suelto, departamento completo o cuarto de un departamento por cuartos.
-export function isRentable(unit: UnitInput, byId: Map<string, UnitInput>): boolean {
+type RentableInput = Pick<UnitInput, "type" | "parentId" | "rentalMode">;
+export function isRentable(unit: RentableInput, byId: Map<string, RentableInput>): boolean {
   if (unit.type === "apartment") return unit.rentalMode === "whole";
   if (!unit.parentId) return true;
   return byId.get(unit.parentId)?.rentalMode === "by_room";

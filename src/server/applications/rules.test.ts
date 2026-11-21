@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { applicationMoves, isRepeated, normalizePhone } from "./rules";
+import { applicationMoves, isRepeated, normalizePhone, suggestUnit, type SuggestionCandidate } from "./rules";
 
 describe("postulantes", () => {
   it("el mismo celular con o sin +51 y espacios es el mismo", () => {
@@ -20,5 +20,32 @@ describe("postulantes", () => {
     expect(applicationMoves("approved")).toEqual([]);
     expect(applicationMoves("rejected")).toEqual(["waitlist"]);
     expect(applicationMoves("new")).toEqual(["waitlist", "approved", "rejected"]);
+  });
+
+  const units: SuggestionCandidate[] = [
+    { id: "a", type: "room", label: "101", monthlyPrice: "500.00" },
+    { id: "b", type: "room", label: "102", monthlyPrice: "700.00" },
+    { id: "c", type: "room", label: "103", monthlyPrice: "600.00" },
+    { id: "d", type: "apartment", label: "Dpto 2", monthlyPrice: "1500.00" },
+  ];
+
+  it("sugiere el de precio más cercano al presupuesto, del tipo que busca", () => {
+    expect(suggestUnit(units, { unitType: "room", budget: "680" })?.id).toBe("b");
+    expect(suggestUnit(units, { unitType: "room", budget: "680" })?.differenceCents).toBe(2000);
+    expect(suggestUnit(units, { unitType: "apartment", budget: "600" })?.id).toBe("d");
+    expect(suggestUnit(units, { unitType: null, budget: "1400" })?.id).toBe("d");
+  });
+
+  it("si dos quedan igual de cerca, el más barato; sin presupuesto, el más barato", () => {
+    expect(suggestUnit(units, { unitType: "room", budget: "550" })?.id).toBe("a");
+    expect(suggestUnit(units, { unitType: "room", budget: null })).toMatchObject({
+      id: "a",
+      differenceCents: null,
+    });
+  });
+
+  it("sin unidades libres de ese tipo no sugiere nada", () => {
+    expect(suggestUnit(units.slice(0, 3), { unitType: "apartment", budget: "900" })).toBeNull();
+    expect(suggestUnit([], { unitType: null, budget: null })).toBeNull();
   });
 });

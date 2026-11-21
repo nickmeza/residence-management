@@ -11,6 +11,7 @@ import { ReceiptBadge } from "@/components/payments/receipt-badge";
 import { ContractPhaseBadge } from "@/components/residents/badges";
 import { ProfileActions } from "@/components/residents/profile-actions";
 import { RequirementsChecklist } from "@/components/residents/requirements-checklist";
+import { DetailSkeleton, Reveal } from "@/components/skeletons";
 import { StatusBadge } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { formatSoles } from "@/lib/format";
@@ -282,7 +283,10 @@ async function ContractTab({ r }: { r: Resident }) {
           ) : null}
           {/* Con un contrato vigente, los cambios se hacen desde el contrato (Cambiar condiciones). */}
           {!c || c.phase === "ended" || c.phase === "cancelled" ? (
-            <Link href={`/contratos?residente=${r.id}`} className={buttonVariants({ className: "h-11" })}>
+            <Link
+              href={`/contratos/nuevo?residente=${r.id}`}
+              className={buttonVariants({ className: "h-11" })}
+            >
               Crear contrato
             </Link>
           ) : null}
@@ -393,6 +397,16 @@ async function Content({
               : "Sin cuenta en la app"}
         </p>
       </div>
+      {r.withoutRoom ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-warn-soft px-4 py-3 text-sm text-warn">
+          <span>
+            <b>Todavía no tiene cuarto.</b> Asígnale uno con un contrato.
+          </span>
+          <Link href={`/contratos/nuevo?residente=${r.id}`} className={buttonVariants({ className: "h-11" })}>
+            Crear contrato
+          </Link>
+        </div>
+      ) : null}
       <ProfileActions
         residentId={r.id}
         hasAccount={r.hasAccount}
@@ -420,8 +434,16 @@ async function Content({
 
 export default function ResidentPage({ params, searchParams }: PageProps<"/residentes/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
-      <Content params={params} searchParams={searchParams} />
+    <Suspense
+      fallback={
+        <DetailSkeleton
+          messages={["Cargando sus datos…", "Juntando sus cobros…", "Buscando su contrato y garantía…"]}
+        />
+      }
+    >
+      <Reveal>
+        <Content params={params} searchParams={searchParams} />
+      </Reveal>
     </Suspense>
   );
 }

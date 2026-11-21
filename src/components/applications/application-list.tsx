@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 
 import { FilterMenu } from "@/components/filter-menu";
+import { useListParams } from "@/components/use-list-params";
 import { ApplicationBadge } from "./application-badge";
 import { formatShortDate, formatSoles, formatTimeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ApplicationRow } from "@/server/applications/queries";
 import {
   APPLICATION_STATUS_LABEL,
+  APPLICATION_STATUS_SLUGS,
   APPLICATION_STATUS_VALUES,
   type ApplicationStatus,
 } from "@/server/applications/rules";
@@ -18,8 +19,11 @@ const GRID = "grid grid-cols-[1.5fr_1fr_1fr_.9fr_.9fr] items-center gap-3 px-5";
 const TYPE = { room: "Cuarto", apartment: "Departamento" } as const;
 
 // Postulantes (RS-04, RS-05): por defecto las nuevas y la lista de espera.
+// Sin filtro en la dirección, se ven las que esperan una respuesta (nuevas y en lista de espera).
+const OPEN_BY_DEFAULT: ApplicationStatus[] = ["new", "waitlist"];
+
 export function ApplicationList({ rows, now }: { rows: ApplicationRow[]; now: Date }) {
-  const [filters, setFilters] = useState<ApplicationStatus[]>(["new", "waitlist"]);
+  const { filters, setFilters } = useListParams(APPLICATION_STATUS_SLUGS, OPEN_BY_DEFAULT);
   const shown = rows.filter((r) => !filters.length || filters.includes(r.status));
 
   if (!rows.length) {

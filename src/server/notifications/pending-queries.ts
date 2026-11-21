@@ -1,10 +1,11 @@
 import "server-only";
 
-import { and, eq, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, lte, notExists, sql, type SQLWrapper } from "drizzle-orm";
 
 import { withRls } from "@/db/rls";
 import {
   application,
+  business,
   cleaningRequest,
   contract,
   deposit,
@@ -16,6 +17,7 @@ import {
   pensionPayment,
   pensionPlan,
   pensionSubscription,
+  person,
   property,
   recurringTask,
   resident,
@@ -45,65 +47,10 @@ type Tx = Parameters<Parameters<typeof withRls>[1]>[0];
 
 const count = sql<number>`count(*)::int`;
 
-// Una cuenta de una tabla de la Fase 7 en un punto de guardado: si la migración todavía no se aplicó, cuenta 0 en
-// lugar de romper el Panel.
-async function optional(tx: Tx, query: (sp: Tx) => Promise<number>): Promise<number> {
-  try {
-    return await tx.transaction((sp) => query(sp));
-  } catch {
-    return 0;
-  }
-}
-
-// Mensajes de residentes o comensales que el arrendador todavía no leyó.
-function unreadFor(tx: Tx, businessId: string) {
-  return optional(tx, async (sp) => {
-    const [r] = await sp
-      .select({ n: count })
-      .from(message)
-      .innerJoin(resident, eq(resident.id, message.residentId))
-      .where(
-        and(eq(resident.businessId, businessId), eq(message.fromResident, true), isNull(message.readAt)),
-      );
-    return r.n;
-  });
-}
-
-// Tareas que se repiten, limpieza pedida y unidades por limpiar (Fase 7, segunda parte).
-async function operationCounts(tx: Tx, businessId: string, today: string) {
-  const activeTasks = and(eq(recurringTask.businessId, businessId), eq(recurringTask.active, true));
-  // Uno tras otro: cada cuenta va en su propio punto de guardado de la misma transacción.
-  const tasksDue = await optional(tx, async (sp) => {
-    const [r] = await sp
-      .select({ n: count })
-      .from(recurringTask)
-      .where(and(activeTasks, lte(recurringTask.nextDue, addDays(today, DUE_SOON_DAYS))));
-    return r.n;
-  });
-  const tasksLate = await optional(tx, async (sp) => {
-    const [r] = await sp
-      .select({ n: count })
-      .from(recurringTask)
-      .where(and(activeTasks, sql`${recurringTask.nextDue} < ${today}`));
-    return r.n;
-  });
-  const cleaningRequests = await optional(tx, async (sp) => {
-    const [r] = await sp
-      .select({ n: count })
-      .from(cleaningRequest)
-      .where(and(eq(cleaningRequest.businessId, businessId), eq(cleaningRequest.status, "requested")));
-    return r.n;
-  });
-  const dirtyUnits = await optional(tx, async (sp) => {
-    const [r] = await sp
-      .select({ n: count })
-      .from(unit)
-      .innerJoin(floor, eq(floor.id, unit.floorId))
-      .innerJoin(property, eq(property.id, floor.propertyId))
-      .where(and(eq(property.businessId, businessId), eq(unit.cleaningStatus, "dirty")));
-    return r.n;
-  });
-  return { tasksDue, tasksLate, cleaningRequests, dirtyUnits };
+// Una cuenta como columna de otra consulta. Desde Lima cada viaje a la base tarda ~100 ms, así que todas las cuentas
+// van juntas en una sola consulta en lugar de una tras otra.
+function scalar(query: SQLWrapper) {
+  return sql<number>`(${query})`.mapWith(Number);
 }
 
 async function residenceCounts(tx: Tx, businessId: string): Promise<Partial<LandlordCounts>> {
@@ -116,74 +63,141 @@ async function residenceCounts(tx: Tx, businessId: string): Promise<Partial<Land
     .from(contract)
     .where(inArray(contract.residentId, residentIds));
   const today = limaToday(new Date());
+  const activeMaintenance = and(
+    eq(maintenanceRequest.businessId, businessId),
+    inArray(maintenanceRequest.status, ["open", "in_progress"]),
+  );
+  const activeTasks = and(eq(recurringTask.businessId, businessId), eq(recurringTask.active, true));
 
-  const data = await loadBusiness(tx, businessId);
+  // Las tres van a la vez por la misma conexión.
+  const [[counts], data, moves] = await Promise.all([
+    tx
+      .select({
+        documentsToReview: scalar(
+          tx
+            .select({ n: count })
+            .from(document)
+            .where(and(eq(document.status, "in_review"), inArray(document.residentId, residentIds))),
+        ),
+        disputedDiscounts: scalar(
+          tx
+            .select({ n: count })
+            .from(settlementDiscount)
+            .innerJoin(settlement, eq(settlement.id, settlementDiscount.settlementId))
+            .innerJoin(deposit, eq(deposit.id, settlement.depositId))
+            .where(and(eq(settlementDiscount.status, "disputed"), inArray(deposit.contractId, contractIds))),
+        ),
+        contractsToSign: scalar(
+          tx
+            .select({ n: count })
+            .from(contract)
+            .where(and(eq(contract.status, "pending_signature"), inArray(contract.residentId, residentIds))),
+        ),
+        openMaintenance: scalar(tx.select({ n: count }).from(maintenanceRequest).where(activeMaintenance)),
+        urgentMaintenance: scalar(
+          tx
+            .select({ n: count })
+            .from(maintenanceRequest)
+            .where(and(activeMaintenance, eq(maintenanceRequest.priority, "urgent"))),
+        ),
+        newApplications: scalar(
+          tx
+            .select({ n: count })
+            .from(application)
+            .where(and(eq(application.businessId, businessId), eq(application.status, "new"))),
+        ),
+        unreadMessages: scalar(unreadFor(tx, businessId)),
+        // Sin cuarto: ningún contrato pendiente de firma ni confirmado (los borradores no cuentan).
+        residentsWithoutRoom: scalar(
+          tx
+            .select({ n: count })
+            .from(resident)
+            .where(
+              and(
+                eq(resident.businessId, businessId),
+                notExists(
+                  tx
+                    .select({ id: contract.id })
+                    .from(contract)
+                    .where(
+                      and(
+                        eq(contract.residentId, resident.id),
+                        inArray(contract.status, ["pending_signature", "confirmed"]),
+                      ),
+                    ),
+                ),
+              ),
+            ),
+        ),
+        tasksDue: scalar(
+          tx
+            .select({ n: count })
+            .from(recurringTask)
+            .where(and(activeTasks, lte(recurringTask.nextDue, addDays(today, DUE_SOON_DAYS)))),
+        ),
+        tasksLate: scalar(
+          tx
+            .select({ n: count })
+            .from(recurringTask)
+            .where(and(activeTasks, sql`${recurringTask.nextDue} < ${today}`)),
+        ),
+        cleaningRequests: scalar(
+          tx
+            .select({ n: count })
+            .from(cleaningRequest)
+            .where(and(eq(cleaningRequest.businessId, businessId), eq(cleaningRequest.status, "requested"))),
+        ),
+        dirtyUnits: scalar(
+          tx
+            .select({ n: count })
+            .from(unit)
+            .innerJoin(floor, eq(floor.id, unit.floorId))
+            .innerJoin(property, eq(property.id, floor.propertyId))
+            .where(and(eq(property.businessId, businessId), eq(unit.cleaningStatus, "dirty"))),
+        ),
+      })
+      .from(business)
+      .where(eq(business.id, businessId)),
+    loadBusiness(tx, businessId),
+    movesIn(tx, businessId),
+  ]);
   const names = new Map(data.residents.map((r) => [r.id, r.name]));
   const overdue = buildReceipts(data.charges, data.payments, names, today).filter(
     (r) => r.status === "overdue",
   );
-
-  const [[documents], [disputes], [toSign]] = await Promise.all([
-    tx
-      .select({ n: count })
-      .from(document)
-      .where(and(eq(document.status, "in_review"), inArray(document.residentId, residentIds))),
-    tx
-      .select({ n: count })
-      .from(settlementDiscount)
-      .innerJoin(settlement, eq(settlement.id, settlementDiscount.settlementId))
-      .innerJoin(deposit, eq(deposit.id, settlement.depositId))
-      .where(and(eq(settlementDiscount.status, "disputed"), inArray(deposit.contractId, contractIds))),
-    tx
-      .select({ n: count })
-      .from(contract)
-      .where(and(eq(contract.status, "pending_signature"), inArray(contract.residentId, residentIds))),
-  ]);
-  const active = and(
-    eq(maintenanceRequest.businessId, businessId),
-    inArray(maintenanceRequest.status, ["open", "in_progress"]),
-  );
-  const openMaintenance = await optional(tx, async (sp) => {
-    const [r] = await sp.select({ n: count }).from(maintenanceRequest).where(active);
-    return r.n;
-  });
-  const urgentMaintenance = await optional(tx, async (sp) => {
-    const [r] = await sp
-      .select({ n: count })
-      .from(maintenanceRequest)
-      .where(and(active, eq(maintenanceRequest.priority, "urgent")));
-    return r.n;
-  });
-  const newApplications = await optional(tx, async (sp) => {
-    const [r] = await sp
-      .select({ n: count })
-      .from(application)
-      .where(and(eq(application.businessId, businessId), eq(application.status, "new")));
-    return r.n;
-  });
   return {
+    ...counts,
     paymentsToReview: data.payments.filter((p) => p.status === "in_review").length,
     overdueResidents: new Set(overdue.map((r) => r.residentId)).size,
-    documentsToReview: documents.n,
-    disputedDiscounts: disputes.n,
-    contractsToSign: toSign.n,
-    openMaintenance,
-    urgentMaintenance,
-    newApplications,
-    upcomingMoves: pendingMovesSoon(await movesIn(tx, businessId), today),
-    unreadMessages: await unreadFor(tx, businessId),
-    ...(await operationCounts(tx, businessId, today)),
+    upcomingMoves: pendingMovesSoon(moves, today),
   };
 }
 
-async function pensionCounts(tx: Tx, businessId: string): Promise<Partial<LandlordCounts>> {
-  const [r] = await tx
+// Mensajes de residentes o comensales que el arrendador todavía no leyó.
+function unreadFor(tx: Tx, businessId: string) {
+  return tx
     .select({ n: count })
-    .from(pensionPayment)
-    .innerJoin(pensionSubscription, eq(pensionSubscription.id, pensionPayment.subscriptionId))
-    .innerJoin(pensionPlan, eq(pensionPlan.id, pensionSubscription.planId))
-    .where(and(eq(pensionPlan.businessId, businessId), eq(pensionPayment.status, "in_review")));
-  return { pensionProofs: r.n, unreadMessages: await unreadFor(tx, businessId) };
+    .from(message)
+    .innerJoin(resident, eq(resident.id, message.residentId))
+    .where(and(eq(resident.businessId, businessId), eq(message.fromResident, true), isNull(message.readAt)));
+}
+
+async function pensionCounts(tx: Tx, businessId: string): Promise<Partial<LandlordCounts>> {
+  const [counts] = await tx
+    .select({
+      pensionProofs: scalar(
+        tx
+          .select({ n: count })
+          .from(pensionPayment)
+          .innerJoin(pensionSubscription, eq(pensionSubscription.id, pensionPayment.subscriptionId))
+          .innerJoin(pensionPlan, eq(pensionPlan.id, pensionSubscription.planId))
+          .where(and(eq(pensionPlan.businessId, businessId), eq(pensionPayment.status, "in_review"))),
+      ),
+      unreadMessages: scalar(unreadFor(tx, businessId)),
+    })
+    .from(business)
+    .where(eq(business.id, businessId));
+  return counts ?? {};
 }
 
 const ZERO: LandlordCounts = {
@@ -196,6 +210,7 @@ const ZERO: LandlordCounts = {
   openMaintenance: 0,
   urgentMaintenance: 0,
   newApplications: 0,
+  residentsWithoutRoom: 0,
   upcomingMoves: 0,
   unreadMessages: 0,
   tasksDue: 0,
@@ -243,7 +258,7 @@ export async function getMyPending(): Promise<PendingItem[]> {
   });
 }
 
-// Mensajes sin leer de su residencia y paquetes por recoger, de todas sus fichas.
+// Mensajes sin leer de su residencia y paquetes por recoger, de todas sus fichas (en una sola consulta).
 async function myMessagesAndParcels(): Promise<{ unreadMessages: number; parcels: number }> {
   const claims = await getSessionClaims();
   return withRls(claims, async (tx) => {
@@ -251,22 +266,29 @@ async function myMessagesAndParcels(): Promise<{ unreadMessages: number; parcels
       .select({ id: resident.id })
       .from(resident)
       .where(sql`${resident.personId} in (select id from public.person where user_id = ${claims.sub})`);
-    const unreadMessages = await optional(tx, async (sp) => {
-      const [r] = await sp
-        .select({ n: count })
-        .from(message)
-        .where(
-          and(inArray(message.residentId, cards), eq(message.fromResident, false), isNull(message.readAt)),
-        );
-      return r.n;
-    });
-    const parcels = await optional(tx, async (sp) => {
-      const [r] = await sp
-        .select({ n: count })
-        .from(parcel)
-        .where(and(inArray(parcel.residentId, cards), isNull(parcel.deliveredAt)));
-      return r.n;
-    });
-    return { unreadMessages, parcels };
+    const [row] = await tx
+      .select({
+        unreadMessages: scalar(
+          tx
+            .select({ n: count })
+            .from(message)
+            .where(
+              and(
+                inArray(message.residentId, cards),
+                eq(message.fromResident, false),
+                isNull(message.readAt),
+              ),
+            ),
+        ),
+        parcels: scalar(
+          tx
+            .select({ n: count })
+            .from(parcel)
+            .where(and(inArray(parcel.residentId, cards), isNull(parcel.deliveredAt))),
+        ),
+      })
+      .from(person)
+      .where(eq(person.userId, claims.sub));
+    return row ?? { unreadMessages: 0, parcels: 0 };
   });
 }

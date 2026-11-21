@@ -17,6 +17,14 @@ export const CATEGORY_VALUES = [
   "other",
 ] as const;
 
+// Cómo se escribe cada estado en la dirección (?filtro=pendientes,en-curso).
+export const STATUS_SLUGS: Record<MaintenanceStatus, string> = {
+  open: "pendientes",
+  in_progress: "en-curso",
+  done: "resueltos",
+  cancelled: "cancelados",
+};
+
 export const STATUS_LABEL: Record<MaintenanceStatus, string> = {
   open: "Pendiente",
   in_progress: "En curso",

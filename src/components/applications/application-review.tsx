@@ -5,21 +5,25 @@ import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
 import { ConfirmButton } from "@/components/confirm-button";
-import { textareaClass } from "@/components/form-controls";
+
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { reviewApplicationAction } from "@/server/applications/actions";
 import { applicationMoves, type ApplicationStatus } from "@/server/applications/rules";
 
-// Aprobar (crea su ficha de residente), dejar en lista de espera o rechazar (con confirmación). La nota es solo tuya.
+// Aprobar (crea su ficha de residente y, si hay cuarto sugerido, abre "Crear contrato" con él), dejar en lista de espera o rechazar (con confirmación). La nota es solo tuya.
 export function ApplicationReview({
   id,
   status,
   note: savedNote,
+  suggestedUnitId,
 }: {
   id: string;
   status: ApplicationStatus;
   note: string | null;
+  // Al aprobar se abre "Crear contrato" con este cuarto ya elegido (se puede cambiar).
+  suggestedUnitId: string | null;
 }) {
   const router = useRouter();
   const [note, setNote] = useState(savedNote ?? "");
@@ -32,7 +36,13 @@ export function ApplicationReview({
       const r = await reviewApplicationAction(id, { status: next, note });
       if (!r.ok) return setError(r.message);
       setError(undefined);
-      if (r.residentId) router.push(`/residentes/${r.residentId}`);
+      if (r.residentId) {
+        router.push(
+          suggestedUnitId
+            ? `/contratos/nuevo?residente=${r.residentId}&unidad=${suggestedUnitId}`
+            : `/residentes/${r.residentId}`,
+        );
+      }
       router.refresh();
     });
 
@@ -41,11 +51,10 @@ export function ApplicationReview({
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="nota">Nota (solo la ves tú)</Label>
-        <textarea
+        <Textarea
           id="nota"
           rows={2}
           maxLength={500}
-          className={textareaClass}
           value={note}
           placeholder="Por ejemplo: le ofrecí el 302 desde marzo."
           onChange={(e) => setNote(e.target.value)}

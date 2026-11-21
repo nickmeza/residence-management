@@ -5,8 +5,11 @@ import { Suspense, type ReactNode } from "react";
 
 import { ApplicationBadge } from "@/components/applications/application-badge";
 import { ApplicationReview } from "@/components/applications/application-review";
+import { DetailSkeleton } from "@/components/skeletons";
+import { buttonVariants } from "@/components/ui/button";
 import { formatLongDate, formatSoles } from "@/lib/format";
-import { getApplication } from "@/server/applications/queries";
+import { getApplication, getUnitSuggestion } from "@/server/applications/queries";
+import type { UnitSuggestion } from "@/server/applications/rules";
 
 export const metadata: Metadata = { title: "Postulación · Gestión de residencias" };
 
@@ -21,10 +24,55 @@ function Row({ name, children }: { name: string; children: ReactNode }) {
   );
 }
 
+// Cuánto se aleja el precio de su presupuesto, en palabras.
+function differenceText(s: UnitSuggestion): string {
+  if (s.differenceCents === null) return "No dio presupuesto: es la más barata de las libres.";
+  if (s.differenceCents === 0) return "Justo su presupuesto.";
+  const amount = formatSoles(Math.abs(s.differenceCents) / 100);
+  return s.differenceCents < 0 ? `${amount} menos que su presupuesto.` : `${amount} más que su presupuesto.`;
+}
+
+// Cuarto sugerido: el libre de lo que busca con el precio más cercano a su presupuesto. Ya aprobado, se puede crear
+// el contrato con ese cuarto elegido.
+function SuggestionCard({
+  s,
+  residentId,
+  unitType,
+}: {
+  s: UnitSuggestion | null;
+  residentId: string | null;
+  unitType: string;
+}) {
+  return (
+    <section className="flex flex-col gap-2 rounded-xl border bg-card p-5 shadow-card">
+      <h2 className="text-lg font-bold">Cuarto sugerido</h2>
+      {s ? (
+        <>
+          <p className="text-lg font-semibold">
+            {s.label} · {formatSoles(s.monthlyPrice)} al mes
+          </p>
+          <p className="text-muted-foreground">{differenceText(s)}</p>
+          {residentId ? (
+            <Link
+              href={`/contratos/nuevo?residente=${residentId}&unidad=${s.id}`}
+              className={buttonVariants({ variant: "outline", className: "h-11 self-start" })}
+            >
+              Crear contrato con este cuarto
+            </Link>
+          ) : null}
+        </>
+      ) : (
+        <p className="text-muted-foreground">No hay {unitType} libres con precio por ahora.</p>
+      )}
+    </section>
+  );
+}
+
 async function Content({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const a = await getApplication(id);
   if (!a) notFound();
+  const suggestion = a.status === "rejected" ? null : await getUnitSuggestion(a);
   const phoneDigits = a.phone.replace(/\D/g, "");
   return (
     <>
@@ -69,6 +117,15 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
           </Link>
         ) : null}
       </section>
+      {a.status === "rejected" ? null : (
+        <SuggestionCard
+          s={suggestion}
+          residentId={a.residentId}
+          unitType={
+            a.unitType === "room" ? "cuartos" : a.unitType === "apartment" ? "departamentos" : "unidades"
+          }
+        />
+      )}
       <section className="flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-card">
         <h2 className="text-lg font-bold">Qué hacer</h2>
         {a.status === "approved" ? (
@@ -76,7 +133,12 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
             Aprobada. Sigue desde su ficha: asígnale una unidad con un contrato e invítalo a su cuenta.
           </p>
         ) : (
-          <ApplicationReview id={a.id} status={a.status} note={a.note} />
+          <ApplicationReview
+            id={a.id}
+            status={a.status}
+            note={a.note}
+            suggestedUnitId={suggestion?.id ?? null}
+          />
         )}
       </section>
     </>
@@ -86,7 +148,7 @@ async function Content({ params }: { params: Promise<{ id: string }> }) {
 // Una postulación (RS-04): sus datos, escribirle por WhatsApp y decidir.
 export default function ApplicationPage({ params }: PageProps<"/postulantes/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<DetailSkeleton />}>
       <Content params={params} />
     </Suspense>
   );

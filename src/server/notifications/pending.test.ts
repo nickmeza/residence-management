@@ -12,6 +12,7 @@ const none: LandlordCounts = {
   openMaintenance: 0,
   urgentMaintenance: 0,
   newApplications: 0,
+  residentsWithoutRoom: 0,
   upcomingMoves: 0,
   unreadMessages: 0,
   tasksDue: 0,
@@ -47,6 +48,34 @@ describe("landlordPending", () => {
       "2 unidades por limpiar",
     ]);
     expect(items[0].urgent).toBe(true);
+  });
+
+  it("cada pendiente lleva a su lista ya filtrada (los vencidos, a Cobros sin filtro: pueden ser de otro mes)", () => {
+    const items = landlordPending({
+      ...none,
+      paymentsToReview: 1,
+      overdueResidents: 1,
+      disputedDiscounts: 1,
+      documentsToReview: 1,
+      contractsToSign: 1,
+      newApplications: 1,
+    });
+    expect(Object.fromEntries(items.map((i) => [i.key, i.href]))).toEqual({
+      payments: "/cobros?filtro=por-revisar",
+      overdue: "/cobros",
+      disputes: "/garantias?filtro=en-liquidacion",
+      documents: "/residentes?filtro=documentos",
+      contracts: "/contratos?filtro=por-cerrar",
+      applications: "/postulantes?filtro=nuevas",
+    });
+  });
+
+  it("avisa de los residentes sin cuarto, con enlace a la lista filtrada", () => {
+    const [item] = landlordPending({ ...none, residentsWithoutRoom: 2 });
+    expect(item).toMatchObject({
+      label: "2 residentes sin cuarto asignado",
+      href: "/residentes?filtro=sin-cuarto",
+    });
   });
 });
 

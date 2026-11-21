@@ -12,6 +12,14 @@ export const CONTRACT_FILTERS: { id: ContractFilter; label: string; phases: Cont
   { id: "ended", label: "Terminados", phases: ["ended", "cancelled"] },
 ];
 
+// Cómo se escribe cada filtro en la dirección (?filtro=por-cerrar).
+export const CONTRACT_FILTER_SLUGS: Record<ContractFilter, string> = {
+  active: "vigentes",
+  ending_soon: "por-vencer",
+  pending: "por-cerrar",
+  ended: "terminados",
+};
+
 export const matchesContractFilter = (row: { phase: ContractPhase }, filter: ContractFilter) =>
   CONTRACT_FILTERS.find((f) => f.id === filter)!.phases.includes(row.phase);
 

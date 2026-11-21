@@ -31,28 +31,23 @@ function businessContracts(tx: Tx, businessId: string) {
     .where(eq(resident.businessId, businessId));
 }
 
-// Ingresos y salidas cercanos de un negocio (DB-02). Dentro de la transacción de quien llama, en un punto de guardado:
-// sin la migración 0024 no hay citas guardadas, pero las fechas de los contratos igual se muestran.
+// Ingresos y salidas cercanos de un negocio (DB-02), dentro de la transacción de quien llama. Los contratos y las citas
+// guardadas se piden a la vez.
 export async function movesIn(tx: Tx, businessId: string, days = 30): Promise<UpcomingMove[]> {
-  const contracts = await businessContracts(tx, businessId);
-  let events: { contractId: string; kind: MoveKind; scheduledAt: Date | null; doneAt: Date | null }[] = [];
-  try {
-    events = await tx.transaction((sp) =>
-      sp
-        .select({
-          contractId: moveEvent.contractId,
-          kind: moveEvent.kind,
-          scheduledAt: moveEvent.scheduledAt,
-          doneAt: moveEvent.doneAt,
-        })
-        .from(moveEvent)
-        .innerJoin(contract, eq(contract.id, moveEvent.contractId))
-        .innerJoin(resident, eq(resident.id, contract.residentId))
-        .where(eq(resident.businessId, businessId)),
-    );
-  } catch (e) {
-    console.error("No se pudieron leer los ingresos y salidas", e);
-  }
+  const [contracts, events] = await Promise.all([
+    businessContracts(tx, businessId),
+    tx
+      .select({
+        contractId: moveEvent.contractId,
+        kind: moveEvent.kind,
+        scheduledAt: moveEvent.scheduledAt,
+        doneAt: moveEvent.doneAt,
+      })
+      .from(moveEvent)
+      .innerJoin(contract, eq(contract.id, moveEvent.contractId))
+      .innerJoin(resident, eq(resident.id, contract.residentId))
+      .where(eq(resident.businessId, businessId)),
+  ]);
   return upcomingMoves(contracts, events, limaToday(new Date()), days);
 }
 

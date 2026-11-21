@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { ResidentList } from "@/components/residents/resident-list";
+import { ListSkeleton } from "@/components/skeletons";
 import { getShellData } from "@/server/business/current";
 import { listResidents } from "@/server/residents/queries";
 
@@ -25,7 +26,7 @@ async function Content() {
 
 export default function ResidentsPage() {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando residentes…</p>}>
+    <Suspense fallback={<ListSkeleton />}>
       <Content />
     </Suspense>
   );

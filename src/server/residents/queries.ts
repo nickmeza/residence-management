@@ -23,7 +23,7 @@ import { contractPhase, type ContractPhase } from "@/server/contracts/rules";
 import type { UploadedDocument } from "@/server/contracts/queries";
 import type { UnitType } from "@/server/documents/rules";
 
-import { currentContract, currentPhase, documentsSummary, type ResidentRow } from "./list";
+import { currentContract, currentPhase, documentsSummary, withoutRoom, type ResidentRow } from "./list";
 
 type Tx = Parameters<Parameters<typeof withRls>[1]>[0];
 
@@ -121,16 +121,15 @@ export async function listResidents(businessId: string): Promise<ResidentListRow
     ]);
 
     return people.map((p) => {
-      const shown = currentContract(
-        contracts.filter((c) => c.residentId === p.id),
-        today,
-      );
+      const own = contracts.filter((c) => c.residentId === p.id);
+      const shown = currentContract(own, today);
       return {
         id: p.id,
         fullName: p.fullName,
         isStudent: Boolean(p.university),
         phase: currentPhase(shown, today),
         unitName: shown?.unitName ?? null,
+        withoutRoom: withoutRoom(own),
         monthlyRent: shown?.monthlyRent ?? null,
         endsIn: shown ? endsInLabel(shown.endDate, today) : null,
         searchText: `${p.fullName} ${shown?.unitName ?? ""}`,
@@ -173,6 +172,8 @@ export type ResidentDetail = {
     paperwork: "none" | "paper" | "template";
     phase: ContractPhase;
   } | null;
+  // Nunca tuvo un contrato pendiente de firma ni confirmado (ver withoutRoom).
+  withoutRoom: boolean;
   documents: UploadedDocument[];
   // Lo que se le pide, según la lista de lo que alquila (las dos si todavía no tiene contrato). Solo activos.
   // asked: obligatorio y sin excepción. status: el último archivo subido para ese requisito.
@@ -258,6 +259,7 @@ export async function getResident(id: string): Promise<ResidentDetail | null> {
       businessId: r.businessId,
       businessName: row.businessName,
       hasAccount: p.userId !== null,
+      withoutRoom: withoutRoom(contracts),
       person: {
         fullName: p.fullName,
         phone: p.phone,
