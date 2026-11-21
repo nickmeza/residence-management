@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
 import { ConfirmButton } from "@/components/confirm-button";
-import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/date-field";
+import { SelectField } from "@/components/select-field";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -14,8 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   cancelContractAction,
   changePaperworkAction,
@@ -26,10 +29,6 @@ import {
 import { limaToday } from "@/server/contracts/dates";
 import type { ContractDetail, ContractFormOptions } from "@/server/contracts/queries";
 import { PAPERWORK_HINT, PAPERWORK_LABEL, PAPERWORK_OPTIONS } from "@/server/contracts/schemas";
-
-import { ContractSheet, type ContractSheetTarget } from "./contract-sheet";
-
-const selectClass = "h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm";
 
 // Diálogo pequeño con un formulario y su botón de guardar.
 function ActionDialog({
@@ -80,7 +79,6 @@ export function ContractActions({ c, options }: { c: ContractDetail; options: Co
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string>();
   const [dialog, setDialog] = useState<"paperwork" | "end" | null>(null);
-  const [sheet, setSheet] = useState<ContractSheetTarget | null>(null);
   const [paperwork, setPaperwork] = useState(c.paperwork);
   const [templateId, setTemplateId] = useState(c.templateId ?? "");
   const [endDate, setEndDate] = useState(c.endDate ?? limaToday(new Date()));
@@ -117,31 +115,9 @@ export function ContractActions({ c, options }: { c: ContractDetail; options: Co
           </Button>
         ) : null}
         {active && !ended && !c.renewedTo ? (
-          <Button
-            type="button"
-            className="h-11"
-            onClick={() =>
-              setSheet({
-                mode: "terms",
-                contractId: c.id,
-                initial: {
-                  residentId: c.residentId,
-                  unitId: c.unitId,
-                  startDate: limaToday(new Date()),
-                  endDate: c.endDate ?? "",
-                  monthlyRent: String(Number(c.monthlyRent)),
-                  paymentDay: String(c.paymentDay),
-                  paperwork: c.paperwork,
-                  templateId: c.templateId ?? "",
-                  depositRule: "",
-                  depositFixedAmount: "",
-                  depositDueDate: "",
-                },
-              })
-            }
-          >
+          <Link href={`/contratos/${c.id}/condiciones`} className={buttonVariants({ className: "h-11" })}>
             Cambiar condiciones
-          </Button>
+          </Link>
         ) : null}
         {c.status !== "cancelled" && !ended ? (
           <Button type="button" variant="outline" className="h-11" onClick={() => open("paperwork")}>
@@ -188,47 +164,35 @@ export function ContractActions({ c, options }: { c: ContractDetail; options: Co
       >
         <fieldset className="flex flex-col gap-2">
           <legend className="sr-only">Modalidad</legend>
-          {PAPERWORK_OPTIONS.map((p) => {
-            const disabled = p === "template" && options.templates.length === 0;
-            return (
-              <label key={p} className="flex min-h-11 items-start gap-3 rounded-lg border p-3 text-sm">
-                <input
-                  type="radio"
-                  name="paperwork"
-                  value={p}
-                  checked={paperwork === p}
-                  disabled={disabled}
-                  onChange={() => setPaperwork(p)}
-                  className="mt-0.5 size-4 accent-primary"
-                />
-                <span>
-                  <span className="font-semibold">{PAPERWORK_LABEL[p]}</span>
-                  <span className="block text-muted-foreground">
-                    {disabled
-                      ? "Primero crea una plantilla en Configuración › Plantillas."
-                      : PAPERWORK_HINT[p]}
+          <RadioGroup value={paperwork} onValueChange={(p) => setPaperwork(p as typeof paperwork)}>
+            {PAPERWORK_OPTIONS.map((p) => {
+              const disabled = p === "template" && options.templates.length === 0;
+              return (
+                <label key={p} className="flex min-h-11 items-start gap-3 rounded-lg border p-3 text-sm">
+                  <RadioGroupItem value={p} disabled={disabled} className="mt-0.5" />
+                  <span>
+                    <span className="font-semibold">{PAPERWORK_LABEL[p]}</span>
+                    <span className="block text-muted-foreground">
+                      {disabled
+                        ? "Primero crea una plantilla en Configuración › Plantillas."
+                        : PAPERWORK_HINT[p]}
+                    </span>
                   </span>
-                </span>
-              </label>
-            );
-          })}
+                </label>
+              );
+            })}
+          </RadioGroup>
         </fieldset>
         {paperwork === "template" ? (
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="template">Plantilla</Label>
-            <select
+            <SelectField
               id="template"
-              className={selectClass}
               value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-            >
-              <option value="">Elige la plantilla</option>
-              {options.templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
+              onValueChange={(v) => setTemplateId(v)}
+              placeholder="Elige la plantilla"
+              options={options.templates.map((t) => ({ value: t.id, label: t.name }))}
+            />
           </div>
         ) : null}
       </ActionDialog>
@@ -245,17 +209,9 @@ export function ContractActions({ c, options }: { c: ContractDetail; options: Co
       >
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="endDate">Último día</Label>
-          <Input
-            id="endDate"
-            type="date"
-            className="h-11"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
+          <DateField id="endDate" value={endDate} onValueChange={(v) => setEndDate(v)} />
         </div>
       </ActionDialog>
-
-      <ContractSheet target={sheet} options={options} onClose={() => setSheet(null)} />
     </div>
   );
 }

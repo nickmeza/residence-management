@@ -17,6 +17,7 @@ import { FilterMenu } from "@/components/filter-menu";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useListParams } from "@/components/use-list-params";
 import { formatSoles } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { daysBetween } from "@/server/contracts/dates";
@@ -24,9 +25,9 @@ import {
   filterReceipts,
   hasPayable,
   matchesFilter,
+  RECEIPT_FILTER_SLUGS,
   RECEIPT_FILTERS,
   reviewSummary,
-  type ReceiptFilter,
 } from "@/server/payments/collections-filter";
 import type { CollectionsView } from "@/server/payments/queries";
 import { periodLabel } from "@/server/payments/rules";
@@ -48,8 +49,7 @@ const month = (period: string) => periodLabel(period).replace(/ de \d{4}$/, "");
 
 // Cobros: los recibos del mes en una tabla, con aviso de comprobantes, búsqueda, filtros y registrar un pago.
 export function CollectionsTable({ view, today }: { view: CollectionsView; today: string }) {
-  const [filters, setFilters] = useState<ReceiptFilter[]>([]);
-  const [query, setQuery] = useState("");
+  const { filters, setFilters, query, setQuery } = useListParams(RECEIPT_FILTER_SLUGS);
   const [formOpen, setFormOpen] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
 

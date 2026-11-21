@@ -3,7 +3,9 @@
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
+import { DateField } from "@/components/date-field";
 import { FileField } from "@/components/payments/file-field";
+import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,8 +20,6 @@ import { Label } from "@/components/ui/label";
 import { formatShortDate } from "@/lib/format";
 import { submitPensionProofAction } from "@/server/pension/actions";
 import { METHOD_LABEL, PAYMENT_METHODS } from "@/server/payments/schemas";
-
-const selectClass = "h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm";
 
 // "Avisar que pagué" (decisión del dueño, 2026-11-13): el comensal manda cuánto pagó, cómo y la foto del
 // comprobante. Llega lleno con su próximo pago (o lo que falta de un pago por partes). Queda en revisión hasta
@@ -92,8 +92,8 @@ export function MyProofForm({
           <DialogHeader>
             <DialogTitle>Avisar que pagué</DialogTitle>
             <DialogDescription>
-              Para del {formatShortDate(suggestion.from)} al {formatShortDate(suggestion.to)}. Si pagaste una parte,
-              escribe solo lo que pagaste.
+              Para del {formatShortDate(suggestion.from)} al {formatShortDate(suggestion.to)}. Si pagaste una
+              parte, escribe solo lo que pagaste.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -110,29 +110,16 @@ export function MyProofForm({
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="proof-method">Cómo pagaste</Label>
-              <select
+              <SelectField
                 id="proof-method"
-                className={selectClass}
                 value={method}
-                onChange={(e) => setMethod(e.target.value as (typeof PAYMENT_METHODS)[number])}
-              >
-                {PAYMENT_METHODS.map((m) => (
-                  <option key={m} value={m}>
-                    {METHOD_LABEL[m]}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(v) => setMethod(v as (typeof PAYMENT_METHODS)[number])}
+                options={PAYMENT_METHODS.map((m) => ({ value: m, label: METHOD_LABEL[m] }))}
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="proof-date">Cuándo pagaste</Label>
-              <Input
-                id="proof-date"
-                type="date"
-                className="h-11"
-                max={today}
-                value={paidOn}
-                onChange={(e) => setPaidOn(e.target.value)}
-              />
+              <DateField id="proof-date" max={today} value={paidOn} onValueChange={(v) => setPaidOn(v)} />
               {fieldError("paidOn")}
             </div>
             <div className="flex flex-col gap-1.5">

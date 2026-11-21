@@ -1,5 +1,6 @@
 "use client";
 
+import { FormDateField } from "@/components/date-field";
 import type { ComponentProps, ReactNode } from "react";
 import { useFormContext, useFormState, type FieldValues } from "react-hook-form";
 
@@ -50,17 +51,27 @@ export function TextField({ name, label, hint, prefix, hideLabel, className, ...
       <Label htmlFor={id} className={hideLabel ? "sr-only" : undefined}>
         {label}
       </Label>
-      <div className="flex items-center gap-2">
-        {prefix ? <span className="text-sm text-muted-foreground">{prefix}</span> : null}
-        <Input
+      {input.type === "date" ? (
+        // Las fechas usan el calendario de la app; si la etiqueta dice "(opcional)", se puede quitar la fecha.
+        <FormDateField
           id={id}
-          className="h-11"
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
-          {...input}
-          {...register(name)}
+          name={name}
+          clearable={label.includes("(opcional)")}
+          invalid={Boolean(error)}
         />
-      </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          {prefix ? <span className="text-sm text-muted-foreground">{prefix}</span> : null}
+          <Input
+            id={id}
+            className="h-11"
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
+            {...input}
+            {...register(name)}
+          />
+        </div>
+      )}
       {error ? (
         <p id={`${id}-error`} className="text-sm text-danger">
           {error}

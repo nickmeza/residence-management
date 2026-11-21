@@ -4,10 +4,13 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { BusinessCard } from "@/components/business/business-card";
+import { PendingList } from "@/components/notifications/pending-list";
+import { CardsSkeleton, GreetingSkeleton, PendingSkeleton } from "@/components/skeletons";
 import { buttonVariants } from "@/components/ui/button";
 import { greetingFor, greetingName } from "@/lib/greeting";
 import { getShellData } from "@/server/business/current";
 import { getMyOverview } from "@/server/business/overview";
+import { getLandlordPending } from "@/server/notifications/pending-queries";
 import { isResidentOnlyAccount } from "@/server/residents/self";
 
 export const metadata: Metadata = { title: "Panel · Gestión de residencias" };
@@ -30,6 +33,13 @@ async function Greeting() {
       <p className="text-muted-foreground">Esto es lo que necesita tu atención hoy.</p>
     </div>
   );
+}
+
+// Lo que espera una acción en el negocio elegido (DB-01, DB-03).
+async function Pending() {
+  const { current } = await getShellData();
+  if (!current) return null;
+  return <PendingList items={await getLandlordPending(current.id, current.service)} />;
 }
 
 // El panel sigue al negocio elegido arriba (como el proyecto elegido en GCP).
@@ -74,10 +84,24 @@ async function CurrentBusiness() {
 export default function PanelPage() {
   return (
     <>
-      <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+      <Suspense fallback={<GreetingSkeleton />}>
         <Greeting />
       </Suspense>
-      <Suspense fallback={<p className="text-muted-foreground">Cargando tu negocio…</p>}>
+      <Suspense
+        fallback={
+          <PendingSkeleton
+            messages={[
+              "Revisando tus cobros…",
+              "Contando documentos y contratos por firmar…",
+              "Mirando mantenimiento y postulantes…",
+              "Revisando ingresos, salidas y limpieza…",
+            ]}
+          />
+        }
+      >
+        <Pending />
+      </Suspense>
+      <Suspense fallback={<CardsSkeleton />}>
         <CurrentBusiness />
       </Suspense>
     </>

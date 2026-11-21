@@ -10,6 +10,14 @@ export const RECEIPT_FILTERS: { id: ReceiptFilter; label: string }[] = [
   { id: "review", label: "Con comprobante por revisar" },
 ];
 
+// Cómo se escribe cada filtro en la dirección (?filtro=por-revisar).
+export const RECEIPT_FILTER_SLUGS: Record<ReceiptFilter, string> = {
+  paid: "pagados",
+  pending: "pendientes",
+  overdue: "vencidos",
+  review: "por-revisar",
+};
+
 type Filterable = { status: ReceiptStatus; inReview: number; residentName: string; units: string[] };
 
 // "Con comprobante por revisar" mira los comprobantes pendientes, no el estado del recibo: un recibo en

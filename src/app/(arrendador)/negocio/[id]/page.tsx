@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { BusinessEditForm } from "@/components/business/business-edit-form";
 import { ConfigTabs } from "@/components/business/config-tabs";
 import { DeleteBusinessButton } from "@/components/business/delete-business-button";
+import { FormSkeleton } from "@/components/skeletons";
 import { getBusinessForEdit } from "@/server/business/queries";
 
 export const metadata: Metadata = { title: "Configuración · Gestión de residencias" };
@@ -53,7 +54,7 @@ async function Content({ params }: { params: PageProps<"/negocio/[id]">["params"
 
 export default function BusinessPage({ params }: PageProps<"/negocio/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<FormSkeleton />}>
       <Content params={params} />
     </Suspense>
   );

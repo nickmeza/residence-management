@@ -15,6 +15,8 @@ import {
   unit,
 } from "@/db/schema";
 import { isRentable, type UnitInput } from "@/server/building/rules";
+import { contractToSign } from "@/server/notifications/catalog";
+import { notifyResident } from "@/server/notifications/notify";
 import { syncContractBilling } from "@/server/payments/billing";
 import type { UnitType } from "@/server/documents/rules";
 
@@ -205,6 +207,7 @@ export async function createContract(tx: Tx, data: ContractData, asDraft: boolea
     .values({ ...data, ...state })
     .returning({ id: contract.id });
   await syncContractBilling(tx, [row.id]);
+  await notifyIfToSign(tx, row.id);
   return row.id;
 }
 
@@ -229,6 +232,18 @@ async function findContract(tx: Tx, id: string) {
   return row;
 }
 
+// Si el contrato quedó pendiente de firma, se le avisa al residente (con el nombre de la unidad).
+async function notifyIfToSign(tx: Tx, id: string) {
+  const [row] = await tx
+    .select({ status: contract.status, residentId: contract.residentId, unitName: unit.name })
+    .from(contract)
+    .innerJoin(unit, eq(unit.id, contract.unitId))
+    .where(eq(contract.id, id))
+    .limit(1);
+  if (row?.status === "pending_signature")
+    await notifyResident(tx, row.residentId, contractToSign(row.unitName));
+}
+
 // Un borrador pasa a acordado o pendiente de firma. Recién aquí ocupa la unidad, así que se vuelve a revisar.
 export async function submitDraft(tx: Tx, id: string) {
   const c = await findContract(tx, id);
@@ -237,6 +252,7 @@ export async function submitDraft(tx: Tx, id: string) {
   const state = await nextStatus(tx, { ...c, unitType: ctx.unitType });
   await tx.update(contract).set(state).where(eq(contract.id, id));
   await syncContractBilling(tx, [id]);
+  await notifyIfToSign(tx, id);
 }
 
 // Cambia solo el papel del mismo alquiler (por ejemplo, era mes a mes sin contrato y el residente pide una copia).
@@ -265,6 +281,7 @@ export async function changePaperwork(
     .set({ ...input, ...state })
     .where(eq(contract.id, id));
   await syncContractBilling(tx, [id]);
+  await notifyIfToSign(tx, id);
 }
 
 // Cambian las condiciones (renta, unidad, fechas…): el contrato actual termina el día anterior y empieza uno

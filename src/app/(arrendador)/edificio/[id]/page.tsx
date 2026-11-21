@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { BuildingEditor } from "@/components/building/building-editor";
 import { CoverPhotoCard } from "@/components/building/cover-photo-card";
+import { BuildingSkeleton } from "@/components/skeletons";
 import { coverUrl } from "@/server/building/cover";
 import { getBuilding } from "@/server/business/queries";
 
@@ -39,7 +40,7 @@ async function Content({ params }: { params: PageProps<"/edificio/[id]">["params
 
 export default function BuildingPage({ params }: PageProps<"/edificio/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando el edificio…</p>}>
+    <Suspense fallback={<BuildingSkeleton />}>
       <Content params={params} />
     </Suspense>
   );

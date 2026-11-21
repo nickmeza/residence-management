@@ -82,6 +82,8 @@ export type ContractFormOptions = {
   units: { id: string; label: string; monthlyPrice: string | null; deposit: DepositPolicy }[];
   templates: { id: string; name: string }[];
   billingDay: number;
+  // Si el primer y el último mes incompletos se cobran por días (Configuración › Garantía).
+  prorateRent: boolean;
 };
 
 // Opciones del formulario de contrato para un negocio.
@@ -90,7 +92,7 @@ export async function getContractFormOptions(businessId: string): Promise<Contra
   const claims = await getSessionClaims();
   return withRls(claims, async (tx) => {
     const [b] = await tx
-      .select({ billingDay: business.billingDay })
+      .select({ billingDay: business.billingDay, prorateRent: business.prorateRent })
       .from(business)
       .where(eq(business.id, businessId))
       .limit(1);
@@ -157,6 +159,7 @@ export async function getContractFormOptions(businessId: string): Promise<Contra
         })),
       templates,
       billingDay: b.billingDay ?? 5,
+      prorateRent: b.prorateRent,
     };
   });
 }

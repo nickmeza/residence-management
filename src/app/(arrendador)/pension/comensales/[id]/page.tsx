@@ -5,6 +5,7 @@ import { Suspense } from "react";
 
 import { DinerDetailView } from "@/components/pension/diner-detail";
 import { currentPension, NotAPension } from "@/components/pension/pension-page";
+import { DetailSkeleton } from "@/components/skeletons";
 import { getDiner } from "@/server/pension/queries";
 
 export const metadata: Metadata = { title: "Pensión · Comensal · Gestión de residencias" };
@@ -38,7 +39,7 @@ async function Content({ params }: Pick<Props, "params">) {
 
 export default function DinerPage({ params }: Props) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<DetailSkeleton />}>
       <Content params={params} />
     </Suspense>
   );

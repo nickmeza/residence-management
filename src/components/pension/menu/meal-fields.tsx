@@ -1,10 +1,13 @@
 "use client";
 
+import { SelectField } from "@/components/select-field";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useId, type Ref } from "react";
 
 import { formatLongDate } from "@/lib/format";
 import { isFilled, type MenuCell } from "@/server/pension/menu-moves";
 import { MEAL_LABEL, type MealType } from "@/server/pension/rules";
+import { Textarea } from "@/components/ui/textarea";
 
 import { DishList, MealIcon, VegBadge } from "./menu-parts";
 
@@ -36,7 +39,11 @@ export function MealFields({
   const id = useId();
   const filled = isFilled(value);
   return (
-    <div className={compact ? "flex flex-col gap-3" : "grid gap-5 py-4 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]"}>
+    <div
+      className={
+        compact ? "flex flex-col gap-3" : "grid gap-5 py-4 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]"
+      }
+    >
       <div className="flex flex-col gap-2">
         <label htmlFor={`${id}-dish`} className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-2 text-[17px] font-extrabold">
@@ -45,7 +52,7 @@ export function MealFields({
           </span>
           {time && !compact ? <span className="text-sm text-muted-foreground">{time}</span> : null}
         </label>
-        <textarea
+        <Textarea
           ref={textareaRef}
           id={`${id}-dish`}
           rows={compact ? 6 : 5}
@@ -53,15 +60,13 @@ export function MealFields({
           value={value.dish}
           onChange={(e) => onChange({ ...value, dish: e.target.value })}
           placeholder={"Un plato por línea\nEntrada: sopa o causa\nSegundo: lomo saltado"}
-          className="w-full resize-y rounded-lg border border-input bg-transparent px-3.5 py-3 text-base leading-relaxed transition-colors duration-200 md:text-[15px]"
+          className="resize-y px-3.5 py-3 leading-relaxed md:text-[15px]"
         />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="size-[18px] accent-primary"
+            <Checkbox
               checked={value.hasVegetarian}
-              onChange={(e) => onChange({ ...value, hasVegetarian: e.target.checked })}
+              onCheckedChange={(checked) => onChange({ ...value, hasVegetarian: checked })}
             />
             Hay opción vegetariana
           </label>
@@ -72,18 +77,14 @@ export function MealFields({
         {filled && moveTargets.length ? (
           <label className="flex flex-wrap items-center gap-2 text-sm">
             <span className="text-muted-foreground">Mover a otro día:</span>
-            <select
+            <SelectField
+              ariaLabel="Mover a otro día"
+              className="w-auto"
               value=""
-              onChange={(e) => e.target.value && onMove(e.target.value)}
-              className="h-10 rounded-lg border border-input bg-card px-2 text-sm"
-            >
-              <option value="">Elegir día…</option>
-              {moveTargets.map((d) => (
-                <option key={d} value={d}>
-                  {formatLongDate(d)}
-                </option>
-              ))}
-            </select>
+              placeholder="Elegir día…"
+              onValueChange={(day) => day && onMove(day)}
+              options={moveTargets.map((d) => ({ value: d, label: formatLongDate(d) }))}
+            />
           </label>
         ) : null}
       </div>

@@ -8,6 +8,7 @@ import { FormMessage } from "@/components/auth/auth-field";
 import { ConfirmButton } from "@/components/confirm-button";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -158,17 +159,13 @@ export function PlansEditor({
                 <div className="flex flex-wrap gap-x-5">
                   {MEAL_TYPES.map((m) => (
                     <label key={m} className="flex min-h-11 items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        className="size-5 accent-primary"
+                      <Checkbox
                         disabled={!offered.includes(m) && !draft.meals.includes(m)}
                         checked={draft.meals.includes(m)}
-                        onChange={(e) =>
+                        onCheckedChange={(checked) =>
                           setDraft({
                             ...draft,
-                            meals: e.target.checked
-                              ? [...draft.meals, m]
-                              : draft.meals.filter((x) => x !== m),
+                            meals: checked ? [...draft.meals, m] : draft.meals.filter((x) => x !== m),
                           })
                         }
                       />
@@ -195,11 +192,9 @@ export function PlansEditor({
                 <p className="rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">{warning}</p>
               ) : null}
               <label className="flex min-h-11 items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="size-5 accent-primary"
+                <Checkbox
                   checked={draft.active}
-                  onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
+                  onCheckedChange={(checked) => setDraft({ ...draft, active: checked })}
                 />
                 Activo (se puede ofrecer a comensales nuevos)
               </label>

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { AutoConfirmedList } from "@/components/payments/auto-confirmed-list";
 import { CollectionsTable } from "@/components/payments/collections-table";
 import { MonthPicker } from "@/components/payments/month-picker";
+import { ListSkeleton, Reveal } from "@/components/skeletons";
 import { getShellData } from "@/server/business/current";
 import { limaToday } from "@/server/contracts/dates";
 import { getCollections } from "@/server/payments/queries";
@@ -32,8 +33,16 @@ async function Content({ searchParams }: { searchParams: PageProps<"/cobros">["s
 
 export default function CollectionsPage({ searchParams }: PageProps<"/cobros">) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
-      <Content searchParams={searchParams} />
+    <Suspense
+      fallback={
+        <ListSkeleton
+          messages={["Juntando los recibos del mes…", "Sumando los pagos…", "Viendo quién está al día…"]}
+        />
+      }
+    >
+      <Reveal>
+        <Content searchParams={searchParams} />
+      </Reveal>
     </Suspense>
   );
 }

@@ -2,52 +2,37 @@
 
 import { Plus, Search } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 
 import { FilterMenu } from "@/components/filter-menu";
 import { ContractPhaseBadge } from "@/components/residents/badges";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useListParams } from "@/components/use-list-params";
 import { formatSoles } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
+  CONTRACT_FILTER_SLUGS,
   CONTRACT_FILTERS,
   filterContracts,
   matchesContractFilter,
-  type ContractFilter,
 } from "@/server/contracts/list-filter";
-import type { ContractFormOptions, ContractListRow } from "@/server/contracts/queries";
+import type { ContractListRow } from "@/server/contracts/queries";
 import { PAPERWORK_LABEL } from "@/server/contracts/schemas";
-
-import { ContractSheet, type ContractSheetTarget } from "./contract-sheet";
 
 const GRID = "grid grid-cols-[1.3fr_1.3fr_.8fr_1.1fr_1.2fr_1fr_auto] items-center gap-3 px-5";
 
-// Lista de contratos, versión simple (como Cobros): buscador, Filtrar, Nuevo contrato y la tabla. initialResidentId: llega desde el perfil
-// del residente ("Crear contrato") y abre el panel con ese residente elegido.
-export function ContractList({
-  rows,
-  options,
-  initialResidentId,
-}: {
-  rows: ContractListRow[];
-  options: ContractFormOptions;
-  initialResidentId?: string;
-}) {
-  const [filters, setFilters] = useState<ContractFilter[]>([]);
-  const [query, setQuery] = useState("");
-  const [sheet, setSheet] = useState<ContractSheetTarget | null>(
-    initialResidentId ? { mode: "create", residentId: initialResidentId } : null,
-  );
+// Lista de contratos, versión simple (como Cobros): buscador, Filtrar, Nuevo contrato y la tabla. "Nuevo contrato"
+// lleva a su propia página (/contratos/nuevo).
+export function ContractList({ rows }: { rows: ContractListRow[] }) {
+  const { filters, setFilters, query, setQuery } = useListParams(CONTRACT_FILTER_SLUGS);
   const shown = filterContracts(rows, filters, query);
 
   const create = (
-    <Button type="button" className="h-11 gap-2" onClick={() => setSheet({ mode: "create" })}>
+    <Link href="/contratos/nuevo" className={buttonVariants({ className: "h-11 gap-2" })}>
       <Plus className="size-4" aria-hidden="true" />
       Nuevo contrato
-    </Button>
+    </Link>
   );
-  const panel = <ContractSheet target={sheet} options={options} onClose={() => setSheet(null)} />;
 
   if (!rows.length) {
     return (
@@ -60,7 +45,6 @@ export function ContractList({
           </p>
           {create}
         </section>
-        {panel}
       </>
     );
   }
@@ -149,7 +133,6 @@ export function ContractList({
           Mostrando {shown.length} de {rows.length} {rows.length === 1 ? "contrato" : "contratos"}
         </p>
       </section>
-      {panel}
     </>
   );
 }

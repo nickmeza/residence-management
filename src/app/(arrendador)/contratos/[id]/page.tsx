@@ -9,6 +9,7 @@ import { ContractActions } from "@/components/contracts/contract-actions";
 import { UploadButton } from "@/components/documents/upload-button";
 import { UploadedList } from "@/components/documents/uploaded-list";
 import { ContractPhaseBadge } from "@/components/residents/badges";
+import { DetailSkeleton } from "@/components/skeletons";
 import { StatusBadge } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { formatSoles } from "@/lib/format";
@@ -159,7 +160,7 @@ async function Content({ params }: { params: PageProps<"/contratos/[id]">["param
 
 export default function ContractPage({ params }: PageProps<"/contratos/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<DetailSkeleton />}>
       <Content params={params} />
     </Suspense>
   );

@@ -129,3 +129,96 @@
     color: var(--ds-link);
   }
 }
+
+/* Carga: el esqueleto con un brillo que lo recorre, la pastilla que dice qué se está pidiendo y la entrada
+   escalonada de lo que llega (cada hijo de .reveal-list sube y se enfoca, uno tras otro). */
+@keyframes ds-shimmer {
+  from {
+    background-position: 220% 0;
+  }
+  to {
+    background-position: -220% 0;
+  }
+}
+@keyframes ds-pulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+@keyframes ds-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+    filter: blur(3px);
+  }
+}
+@keyframes ds-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+    filter: blur(6px);
+  }
+}
+
+@layer components {
+  .skeleton-shine {
+    background: linear-gradient(
+      100deg,
+      var(--ds-skeleton) 15%,
+      var(--ds-skeleton-shine) 45%,
+      var(--ds-skeleton) 75%
+    );
+    background-size: 220% 100%;
+    animation: ds-shimmer 2.2s linear infinite;
+  }
+  .overlay-leaving {
+    opacity: 0;
+    transition: opacity var(--ds-overlay-out) ease;
+  }
+  .loading-pill {
+    transition: opacity var(--ds-transition);
+  }
+  .loading-dot {
+    animation: ds-pulse 1.5s infinite;
+  }
+  .loading-message {
+    animation: ds-message-in 0.4s ease;
+  }
+  .reveal-list > * {
+    animation: ds-reveal var(--ds-reveal) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .reveal-list > :nth-child(2) {
+    animation-delay: calc(var(--ds-reveal-step) * 1);
+  }
+  .reveal-list > :nth-child(3) {
+    animation-delay: calc(var(--ds-reveal-step) * 2);
+  }
+  .reveal-list > :nth-child(4) {
+    animation-delay: calc(var(--ds-reveal-step) * 3);
+  }
+  .reveal-list > :nth-child(5) {
+    animation-delay: calc(var(--ds-reveal-step) * 4);
+  }
+  .reveal-list > :nth-child(6) {
+    animation-delay: calc(var(--ds-reveal-step) * 5);
+  }
+  .reveal-list > :nth-child(7) {
+    animation-delay: calc(var(--ds-reveal-step) * 6);
+  }
+  .reveal-list > :nth-child(n + 8) {
+    animation-delay: calc(var(--ds-reveal-step) * 7);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-shine,
+    .loading-dot,
+    .loading-message,
+    .reveal-list > * {
+      animation: none;
+    }
+    .overlay-leaving {
+      transition: none;
+    }
+  }
+}

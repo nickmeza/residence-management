@@ -1,7 +1,8 @@
 import "server-only";
 
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 
+import { db } from "@/db";
 import { withRls } from "@/db/rls";
 import {
   contract,
@@ -9,6 +10,7 @@ import {
   documentRequirement,
   documentRequirementExemption,
   person,
+  property,
   resident,
 } from "@/db/schema";
 import { getSessionClaims } from "@/server/auth/session";
@@ -239,4 +241,35 @@ export async function isResidentOnlyAccount(): Promise<boolean> {
       >,
   );
   return Boolean(rows[0]?.resident && !rows[0].owner);
+}
+
+// Portada para quien todavía no tiene contrato (por ejemplo, recién aceptó la invitación): la foto de un edificio de
+// su negocio (si hay varios, el primero por nombre que tenga foto). Sus negocios salen con su sesión (RLS: solo sus
+// fichas); la ruta se lee como administrador porque el residente no ve la tabla de edificios. El enlace lo firma
+// Storage con su sesión, así que su regla (residente de ese negocio) decide si la ve.
+export async function myBusinessCoverPath(): Promise<string | null> {
+  const claims = await getSessionClaims();
+  const cards = await withRls(claims, (tx) =>
+    tx
+      .select({ businessId: resident.businessId })
+      .from(resident)
+      .innerJoin(person, eq(person.id, resident.personId))
+      .where(eq(person.userId, claims.sub)),
+  );
+  if (!cards.length) return null;
+  const [row] = await db
+    .select({ path: property.coverPhotoPath })
+    .from(property)
+    .where(
+      and(
+        inArray(
+          property.businessId,
+          cards.map((c) => c.businessId),
+        ),
+        isNotNull(property.coverPhotoPath),
+      ),
+    )
+    .orderBy(asc(property.name))
+    .limit(1);
+  return row?.path ?? null;
 }

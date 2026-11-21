@@ -15,6 +15,9 @@ import {
 } from "@/db/schema";
 import { limaToday } from "@/server/contracts/dates";
 import { isFolderPathOf } from "@/server/documents/files";
+import { discountDisputed, settlementAccepted, settlementReady } from "@/server/notifications/catalog";
+import { depositOfSettlement, residentInfo, settlementOfDiscount } from "@/server/notifications/context";
+import { notifyOwner, notifyResident } from "@/server/notifications/notify";
 import { myPersonId } from "@/server/payments/mutations";
 import { coveredCharges, loadBusiness } from "@/server/payments/queries";
 import { periodOf } from "@/server/payments/rules";
@@ -158,6 +161,7 @@ export async function sendSettlement(tx: Tx, depositId: string) {
     .update(settlement)
     .set({ status: "sent", sentAt: new Date() })
     .where(eq(settlement.id, d.settlementId));
+  await notifyResident(tx, d.residentId, settlementReady());
   return d;
 }
 
@@ -304,6 +308,17 @@ export async function addEntryReport(tx: Tx, data: EntryReportInput & { photoPat
   return c;
 }
 
+// Avisa al arrendador de algo que hizo el residente en su liquidación.
+async function notifyOwnerAbout(
+  tx: Tx,
+  settlementId: string,
+  draft: (name: string, depositId: string) => Parameters<typeof notifyOwner>[2],
+) {
+  const dep = await depositOfSettlement(tx, settlementId);
+  const who = dep ? await residentInfo(tx, dep.residentId) : null;
+  if (dep && who) await notifyOwner(tx, who.businessId, draft(who.name, dep.depositId));
+}
+
 // El residente responde su liquidación y disputa descuentos con funciones de la base (migración 0010).
 export async function respondSettlement(
   tx: Tx,
@@ -314,6 +329,8 @@ export async function respondSettlement(
     sql`select public.respond_settlement(${settlementId}, ${data.method}::public.payment_method, ${data.account}, ${data.accept}) as ok`,
   )) as unknown as { ok: boolean }[];
   if (!row?.ok) throw new DepositError("No pudimos guardar tu respuesta. Recarga la página.");
+  if (data.accept)
+    await notifyOwnerAbout(tx, settlementId, (name, depositId) => settlementAccepted(name, depositId));
 }
 
 export async function disputeDiscount(tx: Tx, discountId: string, reason: string) {
@@ -321,6 +338,10 @@ export async function disputeDiscount(tx: Tx, discountId: string, reason: string
     sql`select public.dispute_discount(${discountId}, ${reason}) as ok`,
   )) as unknown as { ok: boolean }[];
   if (!row?.ok) throw new DepositError("Ese descuento ya no se puede disputar. Recarga la página.");
+  const settlementId = await settlementOfDiscount(tx, discountId);
+  if (settlementId) {
+    await notifyOwnerAbout(tx, settlementId, (name, depositId) => discountDisputed(name, reason, depositId));
+  }
 }
 
 // Garantía en otro mes o en cuotas (decisión del dueño, 2026-11-15): reemplaza sus cargos por las cuotas nuevas.

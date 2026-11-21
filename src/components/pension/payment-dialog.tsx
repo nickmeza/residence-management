@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
+import { DateField } from "@/components/date-field";
+import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,8 +18,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { registerPensionPaymentAction } from "@/server/pension/actions";
 import { METHOD_LABEL, PAYMENT_METHODS } from "@/server/payments/schemas";
-
-const selectClass = "h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm";
 
 export type PaymentSuggestion = { amount: string; from: string; to: string };
 
@@ -112,54 +112,34 @@ export function PaymentDialog({
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="pp-method">Cómo pagó</Label>
-                  <select
+                  <SelectField
                     id="pp-method"
-                    className={selectClass}
                     value={draft.method}
-                    onChange={(e) => set("method", e.target.value as Draft["method"])}
-                  >
-                    {PAYMENT_METHODS.map((m) => (
-                      <option key={m} value={m}>
-                        {METHOD_LABEL[m]}
-                      </option>
-                    ))}
-                  </select>
+                    onValueChange={(v) => set("method", v as Draft["method"])}
+                    options={PAYMENT_METHODS.map((m) => ({ value: m, label: METHOD_LABEL[m] }))}
+                  />
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="pp-from">Cubre desde</Label>
-                  <Input
+                  <DateField
                     id="pp-from"
-                    className="h-11"
-                    type="date"
                     value={draft.coversFrom}
-                    onChange={(e) => set("coversFrom", e.target.value)}
+                    onValueChange={(v) => set("coversFrom", v)}
                   />
                   {fieldError("coversFrom")}
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="pp-to">Hasta</Label>
-                  <Input
-                    id="pp-to"
-                    className="h-11"
-                    type="date"
-                    value={draft.coversTo}
-                    onChange={(e) => set("coversTo", e.target.value)}
-                  />
+                  <DateField id="pp-to" value={draft.coversTo} onValueChange={(v) => set("coversTo", v)} />
                   {fieldError("coversTo")}
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="pp-paid">Fecha del pago</Label>
-                  <Input
-                    id="pp-paid"
-                    className="h-11"
-                    type="date"
-                    value={draft.paidOn}
-                    onChange={(e) => set("paidOn", e.target.value)}
-                  />
+                  <DateField id="pp-paid" value={draft.paidOn} onValueChange={(v) => set("paidOn", v)} />
                   {fieldError("paidOn")}
                 </div>
                 <div className="flex flex-col gap-1.5">

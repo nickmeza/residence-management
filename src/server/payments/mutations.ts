@@ -5,6 +5,9 @@ import { eq, sql } from "drizzle-orm";
 import type { withRls } from "@/db/rls";
 import { payment, person, resident } from "@/db/schema";
 import { isFolderPathOf } from "@/server/documents/files";
+import { paymentProof, paymentReviewed } from "@/server/notifications/catalog";
+import { residentInfo } from "@/server/notifications/context";
+import { notifyOwner, notifyResident } from "@/server/notifications/notify";
 
 import type { PaymentData } from "./schemas";
 
@@ -60,7 +63,16 @@ export async function submitProof(tx: Tx, data: PaymentData, userId: string) {
   const [check] = (await tx.execute(
     sql`select public.auto_confirm_my_payment(${row.id}::uuid) as confirmed`,
   )) as unknown as { confirmed: boolean }[];
-  return { id: row.id, businessId, autoConfirmed: Boolean(check?.confirmed) };
+  const autoConfirmed = Boolean(check?.confirmed);
+  const who = await residentInfo(tx, data.residentId);
+  if (who) {
+    await notifyOwner(
+      tx,
+      businessId,
+      paymentProof(who.name, data.amount, data.period, data.residentId, autoConfirmed),
+    );
+  }
+  return { id: row.id, businessId, autoConfirmed };
 }
 
 // El arrendador confirma o rechaza un comprobante (PG-09). Uno ya revisado no se vuelve a revisar; un pago
@@ -73,7 +85,12 @@ export async function reviewPayment(
 ) {
   const me = await myPersonId(tx, userId);
   const [current] = await tx
-    .select({ status: payment.status, residentId: payment.residentId, period: payment.period })
+    .select({
+      status: payment.status,
+      residentId: payment.residentId,
+      period: payment.period,
+      amount: payment.amount,
+    })
     .from(payment)
     .where(eq(payment.id, id))
     .limit(1);
@@ -91,5 +108,16 @@ export async function reviewPayment(
       reviewedAt: new Date(),
     })
     .where(eq(payment.id, id));
+  await notifyResident(
+    tx,
+    current.residentId,
+    paymentReviewed(
+      current.amount,
+      current.period,
+      review.status,
+      review.status === "rejected" ? review.reason : null,
+      current.status === "confirmed",
+    ),
+  );
   return current;
 }

@@ -1,118 +1,37 @@
-import { Suspense } from "react";
+import Link from "next/link";
 
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { checkSupabaseConnection } from "@/lib/supabase/check-connection";
+import { buttonVariants } from "@/components/ui/button";
 
-// Página de prueba de la Fase 0: comprueba que tokens, fuentes, shadcn y modo nocturno funcionan.
-// Los textos y montos son ejemplos. Se reemplaza por la landing en una fase posterior.
-const pisos = [
-  { nombre: "Piso 1", ocupadas: 1, total: 1 },
-  { nombre: "Piso 2", ocupadas: 3, total: 3 },
-  { nombre: "Piso 3", ocupadas: 1, total: 3 },
-];
-
-// Se consulta en cada visita; mientras tanto <Suspense> muestra "comprobando…".
-async function SupabaseStatus() {
-  const supabase = await checkSupabaseConnection();
-  return (
-    <span
-      className={`rounded-full px-3 py-1 text-xs font-bold ${supabase.ok ? "bg-ok-soft text-ok" : "bg-danger-soft text-danger"}`}
-    >
-      Supabase: {supabase.detail}
-    </span>
-  );
-}
-
+// Landing mínima: nombre, una frase y los botones para entrar. Los textos son ejemplos.
+// Si ya hay sesión, /iniciar-sesion lleva directo al panel.
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:px-8">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-6 sm:px-8">
       <header className="flex items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <p className="text-muted-foreground">Fase 0 · prueba del sistema de diseño</p>
-          <Suspense
-            fallback={
-              <span className="rounded-full bg-chip px-3 py-1 text-xs font-bold text-chip-foreground">
-                Supabase: comprobando…
-              </span>
-            }
-          >
-            <SupabaseStatus />
-          </Suspense>
-        </div>
+        <p className="font-bold">Gestión de residencias</p>
         <ThemeToggle />
       </header>
 
-      <div>
-        <h1 className="text-[34px] font-bold tracking-tight">
-          <span className="font-script text-[64px] leading-tight font-normal tracking-normal text-primary">
-            Buenos días
-          </span>
-          , Carlos
+      <section className="flex flex-1 flex-col items-center justify-center gap-6 py-16 text-center">
+        <h1 className="text-[34px] leading-tight font-bold tracking-tight">
+          Tu residencia y tu pensión, <span className="text-primary">en un solo lugar</span>
         </h1>
-        <p className="mt-2 text-base text-muted-foreground">Esto es lo que necesita tu atención hoy.</p>
-      </div>
-
-      <Card className="rounded-xl border shadow-card ring-0">
-        <CardHeader>
-          <CardTitle className="text-lg font-bold">Ocupación por piso</CardTitle>
-          <CardDescription>5 de 7 unidades ocupadas</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {pisos.map((piso) => (
-            <div key={piso.nombre}>
-              <div className="mb-1.5 flex justify-between text-sm">
-                <b>{piso.nombre}</b>
-                <span className="text-muted-foreground">
-                  {piso.ocupadas} de {piso.total} ocupadas
-                </span>
-              </div>
-              <div
-                className="h-2.5 overflow-hidden rounded-full bg-border"
-                role="progressbar"
-                aria-label={`Ocupación del ${piso.nombre}`}
-                aria-valuemin={0}
-                aria-valuemax={piso.total}
-                aria-valuenow={piso.ocupadas}
-              >
-                <div
-                  className="h-full rounded-full bg-bar"
-                  style={{ width: `${(piso.ocupadas / piso.total) * 100}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card className="rounded-xl border shadow-card ring-0">
-        <CardHeader>
-          <CardTitle className="text-lg font-bold">Estados y botones</CardTitle>
-          <CardDescription>Cada estado lleva texto además de color.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <div className="flex flex-wrap gap-2 text-xs font-bold">
-            <span className="rounded-full bg-ok-soft px-3 py-1 text-ok">Disponible</span>
-            <span className="rounded-full bg-danger-soft px-3 py-1 text-danger">Ocupado</span>
-            <span className="rounded-full bg-warn-soft px-3 py-1 text-warn">Mantenimiento</span>
-            <span className="rounded-full bg-primary-soft px-3 py-1 text-primary-text">Nueva</span>
-            <span className="rounded-full bg-chip px-3 py-1 text-chip-foreground">Pendiente</span>
-            <span className="rounded-full bg-terracota px-3 py-1 text-terracota-foreground">2</span>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Button size="lg" className="h-11 px-4 shadow-card">
-              Continuar
-            </Button>
-            <Button size="lg" variant="outline" className="h-11 px-4">
-              Atrás
-            </Button>
-            <Button size="lg" variant="link" className="h-11 px-1 text-link">
-              Ver el edificio en 3D
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        <p className="max-w-xl text-muted-foreground">
+          Cuartos, residentes, contratos, cobros, garantías, mantenimiento y comidas.
+        </p>
+        <div className="flex flex-wrap justify-center gap-3">
+          <Link href="/iniciar-sesion" className={buttonVariants({ className: "h-11 px-6" })}>
+            Iniciar sesión
+          </Link>
+          <Link href="/registro" className={buttonVariants({ variant: "outline", className: "h-11 px-6" })}>
+            Crear cuenta
+          </Link>
+        </div>
+        <Link href="/entrar" className="text-sm text-link underline-offset-4 hover:underline">
+          Soy residente: entrar sin contraseña
+        </Link>
+      </section>
     </main>
   );
 }

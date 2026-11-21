@@ -108,7 +108,14 @@ export function isCoverPathOf(path: string, businessId: string) {
 
 // Archivos de cobros y garantía (Fase 5): <negocio>/<ficha>/<carpeta>/<id al azar>.<ext>. Las reglas de Storage
 // siguen leyendo las dos primeras carpetas, así que valen igual para quién puede verlos o subirlos.
-export const FILE_FOLDERS = ["comprobantes", "ingreso", "liquidacion", "devoluciones"] as const;
+export const FILE_FOLDERS = [
+  "comprobantes",
+  "ingreso",
+  "liquidacion",
+  "devoluciones",
+  // Fotos de pedidos de mantenimiento (Fase 7). Si lo pide el arrendador sin residente, la ficha es "general".
+  "mantenimiento",
+] as const;
 export type FileFolder = (typeof FILE_FOLDERS)[number];
 
 export function folderPath(

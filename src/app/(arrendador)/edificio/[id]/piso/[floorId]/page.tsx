@@ -8,6 +8,7 @@ import { buildingHref, floorHref, unitHref } from "@/components/building/buildin
 import { UnitDetail, UnitLinkRow } from "@/components/building/unit-detail";
 import { AddUnitButtons } from "@/components/building/unit-page-client";
 import { SlabShapeDialog } from "@/components/edificio-3d/slab-shape-dialog";
+import { BuildingSkeleton } from "@/components/skeletons";
 import { floorName } from "@/server/building/floors";
 import { getBuilding } from "@/server/business/queries";
 
@@ -72,7 +73,7 @@ async function Content({ params, searchParams }: Pick<Props, "params" | "searchP
 
 export default function FloorPage({ params, searchParams }: Props) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando el piso…</p>}>
+    <Suspense fallback={<BuildingSkeleton />}>
       <Content params={params} searchParams={searchParams} />
     </Suspense>
   );

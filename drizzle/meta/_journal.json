@@ -141,6 +141,55 @@
       "when": 1794765398557,
       "tag": "0019_comprobante_se_confirma_solo",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794768016713,
+      "tag": "0020_notificaciones",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794768464173,
+      "tag": "0021_mantenimiento",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794768983877,
+      "tag": "0022_comunicados",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794770523822,
+      "tag": "0023_postulantes",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794770787516,
+      "tag": "0024_ingresos_y_salidas",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794953034691,
+      "tag": "0025_fase7_segunda_parte",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795238286844,
+      "tag": "0026_firma_del_contrato",
+      "breakpoints": true
     }
   ]
 }

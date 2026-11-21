@@ -2,13 +2,16 @@
 
 import { Plus } from "lucide-react";
 import { useState, useTransition } from "react";
-import { FormProvider, useForm, useWatch } from "react-hook-form";
+import { Controller, FormProvider, useForm, useWatch } from "react-hook-form";
 
 import { FormMessage } from "@/components/auth/auth-field";
 import { ConfirmButton } from "@/components/confirm-button";
 import { FieldError, TextField } from "@/components/onboarding/form-field";
+import { FormSelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { formatSoles } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { addRoomAction, deleteUnitAction, updateUnitAction } from "@/server/building/actions";
@@ -37,8 +40,6 @@ const toForm = (u: BuildingUnit): Form => ({
   occupiesWholeFloor: u.occupiesWholeFloor,
 });
 
-const selectClass = "h-11 rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm";
-
 export type SheetTarget = {
   unit: BuildingUnit;
   parent: BuildingUnit | null;
@@ -61,7 +62,7 @@ export function UnitForm({
 }) {
   const { unit, parent } = target;
   const methods = useForm<Form>({ defaultValues: toForm(unit) });
-  const { register, setValue, setError, reset, handleSubmit, formState } = methods;
+  const { setValue, setError, reset, handleSubmit, formState } = methods;
   const mode = useWatch({ control: methods.control, name: "rentalMode" });
   const whole = useWatch({ control: methods.control, name: "occupiesWholeFloor" });
   const [message, setMessage] = useState<{ text: string; ok: boolean }>();
@@ -172,13 +173,10 @@ export function UnitForm({
             <label
               className={cn("flex min-h-11 items-center gap-3 text-sm", !target.onlyUnit && "opacity-60")}
             >
-              <input
-                type="checkbox"
-                role="switch"
-                className="size-5 accent-primary"
+              <Switch
                 checked={whole}
                 disabled={!target.onlyUnit}
-                onChange={(e) => setValue("occupiesWholeFloor", e.target.checked, { shouldDirty: true })}
+                onCheckedChange={(checked) => setValue("occupiesWholeFloor", checked, { shouldDirty: true })}
               />
               <span>
                 <span className="font-semibold">Ocupa todo el piso</span>
@@ -197,25 +195,37 @@ export function UnitForm({
           <TextField name="areaM2" label="Área en m² (opcional)" inputMode="decimal" />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="spaceType">Tipo de ambiente</Label>
-            <select id="spaceType" className={selectClass} {...register("spaceType")}>
-              <option value="">Sin indicar</option>
-              {SPACE_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {SPACE_TYPE_LABEL[t]}
-                </option>
-              ))}
-            </select>
+            <FormSelectField
+              id="spaceType"
+              control={methods.control}
+              name="spaceType"
+              options={[
+                { value: "", label: "Sin indicar" },
+                ...SPACE_TYPES.map((t) => ({ value: t, label: SPACE_TYPE_LABEL[t] })),
+              ]}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="bathroom">Baño</Label>
-            <select id="bathroom" className={selectClass} {...register("bathroom")}>
-              <option value="">Sin indicar</option>
-              <option value="private">Propio</option>
-              <option value="shared">Compartido</option>
-            </select>
+            <FormSelectField
+              id="bathroom"
+              control={methods.control}
+              name="bathroom"
+              options={[
+                { value: "", label: "Sin indicar" },
+                { value: "private", label: "Propio" },
+                { value: "shared", label: "Compartido" },
+              ]}
+            />
           </div>
           <label className="flex min-h-11 items-center gap-3 self-end text-sm">
-            <input type="checkbox" className="size-5 accent-primary" {...register("furnished")} />
+            <Controller
+              control={methods.control}
+              name="furnished"
+              render={({ field }) => (
+                <Checkbox checked={Boolean(field.value)} onCheckedChange={field.onChange} />
+              )}
+            />
             Amoblado
           </label>
         </div>

@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { formatShortDate, formatSoles } from "@/lib/format";
 import { reviewPensionPaymentAction } from "@/server/pension/actions";
 import type { PensionPaymentRow } from "@/server/pension/queries";
@@ -24,7 +25,10 @@ import { METHOD_LABEL } from "@/server/payments/schemas";
 export function ProofReviewList({ pending }: { pending: PensionPaymentRow[] }) {
   if (!pending.length) return null;
   return (
-    <section className="rounded-xl border border-warn-soft bg-card p-5 shadow-card" aria-labelledby="por-revisar">
+    <section
+      className="rounded-xl border border-warn-soft bg-card p-5 shadow-card"
+      aria-labelledby="por-revisar"
+    >
       <h2 id="por-revisar" className="text-lg font-bold">
         Por revisar ({pending.length})
       </h2>
@@ -88,7 +92,12 @@ function ProofRow({ p }: { p: PensionPaymentRow }) {
       >
         Rechazar
       </Button>
-      <Button type="button" className="h-11" disabled={pending} onClick={() => review({ status: "confirmed" })}>
+      <Button
+        type="button"
+        className="h-11"
+        disabled={pending}
+        onClick={() => review({ status: "confirmed" })}
+      >
         Aprobar
       </Button>
 
@@ -97,19 +106,19 @@ function ProofRow({ p }: { p: PensionPaymentRow }) {
           <DialogHeader>
             <DialogTitle>Rechazar el pago de {p.name}</DialogTitle>
             <DialogDescription>
-              {formatSoles(p.amount)} · {METHOD_LABEL[p.method]}. Tu comensal verá el motivo y podrá mandarlo de nuevo.
+              {formatSoles(p.amount)} · {METHOD_LABEL[p.method]}. Tu comensal verá el motivo y podrá mandarlo
+              de nuevo.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`motivo-${p.id}`}>Motivo</Label>
-            <textarea
+            <Textarea
               id={`motivo-${p.id}`}
               rows={3}
               maxLength={200}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Por ejemplo: el monto no coincide con el Yape."
-              className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-base md:text-sm"
             />
           </div>
           <FormMessage message={error} />

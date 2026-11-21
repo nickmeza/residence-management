@@ -7,14 +7,15 @@ import { useState } from "react";
 import { FilterMenu } from "@/components/filter-menu";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useListParams } from "@/components/use-list-params";
 import { initials } from "@/lib/greeting";
 import { formatSoles } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   filterResidents,
   matchesFilter,
+  RESIDENT_FILTER_SLUGS,
   RESIDENT_FILTERS,
-  type ResidentFilter,
 } from "@/server/residents/list";
 import type { ResidentListRow } from "@/server/residents/queries";
 
@@ -33,10 +34,10 @@ export function AddResidentButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-// Lista de residentes, versión simple (como Cobros): buscador, Filtrar, Agregar residente y la tabla.
+// Lista de residentes, versión simple (como Cobros): buscador, Filtrar, Agregar residente y la tabla. Los filtros y la
+// búsqueda viven en la dirección (?filtro=sin-cuarto, lo usa el pendiente del Panel).
 export function ResidentList({ rows }: { rows: ResidentListRow[] }) {
-  const [filters, setFilters] = useState<ResidentFilter[]>([]);
-  const [query, setQuery] = useState("");
+  const { filters, setFilters, query, setQuery } = useListParams(RESIDENT_FILTER_SLUGS);
   const [sheet, setSheet] = useState<ResidentSheetTarget | null>(null);
   const shown = filterResidents(rows, filters, query);
   const openCreate = () => setSheet({ mode: "create" });

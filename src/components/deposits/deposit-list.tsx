@@ -2,19 +2,20 @@
 
 import { Search } from "lucide-react";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import { FilterMenu } from "@/components/filter-menu";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useListParams } from "@/components/use-list-params";
 import { formatSoles } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
+  DEPOSIT_FILTER_SLUGS,
   DEPOSIT_FILTERS,
   filterDeposits,
   matchesDepositFilter,
   needsSettlement,
-  type DepositFilter,
 } from "@/server/deposits/list-filter";
 import type { DepositListRow } from "@/server/deposits/queries";
 
@@ -25,8 +26,7 @@ const GRID = "grid grid-cols-[1.3fr_1.2fr_.9fr_1.2fr_1fr_auto] items-center gap-
 // Lista de garantías (GA-07), versión simple (como Cobros): buscador, Filtrar y la tabla. "Liquidar" aparece
 // cuando el contrato termina pronto o ya terminó.
 export function DepositList({ rows, action }: { rows: DepositListRow[]; action?: ReactNode }) {
-  const [filters, setFilters] = useState<DepositFilter[]>([]);
-  const [query, setQuery] = useState("");
+  const { filters, setFilters, query, setQuery } = useListParams(DEPOSIT_FILTER_SLUGS);
   const shown = filterDeposits(rows, filters, query);
 
   if (!rows.length) {

@@ -2,8 +2,15 @@
 
 import {
   Building2,
+  BarChart3,
+  CalendarClock,
+  CalendarDays,
   FileText,
   LayoutDashboard,
+  Megaphone,
+  MessageCircle,
+  Package,
+  UserPlus,
   Settings,
   ShieldCheck,
   Soup,
@@ -39,6 +46,9 @@ const pensionItems = (links: NavLinks): Item[] => [
   { label: "Panel", Icon: LayoutDashboard, href: "/panel" },
   { label: "Pensión", Icon: Soup, href: links.pension, match: "/pension", except: "/pension/comensales" },
   { label: "Clientes", Icon: Users, href: "/pension/comensales" },
+  { label: "Mensajes", Icon: MessageCircle, href: "/mensajes" },
+  { label: "Comunicados", Icon: Megaphone, href: "/comunicados" },
+  { label: "Reportes", Icon: BarChart3, href: "/reportes" },
   { label: "Configuración", Icon: Settings, href: links.configuracion, match: "/negocio/" },
 ];
 
@@ -51,6 +61,7 @@ export function SidebarNav({ links, onNavigate }: { links: NavLinks; onNavigate?
       ? pensionItems(links)
       : [
           { label: "Panel", Icon: LayoutDashboard, href: "/panel" },
+          { label: "Calendario", Icon: CalendarDays, href: "/calendario" },
           {
             label: "Edificio",
             Icon: Building2,
@@ -59,6 +70,8 @@ export function SidebarNav({ links, onNavigate }: { links: NavLinks; onNavigate?
             note: links.edificio ? undefined : "Solo Residencia",
           },
           { label: "Residentes", Icon: Users, href: "/residentes" },
+          { label: "Postulantes", Icon: UserPlus, href: "/postulantes" },
+          { label: "Ingresos y salidas", Icon: CalendarClock, href: "/ingresos" },
           { label: "Contratos", Icon: FileText, href: "/contratos" },
           { label: "Cobros", Icon: Wallet, href: "/cobros" },
           { label: "Garantías", Icon: ShieldCheck, href: "/garantias" },
@@ -69,7 +82,11 @@ export function SidebarNav({ links, onNavigate }: { links: NavLinks; onNavigate?
             match: "/pension",
             note: links.pension ? undefined : "Solo Pensión",
           },
-          { label: "Mantenimiento", Icon: Wrench, href: null, note: "Pronto" },
+          { label: "Mantenimiento", Icon: Wrench, href: "/mantenimiento" },
+          { label: "Visitas y paquetes", Icon: Package, href: "/visitas" },
+          { label: "Mensajes", Icon: MessageCircle, href: "/mensajes" },
+          { label: "Comunicados", Icon: Megaphone, href: "/comunicados" },
+          { label: "Reportes", Icon: BarChart3, href: "/reportes" },
           { label: "Configuración", Icon: Settings, href: links.configuracion, match: "/negocio/" },
         ];
 

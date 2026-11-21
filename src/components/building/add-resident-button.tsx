@@ -1,21 +1,20 @@
 "use client";
 
 import { UserPlus } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { ContractSheet } from "@/components/contracts/contract-sheet";
 import { EMPTY_RESIDENT, ResidentForm } from "@/components/residents/resident-sheet";
+import { SelectField } from "@/components/select-field";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { ContractFormOptions } from "@/server/contracts/queries";
 
-const selectClass = "h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm";
-
-type Step = "choose" | "new" | { residentId: string } | null;
+type Step = "choose" | "new" | null;
 
 // "Agregar residente" en una unidad libre (decisión del dueño): eliges a alguien que ya registraste o creas uno
-// nuevo, y después se abre el contrato con esta unidad ya puesta. Lo que vincula al residente con la unidad es el
+// nuevo, y después se va a Nuevo contrato con esta unidad ya puesta (fija). Lo que vincula al residente con la unidad es el
 // contrato: el residente solo queda viviendo aquí al crearlo.
 export function AddResidentButton({
   unitId,
@@ -26,12 +25,12 @@ export function AddResidentButton({
   unitName: string;
   options: ContractFormOptions;
 }) {
+  const router = useRouter();
   const [step, setStep] = useState<Step>(null);
   const [picked, setPicked] = useState("");
-  // El residente recién creado todavía no está en la lista que llegó del servidor: se agrega aquí.
-  const [created, setCreated] = useState<{ id: string; fullName: string } | null>(null);
-  const residents = created ? [...options.residents, created] : options.residents;
-  const contractFor = typeof step === "object" && step !== null ? step.residentId : null;
+  const residents = options.residents;
+  const toContract = (residentId: string) =>
+    router.push(`/contratos/nuevo?residente=${residentId}&unidad=${unitId}&fija=1`);
 
   return (
     <>
@@ -56,10 +55,7 @@ export function AddResidentButton({
                 residentId={null}
                 initial={EMPTY_RESIDENT}
                 hasAccount={false}
-                onCreated={(id, fullName) => {
-                  setCreated({ id, fullName });
-                  setStep({ residentId: id });
-                }}
+                onCreated={(id) => toContract(id)}
                 onSaved={() => {}}
               />
             </>
@@ -81,24 +77,18 @@ export function AddResidentButton({
                     className="flex flex-col gap-3 border-t pt-5"
                     onSubmit={(e) => {
                       e.preventDefault();
-                      if (picked) setStep({ residentId: picked });
+                      if (picked) toContract(picked);
                     }}
                   >
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="existing-resident">O alguien que ya registraste</Label>
-                      <select
+                      <SelectField
                         id="existing-resident"
-                        className={selectClass}
                         value={picked}
-                        onChange={(e) => setPicked(e.target.value)}
-                      >
-                        <option value="">Elige al residente</option>
-                        {residents.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.fullName}
-                          </option>
-                        ))}
-                      </select>
+                        onValueChange={(v) => setPicked(v)}
+                        placeholder="Elige al residente"
+                        options={residents.map((r) => ({ value: r.id, label: r.fullName }))}
+                      />
                     </div>
                     <Button type="submit" variant="outline" className="h-11" disabled={!picked}>
                       Seguir con el contrato
@@ -110,12 +100,6 @@ export function AddResidentButton({
           )}
         </SheetContent>
       </Sheet>
-
-      <ContractSheet
-        target={contractFor ? { mode: "create", residentId: contractFor, unitId } : null}
-        options={{ ...options, residents }}
-        onClose={() => setStep(null)}
-      />
     </>
   );
 }

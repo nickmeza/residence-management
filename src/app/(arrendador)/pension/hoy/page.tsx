@@ -5,6 +5,7 @@ import { Suspense } from "react";
 
 import { KitchenBoard } from "@/components/pension/kitchen-board";
 import { currentPension, NotAPension, PensionHeader } from "@/components/pension/pension-page";
+import { CardsSkeleton, Reveal } from "@/components/skeletons";
 import { buttonVariants } from "@/components/ui/button";
 import { limaToday, formatLongDate } from "@/server/contracts/dates";
 import { getKitchenDay } from "@/server/pension/queries";
@@ -73,8 +74,12 @@ export default function PensionTodayPage({ searchParams }: Props) {
         tab="hoy"
         description="Cuántas porciones preparar y quién ya comió. Por defecto se cocina para todos; aquí ves quién canceló."
       />
-      <Suspense fallback={<p className="text-muted-foreground">Cargando la cocina…</p>}>
-        <Content searchParams={searchParams} />
+      <Suspense
+        fallback={<CardsSkeleton messages={["Contando las porciones de hoy…", "Revisando quién canceló…"]} />}
+      >
+        <Reveal>
+          <Content searchParams={searchParams} />
+        </Reveal>
       </Suspense>
     </>
   );

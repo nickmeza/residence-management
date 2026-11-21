@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { AuthCard } from "@/components/auth/auth-card";
 import { FormMessage } from "@/components/auth/auth-field";
 import { CodeSignInForm } from "@/components/auth/code-sign-in-form";
+import { FormSkeleton } from "@/components/skeletons";
 import { findOpenInvitation } from "@/server/residents/accept";
 
 export const metadata: Metadata = { title: "Invitación · Gestión de residencias" };
@@ -58,7 +59,7 @@ async function Invitation({ params, searchParams }: PageProps<"/invitacion/[toke
 
 export default function InvitationPage(props: PageProps<"/invitacion/[token]">) {
   return (
-    <Suspense fallback={<p className="p-8 text-center text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<FormSkeleton className="mx-auto w-full max-w-md p-8" />}>
       <Invitation {...props} />
     </Suspense>
   );

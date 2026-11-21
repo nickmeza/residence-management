@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
+import { DateField } from "@/components/date-field";
 import { FilterMenu } from "@/components/filter-menu";
+import { SelectField } from "@/components/select-field";
 import { StatusBadge } from "@/components/status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -19,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useListParams } from "@/components/use-list-params";
 import { formatShortDate, formatSoles } from "@/lib/format";
 import { initials } from "@/lib/greeting";
 import { cn } from "@/lib/utils";
@@ -29,9 +32,18 @@ import { BILLING_CYCLE_LABEL, type BillingCycle } from "@/server/pension/rules";
 import { SUBSCRIPTION_STATE } from "./subscription-state";
 
 const GRID = "grid grid-cols-[1.6fr_1.2fr_.8fr_1fr_.9fr_auto] items-center gap-3 px-5";
-const selectClass = "h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm";
 
 type Filter = "active" | "paused" | "upcoming" | "ended" | "none" | "owes";
+
+// Cómo se escribe cada filtro en la dirección (?filtro=deben).
+const FILTER_SLUGS: Record<Filter, string> = {
+  active: "activos",
+  paused: "en-pausa",
+  upcoming: "empiezan-pronto",
+  ended: "terminaron",
+  none: "sin-plan",
+  owes: "deben",
+};
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: "active", label: "Activos" },
@@ -81,8 +93,7 @@ export function DinerList({
   diets: string[];
 }) {
   const router = useRouter();
-  const [filters, setFilters] = useState<Filter[]>([]);
-  const [query, setQuery] = useState("");
+  const { filters, setFilters, query, setQuery } = useListParams(FILTER_SLUGS);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<{ message: string; fields: Record<string, string> }>();
   const [pending, startTransition] = useTransition();
@@ -311,46 +322,38 @@ export function DinerList({
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="d-plan">Plan</Label>
-                <select
+                <SelectField
                   id="d-plan"
-                  className={selectClass}
                   value={draft.planId}
-                  onChange={(e) => set("planId", e.target.value)}
-                >
-                  {plans.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} · {formatSoles(p.dailyPrice)} al día
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(v) => set("planId", v)}
+                  options={plans.map((p) => ({
+                    value: p.id,
+                    label: `${p.name} · ${formatSoles(p.dailyPrice)} al día`,
+                  }))}
+                />
                 {fieldError("planId")}
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="d-start">Desde</Label>
-                  <Input
+                  <DateField
                     id="d-start"
-                    className="h-11"
-                    type="date"
                     value={draft.startDate}
-                    onChange={(e) => set("startDate", e.target.value)}
+                    onValueChange={(v) => set("startDate", v)}
                   />
                   {fieldError("startDate")}
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="d-cycle">Paga por adelantado</Label>
-                  <select
+                  <SelectField
                     id="d-cycle"
-                    className={selectClass}
                     value={draft.billingCycle}
-                    onChange={(e) => set("billingCycle", e.target.value as BillingCycle)}
-                  >
-                    {(Object.keys(BILLING_CYCLE_LABEL) as BillingCycle[]).map((c) => (
-                      <option key={c} value={c}>
-                        {BILLING_CYCLE_LABEL[c]}
-                      </option>
-                    ))}
-                  </select>
+                    onValueChange={(v) => set("billingCycle", v as BillingCycle)}
+                    options={(Object.keys(BILLING_CYCLE_LABEL) as BillingCycle[]).map((c) => ({
+                      value: c,
+                      label: BILLING_CYCLE_LABEL[c],
+                    }))}
+                  />
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">

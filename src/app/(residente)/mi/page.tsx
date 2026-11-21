@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 
+import { PendingList } from "@/components/notifications/pending-list";
 import { ReceiptBadge } from "@/components/payments/receipt-badge";
 import { ContactButtons } from "@/components/resident-side/contact-buttons";
 import { FALLBACK_COVER, ResidentHero } from "@/components/resident-side/resident-hero";
 import { ContractPhaseBadge } from "@/components/residents/badges";
+import { CardsSkeleton, Reveal } from "@/components/skeletons";
 import { buttonVariants } from "@/components/ui/button";
 import { formatSoles } from "@/lib/format";
 import { greetingFor, initials } from "@/lib/greeting";
@@ -13,10 +15,11 @@ import { cn } from "@/lib/utils";
 import { coverUrl } from "@/server/building/cover";
 import { formatLongDate, limaToday } from "@/server/contracts/dates";
 import { toCents } from "@/server/payments/money";
+import { getMyPending } from "@/server/notifications/pending-queries";
 import { periodLabel } from "@/server/payments/rules";
 import { getMyBilling, type MyBilling } from "@/server/payments/self";
 import { contractHeadline } from "@/server/residents/home";
-import { getMyResidences, type MyResidence } from "@/server/residents/self";
+import { getMyResidences, myBusinessCoverPath, type MyResidence } from "@/server/residents/self";
 
 export const metadata: Metadata = { title: "Inicio · Mi residencia" };
 
@@ -195,7 +198,7 @@ function Residence({
   showBusiness: boolean;
 }) {
   return (
-    <div className="grid gap-5 lg:grid-cols-3">
+    <div className="reveal-list grid gap-5 lg:grid-cols-3">
       <div className="order-1 lg:col-span-2">
         <ContractCard r={r} showBusiness={showBusiness} />
       </div>
@@ -214,12 +217,20 @@ function Residence({
   );
 }
 
+// "Pendientes" del residente, solo si hay algo (el inicio aprobado no cambia cuando está al día).
+async function MyPending() {
+  const items = await getMyPending();
+  return items.length ? <PendingList items={items} title="Tienes pendiente" /> : null;
+}
+
 async function Content() {
   const [{ firstName, residences }, billing] = await Promise.all([getMyResidences(), getMyBilling()]);
   const today = limaToday(new Date());
   const main = residences.find((r) => r.contract) ?? null;
-  // La foto del edificio si el arrendador subió una; si no, la de respaldo (o la franja de color).
-  const cover = (await coverUrl(main?.contract?.coverPath ?? null)) ?? FALLBACK_COVER;
+  // La foto del edificio donde vive; sin contrato todavía (o si su edificio no tiene foto), la de su residencia; si
+  // no hay ninguna, la de respaldo (o la franja de color).
+  const coverPath = main?.contract?.coverPath ?? (await myBusinessCoverPath());
+  const cover = (await coverUrl(coverPath)) ?? FALLBACK_COVER;
   return (
     <>
       <ResidentHero
@@ -247,6 +258,9 @@ async function Content() {
             </p>
           </section>
         )}
+        <Suspense fallback={null}>
+          <MyPending />
+        </Suspense>
       </div>
     </>
   );
@@ -254,8 +268,17 @@ async function Content() {
 
 export default function ResidentHomePage() {
   return (
-    <Suspense fallback={<p className="px-4 py-5 text-muted-foreground sm:px-8">Cargando…</p>}>
-      <Content />
+    <Suspense
+      fallback={
+        <CardsSkeleton
+          className="px-4 py-5 sm:px-8"
+          messages={["Buscando tu cuarto…", "Revisando tus pagos…", "Mirando tus avisos y paquetes…"]}
+        />
+      }
+    >
+      <Reveal>
+        <Content />
+      </Reveal>
     </Suspense>
   );
 }

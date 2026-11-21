@@ -39,3 +39,26 @@ export function formatLongDate(date: string): string {
   );
   return `${p.weekday} ${p.day} de ${p.month}`;
 }
+
+const limaDateTime = new Intl.DateTimeFormat("es-PE", {
+  day: "numeric",
+  month: "short",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "America/Lima",
+});
+
+// Hace cuánto pasó algo: "hace un momento", "hace 5 min", "hace 3 h", "ayer"; si pasó hace más de 2 días, la fecha y
+// hora de Lima ("12 nov, 9:30 a. m.").
+export function formatTimeAgo(date: Date, now: Date): string {
+  const minutes = Math.floor((now.getTime() - date.getTime()) / 60_000);
+  if (minutes < 1) return "hace un momento";
+  if (minutes < 60) return `hace ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  if (hours < 48) return "ayer";
+  return limaDateTime.format(date).replace(".", "");
+}
+
+// Precio de una unidad para escribirlo en un campo, sin decimales de más ("650.00" → "650"; null → "").
+export const priceText = (price: string | null) => (price ? String(Number(price)) : "");

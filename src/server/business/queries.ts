@@ -10,6 +10,7 @@ import { business, contract, floor, person, property, resident, unit, type Outli
 import { getSessionClaims } from "@/server/auth/session";
 import { buildingSummary, type UnitInput } from "@/server/building/rules";
 import { unitStatus, type UnitStatus } from "@/server/building/status";
+import { blockedUnitIds } from "@/server/maintenance/blocked";
 import { limaToday } from "@/server/contracts/dates";
 import { occupiesToday } from "@/server/contracts/rules";
 
@@ -116,13 +117,23 @@ export const getBuilding = cache(async (propertyId: string): Promise<BuildingVie
             ),
           )
       : [];
+    const blocked = await blockedUnitIds(
+      tx,
+      units.map((u) => u.id),
+    );
     const today = limaToday(new Date());
     const occupantByUnit = new Map<string, Occupant>(
       contracts
         .filter((c) => occupiesToday(c, today))
         .map((c) => [
           c.unitId,
-          { contractId: c.id, residentId: c.residentId, name: c.name, startDate: c.startDate, endDate: c.endDate },
+          {
+            contractId: c.id,
+            residentId: c.residentId,
+            name: c.name,
+            startDate: c.startDate,
+            endDate: c.endDate,
+          },
         ]),
     );
     const occupantOf = (u: (typeof units)[number]) =>
@@ -140,7 +151,10 @@ export const getBuilding = cache(async (propertyId: string): Promise<BuildingVie
       furnished: u.furnished,
       spaceType: u.spaceType,
       rect: { x: u.posX, z: u.posZ, width: u.width, depth: u.depth },
-      status: unitStatus({ hasActiveContract: occupantOf(u) !== null }),
+      status: unitStatus({
+        hasActiveContract: occupantOf(u) !== null,
+        hasOpenMaintenance: blocked.has(u.id),
+      }),
       occupant: occupantOf(u),
       rooms: units.filter((r) => r.parentUnitId === u.id).map(toView),
     });

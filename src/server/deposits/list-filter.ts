@@ -14,6 +14,15 @@ export const DEPOSIT_FILTERS: { id: DepositFilter; label: string }[] = [
   { id: "returned", label: "Devueltas" },
 ];
 
+// Cómo se escribe cada filtro en la dirección (?filtro=en-liquidacion).
+export const DEPOSIT_FILTER_SLUGS: Record<DepositFilter, string> = {
+  unpaid: "por-cobrar",
+  held: "retenidas",
+  to_settle: "por-liquidar",
+  settling: "en-liquidacion",
+  returned: "devueltas",
+};
+
 type Row = { phase: DepositPhase; contractPhase: ContractPhase; residentName: string; unitName: string };
 
 // "Por liquidar": la garantía sigue retenida y el contrato termina pronto o ya terminó (aparece el botón Liquidar).

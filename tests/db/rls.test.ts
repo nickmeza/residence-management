@@ -453,7 +453,9 @@ describe("RLS de residentes, contratos y documentos", () => {
       const { contractId, residentId } = await setUpResident(tx);
       const invalid = [
         tx`update public.contract set end_date = '2026-01-01' where id = ${contractId}`,
-        tx`update public.contract set status = 'pending_signature' where id = ${contractId}`,
+        // Un contrato sin firmar (lo sube el arrendador) siempre es de un contrato (migración 0026).
+        tx`insert into public.document (resident_id, kind, storage_path, file_name, mime_type, size_bytes, uploaded_by)
+          values (${residentId}, 'contract_file', 'prueba/sin-contrato.pdf', 'x.pdf', 'application/pdf', 10, ${P})`,
         tx`update public.contract set paperwork = 'template' where id = ${contractId}`,
         tx`update public.contract set status = 'confirmed' where id = ${contractId}`,
         tx`update public.person set identity_document_number = '123' where id = ${P}`,

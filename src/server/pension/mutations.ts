@@ -20,17 +20,30 @@ import {
 } from "@/db/schema";
 import { limaToday, type IsoDate } from "@/server/contracts/dates";
 import { isFolderPathOf } from "@/server/documents/files";
+import {
+  kitchenCancelled,
+  mealTakeaway,
+  menuPublished,
+  pensionPaymentReviewed,
+  pensionProof,
+} from "@/server/notifications/catalog";
+import { residentInfo } from "@/server/notifications/context";
+import { notifyOwner, notifyResident, notifyResidents } from "@/server/notifications/notify";
 
 import { pastMenuChanged } from "./menu-moves";
 import {
   addDays,
   ALL_DAYS,
+  cancelDeadline,
+  cancellationOpen,
   coversDay,
   isServiceDay,
   kitchenProblem,
+  limaNow,
   overlapsSubscription,
   pauseProblem,
   pauseRemovable,
+  weekOf,
 } from "./rules";
 import type {
   NewDinerData,
@@ -337,7 +350,7 @@ export async function kitchenChange(
 ) {
   await requireDiner(tx, businessId, input.residentId);
   const [st] = await tx
-    .select({ serviceDays: mealSettings.serviceDays })
+    .select({ serviceDays: mealSettings.serviceDays, cancelDeadline: mealSettings.cancelDeadline })
     .from(mealSettings)
     .where(eq(mealSettings.businessId, businessId))
     .limit(1);
@@ -380,9 +393,16 @@ export async function kitchenChange(
         target: [mealAttendance.residentId, mealAttendance.date, mealAttendance.meal],
         set: { ...values, updatedBy, updatedAt: new Date() },
       });
-  if (input.change === "cancel") await upsert({ cancelled: true, kitchenCancelled: false, served: false });
-  else if (input.change === "kitchen_cancel") {
+  if (input.change === "cancel") {
+    await upsert({ cancelled: true, kitchenCancelled: false, served: false });
+    // Avisó tarde: se cobra, y la comida se guarda en táper (decisión del dueño, 2026-11-15).
+    const deadline = cancelDeadline(input.date, st?.cancelDeadline ?? "20:00");
+    if (!cancellationOpen(limaNow(new Date()), deadline)) {
+      await notifyResident(tx, input.residentId, mealTakeaway(input.meal, input.date));
+    }
+  } else if (input.change === "kitchen_cancel") {
     await upsert({ cancelled: true, kitchenCancelled: true, served: false });
+    await notifyResident(tx, input.residentId, kitchenCancelled(input.meal, input.date));
   } else if (input.change === "served")
     await upsert({ cancelled: false, kitchenCancelled: false, served: true });
   // Sin fila = viene (por defecto se cocina).
@@ -473,6 +493,11 @@ export async function kitchenCancelAll(
       target: [mealAttendance.residentId, mealAttendance.date, mealAttendance.meal],
       set: { cancelled: true, kitchenCancelled: true, served: false, updatedBy, updatedAt: new Date() },
     });
+  await notifyResidents(
+    tx,
+    targets.map((s) => s.residentId),
+    kitchenCancelled(input.meal, input.date),
+  );
   return targets.length;
 }
 
@@ -512,6 +537,28 @@ export async function saveWeekMenu(
       throw new PensionError("El menú de un día que ya pasó no se cambia. Cópialo y pégalo en otro día.");
     }
   }
+  // ¿Algo que el comensal todavía no veía queda publicado? Entonces se avisa (una vez por publicación, no por cada
+  // corrección de algo ya publicado).
+  const upcoming = entries.filter((e) => e.date >= today && e.dish);
+  const before = upcoming.length
+    ? await tx
+        .select({ date: menuItem.date, meal: menuItem.meal, status: menuItem.status })
+        .from(menuItem)
+        .where(
+          and(
+            eq(menuItem.businessId, businessId),
+            inArray(
+              menuItem.date,
+              upcoming.map((e) => e.date),
+            ),
+          ),
+        )
+    : [];
+  const newlyPublished =
+    publish &&
+    upcoming.some(
+      (e) => !before.some((b) => b.date === e.date && b.meal === e.meal && b.status === "published"),
+    );
   const status = publish ? ("published" as const) : ("draft" as const);
   for (const e of entries.filter((x) => x.date >= today)) {
     const key = and(
@@ -538,6 +585,20 @@ export async function saveWeekMenu(
         set: { dish: e.dish, hasVegetarian: e.hasVegetarian, status },
       });
   }
+  if (newlyPublished) {
+    const monday = weekOf(upcoming[0].date)[0];
+    await notifyResidents(tx, await activeDiners(tx, businessId, today), menuPublished(monday));
+  }
+}
+
+// Fichas con una afiliación vigente desde hoy (para avisarles del menú).
+async function activeDiners(tx: Tx, businessId: string, today: IsoDate) {
+  const rows = await tx
+    .select({ residentId: pensionSubscription.residentId, endDate: pensionSubscription.endDate })
+    .from(pensionSubscription)
+    .innerJoin(pensionPlan, eq(pensionPlan.id, pensionSubscription.planId))
+    .where(eq(pensionPlan.businessId, businessId));
+  return rows.filter((r) => r.endDate === null || r.endDate >= today).map((r) => r.residentId);
 }
 
 // Copiar la semana anterior a esta (como borrador). Los días que ya pasaron nunca se tocan. Si ya hay días escritos,
@@ -650,6 +711,8 @@ export async function submitPensionProof(
     status: "in_review",
     registeredBy: await myPersonId(tx),
   });
+  const who = await residentInfo(tx, sub.residentId);
+  if (who) await notifyOwner(tx, sub.businessId, pensionProof(who.name, data.amount));
 }
 
 // La cocina aprueba o rechaza un comprobante que está en revisión. Rechazar pide un motivo (el comensal lo ve).
@@ -659,8 +722,13 @@ export async function reviewPensionPayment(
   review: { status: "confirmed" } | { status: "rejected"; reason: string },
 ) {
   const [current] = await tx
-    .select({ status: pensionPayment.status })
+    .select({
+      status: pensionPayment.status,
+      amount: pensionPayment.amount,
+      residentId: pensionSubscription.residentId,
+    })
     .from(pensionPayment)
+    .innerJoin(pensionSubscription, eq(pensionSubscription.id, pensionPayment.subscriptionId))
     .where(eq(pensionPayment.id, paymentId))
     .limit(1);
   if (!current) throw new PensionError("No encontramos ese pago. Recarga la página.");
@@ -677,6 +745,15 @@ export async function reviewPensionPayment(
     .returning({ id: pensionPayment.id });
   // El RLS solo deja cambiarlo a la cocina de esa pensión.
   if (!updated.length) throw new PensionError("No puedes revisar ese pago.");
+  await notifyResident(
+    tx,
+    current.residentId,
+    pensionPaymentReviewed(
+      current.amount,
+      review.status,
+      review.status === "rejected" ? review.reason : null,
+    ),
+  );
 }
 
 // Quitar un pago registrado por error. La bitácora conserva lo que había (trigger de la base).

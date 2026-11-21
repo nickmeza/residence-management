@@ -19,7 +19,8 @@ Hay tres tipos de persona que lo usan: **arrendador** (y su equipo), **residente
 
 **Alcance actual:** Residencia y Pensión.
 **En pausa (no construir):** lavandería, cowork y espacios de estudio, sensores de mantenimiento predictivo, bot de WhatsApp,
-casilleros inteligentes, compatibilidad entre compañeros, modo vacaciones.
+casilleros inteligentes, compatibilidad entre compañeros, modo vacaciones, usuarios y roles del equipo (encargado,
+mantenimiento, cocina, contabilidad: por ahora hay una sola persona por negocio).
 **Idea futura (solo preparar el modelo, no construir):** "Foráneos", una capa pública para buscar cuartos cerca de universidades u hospitales.
 
 ## 2. Cómo debes trabajar conmigo (importante)

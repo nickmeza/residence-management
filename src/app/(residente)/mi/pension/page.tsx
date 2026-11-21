@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { MyPensionView } from "@/components/pension/my-pension";
+import { DetailSkeleton } from "@/components/skeletons";
 import { limaToday } from "@/server/contracts/dates";
 import { getMyPension } from "@/server/pension/queries";
 
@@ -19,7 +20,7 @@ export default function MyPensionPage() {
         <h1 className="text-2xl font-bold">Mi pensión</h1>
         <p className="text-muted-foreground">Tus comidas de la semana, el menú, tus pagos y tus pausas.</p>
       </div>
-      <Suspense fallback={<p className="text-muted-foreground">Cargando tu pensión…</p>}>
+      <Suspense fallback={<DetailSkeleton />}>
         <Content />
       </Suspense>
     </>

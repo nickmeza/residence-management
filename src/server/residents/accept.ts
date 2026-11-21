@@ -5,6 +5,9 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { business, person, resident, residentInvitation } from "@/db/schema";
 
+import { invitationAccepted } from "@/server/notifications/catalog";
+import { insertAsAdmin } from "@/server/notifications/notify";
+
 import { hashInvitationToken } from "./invitation";
 import { mergePersonData } from "./merge";
 
@@ -86,5 +89,15 @@ export async function acceptInvitationIn(tx: Tx, token: string, userId: string, 
     .update(residentInvitation)
     .set({ acceptedAt: new Date() })
     .where(eq(residentInvitation.id, inv.id));
+  // Aviso al arrendador (aquí no hay sesión de la base: se inserta como administrador).
+  const [owner] = await tx
+    .select({ ownerId: business.ownerId, name: person.fullName })
+    .from(business)
+    .innerJoin(person, eq(person.id, account.id))
+    .where(eq(business.id, card.businessId))
+    .limit(1);
+  if (owner) {
+    await insertAsAdmin(tx, owner.ownerId, card.businessId, invitationAccepted(owner.name, inv.residentId));
+  }
   return { residentId: inv.residentId };
 }

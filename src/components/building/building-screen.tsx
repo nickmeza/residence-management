@@ -4,15 +4,10 @@ import dynamic from "next/dynamic";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 
+import { SceneSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { ViewModeToggle } from "@/components/view-mode-toggle";
-import {
-  decideMode,
-  readDeviceInfo,
-  saveViewMode,
-  type ModeDecision,
-  type ViewMode,
-} from "@/lib/view-mode";
+import { decideMode, readDeviceInfo, saveViewMode, type ModeDecision, type ViewMode } from "@/lib/view-mode";
 import type { BuildingView } from "@/server/business/queries";
 
 import { parseBuildingPath } from "./building-route";
@@ -22,11 +17,7 @@ const Building3DView = dynamic(
   () => import("@/components/edificio-3d/building-3d-view").then((m) => m.Building3DView),
   {
     ssr: false,
-    loading: () => (
-      <p role="status" className="rounded-xl border bg-card p-6 text-muted-foreground shadow-card">
-        Cargando el edificio en 3D…
-      </p>
-    ),
+    loading: () => <SceneSkeleton className="h-[60vh]" />,
   },
 );
 

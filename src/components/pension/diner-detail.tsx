@@ -4,7 +4,9 @@ import { useState, useTransition, type ReactNode } from "react";
 
 import { FormMessage } from "@/components/auth/auth-field";
 import { ConfirmButton } from "@/components/confirm-button";
+import { DateField } from "@/components/date-field";
 import { InviteButton } from "@/components/residents/invite-button";
+import { SelectField } from "@/components/select-field";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,7 +37,6 @@ import { AccountSummary } from "./account-summary";
 import { PaymentDialog } from "./payment-dialog";
 import { SUBSCRIPTION_STATE } from "./subscription-state";
 
-const selectClass = "h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-base md:text-sm";
 const card = "flex flex-col gap-3 rounded-xl border bg-card p-5 shadow-card";
 
 type Fields = Record<string, string>;
@@ -207,32 +208,26 @@ function PlanFields({
   return (
     <>
       <Field id="s-plan" label="Plan" error={errors.planId}>
-        <select
+        <SelectField
           id="s-plan"
-          className={selectClass}
           value={v.planId}
-          onChange={(e) => set({ planId: e.target.value })}
-        >
-          {diner.plans.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} · {formatSoles(p.dailyPrice)} al día{p.active ? "" : " (desactivado)"}
-            </option>
-          ))}
-        </select>
+          onValueChange={(planId) => set({ planId })}
+          options={diner.plans.map((p) => ({
+            value: p.id,
+            label: `${p.name} · ${formatSoles(p.dailyPrice)} al día${p.active ? "" : " (desactivado)"}`,
+          }))}
+        />
       </Field>
       <Field id="s-cycle" label="Paga por adelantado" error={errors.billingCycle}>
-        <select
+        <SelectField
           id="s-cycle"
-          className={selectClass}
           value={v.billingCycle}
-          onChange={(e) => set({ billingCycle: e.target.value as BillingCycle })}
-        >
-          {(Object.keys(BILLING_CYCLE_LABEL) as BillingCycle[]).map((c) => (
-            <option key={c} value={c}>
-              {BILLING_CYCLE_LABEL[c]}
-            </option>
-          ))}
-        </select>
+          onValueChange={(c) => set({ billingCycle: c as BillingCycle })}
+          options={(Object.keys(BILLING_CYCLE_LABEL) as BillingCycle[]).map((c) => ({
+            value: c,
+            label: BILLING_CYCLE_LABEL[c],
+          }))}
+        />
       </Field>
       <Field id="s-diet" label="Dieta o alergias (opcional)" error={errors.dietNote}>
         <Input
@@ -317,12 +312,11 @@ function PlanCard({ diner }: { diner: DinerDetail }) {
               <>
                 <PlanFields diner={diner} v={edit} set={(p) => setEdit({ ...edit, ...p })} errors={e} />
                 <Field id="s-end" label="Último día (opcional)" error={e.endDate}>
-                  <Input
+                  <DateField
+                    clearable
                     id="s-end"
-                    className="h-11"
-                    type="date"
                     value={edit.endDate}
-                    onChange={(x) => setEdit({ ...edit, endDate: x.target.value })}
+                    onValueChange={(v) => setEdit({ ...edit, endDate: v })}
                   />
                 </Field>
               </>
@@ -347,12 +341,10 @@ function PlanCard({ diner }: { diner: DinerDetail }) {
               <>
                 <PlanFields diner={diner} v={fresh} set={(p) => setFresh({ ...fresh, ...p })} errors={e} />
                 <Field id="s-start" label="Desde" error={e.startDate}>
-                  <Input
+                  <DateField
                     id="s-start"
-                    className="h-11"
-                    type="date"
                     value={fresh.startDate}
-                    onChange={(x) => setFresh({ ...fresh, startDate: x.target.value })}
+                    onValueChange={(v) => setFresh({ ...fresh, startDate: v })}
                   />
                 </Field>
               </>
@@ -411,21 +403,17 @@ function PausesCard({ diner }: { diner: DinerDetail }) {
         }}
       >
         <Field id="pa-from" label="Desde">
-          <Input
+          <DateField
             id="pa-from"
-            className="h-11"
-            type="date"
             value={range.fromDate}
-            onChange={(e) => setRange({ ...range, fromDate: e.target.value })}
+            onValueChange={(v) => setRange({ ...range, fromDate: v })}
           />
         </Field>
         <Field id="pa-to" label="Hasta">
-          <Input
+          <DateField
             id="pa-to"
-            className="h-11"
-            type="date"
             value={range.toDate}
-            onChange={(e) => setRange({ ...range, toDate: e.target.value })}
+            onValueChange={(v) => setRange({ ...range, toDate: v })}
           />
         </Field>
         <Button type="submit" variant="outline" className="h-11" disabled={pending}>

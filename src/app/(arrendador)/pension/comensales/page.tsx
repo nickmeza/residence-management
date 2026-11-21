@@ -3,6 +3,7 @@ import { Suspense } from "react";
 
 import { DinerList } from "@/components/pension/diner-list";
 import { currentPension, NotAPension, PensionHeader } from "@/components/pension/pension-page";
+import { ListSkeleton } from "@/components/skeletons";
 import { getPensionAdmin, listDiners } from "@/server/pension/queries";
 
 export const metadata: Metadata = { title: "Pensión · Clientes · Gestión de residencias" };
@@ -31,7 +32,7 @@ export default function DinersPage() {
         tab="comensales"
         description="Quién come en tu pensión, con qué plan y hasta cuándo pagó."
       />
-      <Suspense fallback={<p className="text-muted-foreground">Cargando tus comensales…</p>}>
+      <Suspense fallback={<ListSkeleton />}>
         <Content />
       </Suspense>
     </>

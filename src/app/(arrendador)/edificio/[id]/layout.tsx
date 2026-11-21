@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 
 import { BuildingScreen } from "@/components/building/building-screen";
+import { BuildingSkeleton } from "@/components/skeletons";
 import { getBuilding } from "@/server/business/queries";
 
 // Marco del edificio: el interruptor 3D/Simple y, en 3D, el edificio al lado de la página. Lo comparten las
@@ -15,7 +16,7 @@ async function Frame({ params, children }: { params: Promise<{ id: string }>; ch
 
 export default function BuildingLayout({ params, children }: LayoutProps<"/edificio/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando el edificio…</p>}>
+    <Suspense fallback={<BuildingSkeleton />}>
       <Frame params={params}>{children}</Frame>
     </Suspense>
   );

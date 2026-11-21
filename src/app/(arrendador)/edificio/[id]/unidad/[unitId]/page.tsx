@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { locateUnit } from "@/components/building/floor-units";
 import { unitHref } from "@/components/building/building-route";
 import { UnitDetail } from "@/components/building/unit-detail";
+import { DetailSkeleton } from "@/components/skeletons";
 import { getBuilding } from "@/server/business/queries";
 
 export const metadata: Metadata = { title: "Unidad · Gestión de residencias" };
@@ -33,7 +34,7 @@ async function Content({ params, searchParams }: Pick<Props, "params" | "searchP
 
 export default function UnitPage({ params, searchParams }: Props) {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando la unidad…</p>}>
+    <Suspense fallback={<DetailSkeleton />}>
       <Content params={params} searchParams={searchParams} />
     </Suspense>
   );

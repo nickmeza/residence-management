@@ -7,6 +7,9 @@ import { withRls } from "@/db/rls";
 import { getSessionClaims } from "@/server/auth/session";
 import { isUuid } from "@/server/business/queries";
 import { issuesByPath } from "@/server/onboarding/schema";
+import { mealCancelled } from "@/server/notifications/catalog";
+import { residentInfo } from "@/server/notifications/context";
+import { notifyOwner } from "@/server/notifications/notify";
 import { fileExists } from "@/server/payments/storage";
 
 import * as m from "./mutations";
@@ -212,10 +215,18 @@ const DINER_MESSAGE: Record<string, string> = {
   overlap: "Ya tienes una pausa en esas fechas.",
 };
 
-async function runDiner(query: ReturnType<typeof sql>): Promise<PensionResult> {
+async function runDiner(
+  query: ReturnType<typeof sql>,
+  // Lo que se hace si la base respondió "ok" (por ejemplo, avisar a la cocina), en la misma transacción.
+  after?: Parameters<typeof withRls<void>>[1],
+): Promise<PensionResult> {
   const claims = await getSessionClaims();
   try {
-    const [row] = (await withRls(claims, (tx) => tx.execute(query))) as unknown as { r: string }[];
+    const [row] = await withRls(claims, async (tx) => {
+      const rows = (await tx.execute(query)) as unknown as { r: string }[];
+      if (rows[0]?.r === "ok" && after) await after(tx);
+      return rows;
+    });
     if (row?.r !== "ok")
       return { ok: false, message: DINER_MESSAGE[row?.r ?? ""] ?? DINER_MESSAGE.not_found };
     revalidatePath("/mi", "layout");
@@ -234,6 +245,12 @@ export async function cancelMyMealAction(input: unknown): Promise<PensionResult>
   const { residentId, date, meal, cancel } = parsed.data;
   return runDiner(
     sql`select public.cancel_my_meal(${residentId}::uuid, ${date}::date, ${meal}::public.meal_type, ${cancel}) as r`,
+    cancel
+      ? async (tx) => {
+          const who = await residentInfo(tx, residentId);
+          if (who) await notifyOwner(tx, who.businessId, mealCancelled(who.name, meal, date));
+        }
+      : undefined,
   );
 }
 

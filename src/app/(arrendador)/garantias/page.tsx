@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { DepositList } from "@/components/deposits/deposit-list";
+import { ListSkeleton } from "@/components/skeletons";
 import { buttonVariants } from "@/components/ui/button";
 import { getShellData } from "@/server/business/current";
 import { listDeposits } from "@/server/deposits/queries";
@@ -40,7 +41,7 @@ async function Content() {
 
 export default function DepositsPage() {
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>
+    <Suspense fallback={<ListSkeleton />}>
       <Content />
     </Suspense>
   );
