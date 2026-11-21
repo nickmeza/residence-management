@@ -45,7 +45,8 @@ export const contractStatus = pgEnum("contract_status", [
   "cancelled",
 ]);
 export const documentFormat = pgEnum("document_format", ["pdf", "image"]);
-export const documentKind = pgEnum("document_kind", ["requirement", "signed_contract", "other"]);
+// contract_file: el contrato sin firmar que sube el arrendador para que el residente lo descargue y lo firme.
+export const documentKind = pgEnum("document_kind", ["requirement", "signed_contract", "other", "contract_file"]);
 export const documentStatus = pgEnum("document_status", ["in_review", "verified", "rejected"]);
 // Fase 5. Regla 5: sin garantía, 1 mes, 2 meses o monto fijo.
 export const depositRule = pgEnum("deposit_rule", ["none", "one_month", "two_months", "fixed"]);
@@ -415,6 +416,8 @@ export const contract = pgTable(
     templateId: uuid().references(() => contractTemplate.id, { onDelete: "restrict" }),
     status: contractStatus().notNull().default("draft"),
     confirmedAt: timestamp({ withTimezone: true }),
+    // Quién lo cerró: el residente al aceptarlo, o el arrendador al confirmar la firma o "aceptó en persona".
+    confirmedBy: uuid().references(() => person.id, { onDelete: "set null" }),
     cancelledAt: timestamp({ withTimezone: true }),
     renewedFromId: uuid().references((): AnyPgColumn => contract.id, { onDelete: "set null" }),
     // Garantía decidida para esta persona (por ejemplo, un familiar sin garantía). Vacía = la de la unidad o la de
@@ -435,11 +438,7 @@ export const contract = pgTable(
       "contract_template_matches_paperwork",
       sql`(${t.paperwork} = 'template') = (${t.templateId} is not null)`,
     ),
-    // Sin contrato escrito no hay nada que firmar.
-    check(
-      "contract_none_without_signature",
-      sql`${t.paperwork} <> 'none' or ${t.status} <> 'pending_signature'`,
-    ),
+    // Sin contrato escrito también se envía: queda pendiente hasta que el residente lo acepte (2026-11-21).
     check("contract_confirmed_at", sql`${t.status} <> 'confirmed' or ${t.confirmedAt} is not null`),
     check("contract_cancelled_at", sql`${t.status} <> 'cancelled' or ${t.cancelledAt} is not null`),
     check(
@@ -601,6 +600,11 @@ export const document = pgTable(
       "document_signed_contract_has_contract",
       sql`${t.kind} <> 'signed_contract' or ${t.contractId} is not null`,
     ),
+    // ::text porque el valor es nuevo en el enum y Postgres no deja usarlo en la misma transacción que lo agrega.
+    check(
+      "document_contract_file_has_contract",
+      sql`${t.kind}::text <> 'contract_file' or ${t.contractId} is not null`,
+    ),
     pgPolicy("document_landlord_all", {
       for: "all",
       to: authenticatedRole,
@@ -612,12 +616,13 @@ export const document = pgTable(
       to: authenticatedRole,
       using: sql`${t.residentId} in ${myOwnResidentIds}`,
     }),
-    // El residente sube los suyos, a su nombre y sin poder marcarlos como verificados.
+    // El residente sube los suyos, a su nombre y sin poder marcarlos como verificados. El contrato sin firmar
+    // (contract_file) solo lo sube el arrendador.
     pgPolicy("document_insert_own", {
       for: "insert",
       to: authenticatedRole,
       withCheck: sql`${t.residentId} in ${myOwnResidentIds} and ${t.uploadedBy} in ${myPersonIds}
-        and ${t.status} = 'in_review' and ${t.reviewedBy} is null`,
+        and ${t.status} = 'in_review' and ${t.reviewedBy} is null and ${t.kind}::text <> 'contract_file'`,
     }),
   ],
 );

@@ -96,7 +96,7 @@ export function confirmProblems(input: {
   requirements: RequirementRule[];
   exemptIds: readonly string[];
   documents: {
-    kind: "requirement" | "signed_contract" | "other";
+    kind: "requirement" | "signed_contract" | "other" | "contract_file";
     requirementId: string | null;
     status: "in_review" | "verified" | "rejected";
   }[];
